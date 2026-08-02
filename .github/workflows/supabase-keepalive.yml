@@ -1,0 +1,44 @@
+# =====================================================================
+# Supabase 무료 플랜 일시정지 방지
+# =====================================================================
+# 무료 플랜은 7일간 활동이 없으면 프로젝트가 일시정지됩니다.
+# 매일 한 번 실제 DB 쿼리를 날려 활동 기록을 남깁니다.
+#
+# 설정 (1회):
+#   저장소 Settings → Secrets and variables → Actions → New repository secret
+#   이름: SUPABASE_ANON_KEY / 값: .env.local 의 anon 키 그대로
+#
+# 참고: GitHub 는 저장소에 60일간 커밋이 없으면 예약 실행을 자동 중지하고
+#       메일로 알려줍니다. 그 메일이 오면 Actions 탭에서 버튼 한 번으로
+#       다시 켤 수 있습니다. (커밋이 한 번이라도 있으면 타이머가 리셋됩니다)
+# =====================================================================
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 09:00 (한국 시간)
+  workflow_dispatch:        # Actions 탭에서 수동 실행 버튼
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: DB 쿼리로 활동 기록 남기기
+        env:
+          SUPABASE_URL: https://slddnhyvstfvobxxcazt.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_ANON_KEY 시크릿이 설정되지 않았습니다. 저장소 Settings > Secrets 에서 추가해주세요."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/reviews?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "HTTP $code / 응답: $(cat /tmp/body)"
+          if [ "$code" != "200" ] && [ "$code" != "206" ]; then
+            echo "::error::Supabase 응답이 비정상입니다 (HTTP $code). 프로젝트가 이미 일시정지됐거나 키가 잘못됐을 수 있습니다."
+            exit 1
+          fi
+          echo "활동 기록 완료 — 일시정지 타이머가 리셋되었습니다."
