@@ -9,16 +9,17 @@ import TermsAgreement, {
   type TermsAgreementState,
 } from '@/components/common/TermsAgreement';
 import { signUp } from './auth.api';
-import { SCHOOLS } from '@/lib/constants';
+import { CONTACT_TYPES, SCHOOLS, labelContact, schoolLabel } from '@/lib/constants';
 import {
   isValidName, isValidPassword, isValidStudentNumber, isValidUsername,
-  normalizeStudentNumber, passwordHint, studentNumberError, studentNumberHint,
-  studentNumberPlaceholder, usernameHint,
+  normalizeContactId, normalizeStudentNumber, validateContact,
 } from '@/utils/validators';
 import { koMessage } from '@/utils/errors';
+import { useI18n } from '@/i18n';
 
 export default function RegisterPage() {
   const nav = useNavigate();
+  const { t } = useI18n();
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -27,7 +28,7 @@ export default function RegisterPage() {
     gender: 'male' as 'male' | 'female',
     school: '강원대' as (typeof SCHOOLS)[number],
     student_number: '',
-    contact_type: 'kakao' as 'kakao' | 'instagram',
+    contact_type: 'kakao' as 'kakao' | 'phone',
     contact_id: '',
   });
   const [agree, setAgree] = useState<TermsAgreementState>(EMPTY_TERMS_AGREEMENT);
@@ -42,15 +43,16 @@ export default function RegisterPage() {
     e.preventDefault();
     setErr(null);
 
-    if (!isValidUsername(form.username)) return setErr(usernameHint);
-    if (!isValidPassword(form.password)) return setErr(passwordHint);
-    if (form.password !== form.password2) return setErr('비밀번호가 일치하지 않습니다.');
-    if (!isValidName(form.name)) return setErr('이름을 2~20자로 입력해주세요.');
-    if (!isValidStudentNumber(form.student_number)) return setErr(studentNumberError);
-    if (form.contact_id.trim().length < 2) return setErr('연락 ID를 입력해주세요.');
-    if (!file) return setErr('학생증 사진을 업로드해주세요.');
-    if (!isAllAgreed(agree)) return setErr('필수 약관 3개에 모두 동의해야 가입할 수 있습니다.');
-    if (file.size > 5 * 1024 * 1024) return setErr('학생증 이미지는 5MB 이하만 업로드 가능합니다.');
+    if (!isValidUsername(form.username)) return setErr(t.validators.usernameHint);
+    if (!isValidPassword(form.password)) return setErr(t.validators.passwordHint);
+    if (form.password !== form.password2) return setErr(t.register.errPasswordMismatch);
+    if (!isValidName(form.name)) return setErr(t.register.errName);
+    if (!isValidStudentNumber(form.student_number)) return setErr(t.validators.studentNumberError);
+    const contactErr = validateContact(form.contact_type, form.contact_id);
+    if (contactErr) return setErr(contactErr);
+    if (!file) return setErr(t.register.errStudentIdPhoto);
+    if (!isAllAgreed(agree)) return setErr(t.register.errTermsRequired);
+    if (file.size > 5 * 1024 * 1024) return setErr(t.register.errImageTooLarge);
 
     setLoading(true);
     try {
@@ -62,13 +64,13 @@ export default function RegisterPage() {
         school: form.school,
         student_number: normalizeStudentNumber(form.student_number),
         contact_type: form.contact_type,
-        contact_id: form.contact_id.trim(),
+        contact_id: normalizeContactId(form.contact_type, form.contact_id),
         studentIdFile: file,
         agreed_privacy: true,
         agreed_terms: true,
         agreed_disclaimer: true,
       });
-      alert('가입이 완료되었습니다. 로그인해주세요. (학교 인증은 관리자 승인 후 적용됩니다.)');
+      alert(t.register.successAlert);
       nav('/login', { replace: true });
     } catch (e) {
       setErr(koMessage(e));
@@ -81,28 +83,28 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-b from-sakura-50 to-cream">
       <div className="mx-auto max-w-md px-6 py-10">
         <div className="mb-6 text-center">
-          <h1 className="font-display text-3xl font-bold text-sakura-600">회원가입</h1>
-          <p className="mt-1 text-sm text-zinc-500">춘천과팅에 오신 것을 환영합니다</p>
+          <h1 className="font-display text-3xl font-bold text-sakura-600">{t.register.title}</h1>
+          <p className="mt-1 text-sm text-zinc-500">{t.register.welcome}</p>
         </div>
 
         <form onSubmit={submit} className="card space-y-4 p-5">
-          <Input label="아이디" hint={usernameHint} value={form.username} onChange={(e) => set('username', e.target.value)} />
-          <Input label="비밀번호" type="password" hint={passwordHint} value={form.password} onChange={(e) => set('password', e.target.value)} />
-          <Input label="비밀번호 확인" type="password" value={form.password2} onChange={(e) => set('password2', e.target.value)} />
-          <Input label="이름" placeholder="실명" value={form.name} onChange={(e) => set('name', e.target.value)} />
+          <Input label={t.login.username} hint={t.validators.usernameHint} value={form.username} onChange={(e) => set('username', e.target.value)} />
+          <Input label={t.login.password} type="password" hint={t.validators.passwordHint} value={form.password} onChange={(e) => set('password', e.target.value)} />
+          <Input label={t.register.passwordConfirm} type="password" value={form.password2} onChange={(e) => set('password2', e.target.value)} />
+          <Input label={t.register.name} placeholder={t.register.namePlaceholder} value={form.name} onChange={(e) => set('name', e.target.value)} />
 
-          <Select label="성별" value={form.gender} onChange={(e) => set('gender', e.target.value as 'male' | 'female')}>
-            <option value="male">남자</option>
-            <option value="female">여자</option>
+          <Select label={t.register.gender} value={form.gender} onChange={(e) => set('gender', e.target.value as 'male' | 'female')}>
+            <option value="male">{t.labels.gender.male}</option>
+            <option value="female">{t.labels.gender.female}</option>
           </Select>
 
           <div className="grid grid-cols-2 gap-3">
-            <Select label="학교" value={form.school} onChange={(e) => set('school', e.target.value as (typeof SCHOOLS)[number])}>
-              {SCHOOLS.map((s) => <option key={s} value={s}>{s}</option>)}
+            <Select label={t.register.school} value={form.school} onChange={(e) => set('school', e.target.value as (typeof SCHOOLS)[number])}>
+              {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
             </Select>
             <Input
-              label="학번"
-              placeholder={studentNumberPlaceholder}
+              label={t.register.studentNumber}
+              placeholder={t.validators.studentNumberPlaceholder}
               inputMode="numeric"
               maxLength={14}
               value={form.student_number}
@@ -111,29 +113,35 @@ export default function RegisterPage() {
           </div>
 
           <p className="-mt-2 text-xs leading-relaxed text-zinc-400">
-            {studentNumberHint}<br />
-            아이디·성별·학교는 학생증 인증과 연결되어 가입 후 변경할 수 없습니다. 정확히 입력해주세요.
+            {t.validators.studentNumberHint}<br />
+            {t.register.immutableNote}
           </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Select label="연락수단" value={form.contact_type} onChange={(e) => set('contact_type', e.target.value as 'kakao' | 'instagram')}>
-                <option value="kakao">카카오톡</option>
-                <option value="instagram">인스타</option>
+              <Select label={t.register.contactType} value={form.contact_type} onChange={(e) => set('contact_type', e.target.value as 'kakao' | 'phone')}>
+                {CONTACT_TYPES.map((v) => (
+                  <option key={v} value={v}>{labelContact(v)}</option>
+                ))}
               </Select>
             </div>
             <div>
               <Input
-                label="연락 ID"
-                placeholder={form.contact_type === 'kakao' ? '카카오톡 ID' : '인스타 아이디'}
+                label={form.contact_type === 'kakao' ? t.register.kakaoId : t.register.phone}
+                placeholder={form.contact_type === 'kakao' ? t.register.kakaoId : t.validators.phonePlaceholder}
+                inputMode={form.contact_type === 'phone' ? 'tel' : undefined}
                 value={form.contact_id}
                 onChange={(e) => set('contact_id', e.target.value)}
               />
             </div>
           </div>
 
+          <p className="-mt-2 text-xs leading-relaxed text-zinc-400">
+            {t.register.contactPrivacyNote}
+          </p>
+
           <div>
-            <label className="label">학생증 사진</label>
+            <label className="label">{t.register.studentIdPhoto}</label>
             <input
               type="file"
               accept="image/*"
@@ -141,7 +149,7 @@ export default function RegisterPage() {
               className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-sakura-100 file:px-4 file:py-2 file:text-sakura-700"
             />
             <p className="mt-1 text-xs text-zinc-400">
-              관리자 승인 후 학교 인증 뱃지가 부여됩니다. 본인 이외에는 노출되지 않습니다.
+              {t.register.studentIdNote}
             </p>
           </div>
 
@@ -151,10 +159,10 @@ export default function RegisterPage() {
             <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600 ring-1 ring-rose-100">{err}</div>
           )}
 
-          <Button type="submit" loading={loading} className="w-full">가입하기</Button>
+          <Button type="submit" loading={loading} className="w-full">{t.register.submit}</Button>
           <p className="text-center text-sm text-zinc-500">
-            이미 계정이 있으신가요?{' '}
-            <Link to="/login" className="font-semibold text-sakura-600">로그인</Link>
+            {t.register.haveAccount}{' '}
+            <Link to="/login" className="font-semibold text-sakura-600">{t.common.login}</Link>
           </p>
         </form>
       </div>

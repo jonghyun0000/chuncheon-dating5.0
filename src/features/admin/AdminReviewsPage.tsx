@@ -7,8 +7,11 @@ import { deleteReviewAdmin, listAllReviews, setReviewStatus } from './admin.api'
 import type { Review } from '@/types/database.types';
 import { formatDate } from '@/utils/format';
 import { koMessage } from '@/utils/errors';
+import { labelReviewStatus, schoolLabel } from '@/lib/constants';
+import { useI18n } from '@/i18n';
 
 export default function AdminReviewsPage() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Review[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
@@ -25,14 +28,14 @@ export default function AdminReviewsPage() {
   };
 
   const onDelete = async (r: Review) => {
-    if (!confirm('정말 삭제할까요?')) return;
+    if (!confirm(t.admin.reviewDeleteConfirm)) return;
     try { await deleteReviewAdmin(r.id); await load(); }
     catch (e) { alert(koMessage(e)); }
   };
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-zinc-900">후기관리</h1>
+      <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.reviewsTitle}</h1>
 
       <div className="mt-3 mb-5 flex gap-2 flex-wrap">
         {(['pending', 'approved', 'rejected', 'all'] as const).map((k) => (
@@ -43,32 +46,32 @@ export default function AdminReviewsPage() {
               filter === k ? 'bg-sakura-500 text-white ring-sakura-500' : 'bg-white text-zinc-600 ring-zinc-200'
             }`}
           >
-            {k === 'pending' ? '대기' : k === 'approved' ? '승인' : k === 'rejected' ? '거절' : '전체'}
+            {k === 'pending' ? t.admin.filterPending : k === 'approved' ? t.admin.filterApproved : k === 'rejected' ? t.admin.filterRejected : t.common.all}
           </button>
         ))}
       </div>
 
-      <AdminTable headers={['닉네임', '학교', '별점', '내용', '상태', '작성일', '관리']}>
+      <AdminTable headers={t.admin.reviewsHeaders}>
         {visible.map((r) => (
           <tr key={r.id}>
             <td className="px-4 py-3 font-medium">{r.nickname}</td>
-            <td className="px-4 py-3">{r.school}</td>
+            <td className="px-4 py-3">{schoolLabel(r.school)}</td>
             <td className="px-4 py-3"><Stars rating={r.rating} size={12} /></td>
             <td className="px-4 py-3 max-w-xs"><p className="line-clamp-2 text-zinc-700">{r.content}</p></td>
-            <td className="px-4 py-3"><Badge tone={r.status === 'approved' ? 'green' : r.status === 'rejected' ? 'gray' : 'amber'}>{r.status}</Badge></td>
+            <td className="px-4 py-3"><Badge tone={r.status === 'approved' ? 'green' : r.status === 'rejected' ? 'gray' : 'amber'}>{labelReviewStatus(r.status)}</Badge></td>
             <td className="px-4 py-3 text-xs text-zinc-500">{formatDate(r.created_at)}</td>
             <td className="px-4 py-3">
               <div className="flex flex-wrap gap-1">
-                {r.status !== 'approved' && <button onClick={() => setStatus(r, 'approved')} className="rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100">승인</button>}
-                {r.status !== 'rejected' && <button onClick={() => setStatus(r, 'rejected')} className="rounded-md bg-zinc-100 px-2 py-1 text-xs hover:bg-zinc-200">거절</button>}
-                <button onClick={() => onDelete(r)} className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-600 hover:bg-rose-100">삭제</button>
+                {r.status !== 'approved' && <button onClick={() => setStatus(r, 'approved')} className="rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100">{t.admin.approve}</button>}
+                {r.status !== 'rejected' && <button onClick={() => setStatus(r, 'rejected')} className="rounded-md bg-zinc-100 px-2 py-1 text-xs hover:bg-zinc-200">{t.admin.rejectBtn}</button>}
+                <button onClick={() => onDelete(r)} className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-600 hover:bg-rose-100">{t.common.delete}</button>
               </div>
             </td>
           </tr>
         ))}
       </AdminTable>
 
-      {visible.length === 0 && <p className="mt-10 text-center text-sm text-zinc-400">해당 조건의 후기가 없습니다.</p>}
+      {visible.length === 0 && <p className="mt-10 text-center text-sm text-zinc-400">{t.admin.reviewsEmpty}</p>}
     </div>
   );
 }

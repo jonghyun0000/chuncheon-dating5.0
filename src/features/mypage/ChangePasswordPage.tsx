@@ -5,11 +5,13 @@ import PageLayout from '@/components/layout/PageLayout';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
 import { changeMyPassword } from '@/features/auth/auth.api';
-import { isValidPassword, passwordHint } from '@/utils/validators';
+import { isValidPassword } from '@/utils/validators';
 import { koMessage } from '@/utils/errors';
+import { useI18n } from '@/i18n';
 
 export default function ChangePasswordPage() {
   const nav = useNavigate();
+  const { t } = useI18n();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [next2, setNext2] = useState('');
@@ -20,15 +22,15 @@ export default function ChangePasswordPage() {
     e.preventDefault();
     setErr(null);
 
-    if (!current) return setErr('현재 비밀번호를 입력해주세요.');
-    if (!isValidPassword(next)) return setErr(passwordHint);
-    if (next !== next2) return setErr('새 비밀번호가 서로 일치하지 않습니다.');
-    if (next === current) return setErr('현재 비밀번호와 다른 비밀번호를 사용해주세요.');
+    if (!current) return setErr(t.changePassword.errCurrent);
+    if (!isValidPassword(next)) return setErr(t.validators.passwordHint);
+    if (next !== next2) return setErr(t.changePassword.errMismatch);
+    if (next === current) return setErr(t.changePassword.errSame);
 
     setLoading(true);
     try {
       await changeMyPassword(current, next);
-      alert('비밀번호가 변경되었습니다.');
+      alert(t.changePassword.doneAlert);
       nav('/me', { replace: true });
     } catch (e) {
       setErr(koMessage(e));
@@ -38,14 +40,14 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <PageLayout subtitle="비밀번호 변경" hideNav>
+    <PageLayout subtitle={t.changePassword.subtitle} hideNav>
       <button
         type="button"
         onClick={() => nav(-1)}
         className="mb-3 inline-flex items-center gap-1 text-sm text-zinc-500 transition hover:text-zinc-800"
       >
         <ArrowLeft size={16} strokeWidth={2} />
-        내 정보로
+        {t.editProfile.backToMe}
       </button>
 
       <form onSubmit={submit} className="card space-y-4 p-5">
@@ -54,28 +56,28 @@ export default function ChangePasswordPage() {
             <KeyRound size={18} strokeWidth={1.8} />
           </span>
           <div>
-            <h2 className="font-display text-lg font-bold text-zinc-900">비밀번호 변경</h2>
-            <p className="text-xs text-zinc-500">임시 비밀번호를 받으셨다면 꼭 변경해주세요.</p>
+            <h2 className="font-display text-lg font-bold text-zinc-900">{t.changePassword.heading}</h2>
+            <p className="text-xs text-zinc-500">{t.changePassword.tempNote}</p>
           </div>
         </div>
 
         <Input
-          label="현재 비밀번호"
+          label={t.changePassword.current}
           type="password"
           autoComplete="current-password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
         />
         <Input
-          label="새 비밀번호"
+          label={t.changePassword.next}
           type="password"
           autoComplete="new-password"
-          hint={passwordHint}
+          hint={t.validators.passwordHint}
           value={next}
           onChange={(e) => setNext(e.target.value)}
         />
         <Input
-          label="새 비밀번호 확인"
+          label={t.changePassword.next2}
           type="password"
           autoComplete="new-password"
           value={next2}
@@ -89,7 +91,7 @@ export default function ChangePasswordPage() {
         )}
 
         <Button type="submit" loading={loading} className="w-full">
-          변경하기
+          {t.changePassword.submit}
         </Button>
       </form>
     </PageLayout>

@@ -11,6 +11,8 @@ import {
   RefreshCw,
   RotateCcw,
   Shuffle,
+  TriangleAlert,
+  UsersRound,
 } from 'lucide-react';
 import Loading from '@/components/common/Loading';
 import Badge from '@/components/common/Badge';
@@ -21,7 +23,13 @@ import {
   labelContact,
   labelNotificationType,
 } from '@/lib/constants';
-import type { NotificationType, NotificationWithTarget, School } from '@/types/database.types';
+import type {
+  NotificationType,
+  NotificationWithTarget,
+  RosterTeam,
+  School,
+} from '@/types/database.types';
+import { tr, useI18n, type Dict } from '@/i18n';
 import { formatDateTime } from '@/utils/format';
 import { koMessage } from '@/utils/errors';
 import {
@@ -33,12 +41,12 @@ import {
 
 type TypeFilter = NotificationType | 'all';
 
-const TYPE_FILTERS: { key: TypeFilter; label: string }[] = [
-  { key: 'all', label: '유형 전체' },
-  { key: 'match_request', label: '매칭 신청' },
-  { key: 'match_accepted', label: '매칭 성사' },
-  { key: 'password_reset', label: '비밀번호' },
-  { key: 'report', label: '신고' },
+const TYPE_FILTERS: { key: TypeFilter; label: (t: Dict) => string }[] = [
+  { key: 'all', label: (t) => t.admin.filterAllTypes },
+  { key: 'match_request', label: (t) => t.admin.typeMatchRequest },
+  { key: 'match_accepted', label: (t) => t.admin.typeMatchAccepted },
+  { key: 'password_reset', label: (t) => t.admin.typePassword },
+  { key: 'report', label: (t) => t.admin.typeReport },
 ];
 
 function TypeIcon({ type }: { type: NotificationType }) {
@@ -55,7 +63,101 @@ const typeTone = (t: NotificationType) =>
   : t === 'report' ? 'gray'
   : 'amber';
 
+/** 매칭 성사 payload 에서 단체방 개설용 명단을 꺼냅니다. (없으면 빈 배열) */
+const rosterOf = (n: NotificationWithTarget): RosterTeam[] => {
+  const r = (n.payload as { roster?: unknown } | null)?.roster;
+  return Array.isArray(r) ? (r as RosterTeam[]) : [];
+};
+
+/** 단체방 개설용 명단을 텍스트로 (메모장·카톡에 붙여넣기 용) */
+const rosterToText = (roster: RosterTeam[]): string => {
+  const d = tr();
+  return roster
+    .map((team) => {
+      const genderLabel = team.gender === 'male' ? d.admin.maleTeam : d.admin.femaleTeam;
+      const head = d.admin.rosterTextHeader(genderLabel, team.intro, team.owner_name, team.owner_username);
+      const rows = (team.members ?? [])
+        .map((m) => `- ${m.nickname} (${d.schools.short[m.school] ?? m.school} ${m.department}) · ${labelContact(m.contact_type)}: ${m.contact_id}`)
+        .join('\n');
+      return `${head}\n${rows}`;
+    })
+    .join('\n\n');
+};
+
+/** 매칭 성사 알림 전용: 양 팀 명단 + 연락처 (관리자만 보는 화면) */
+function RosterPanel({
+  roster,
+  onCopyAll,
+  copiedAll,
+}: {
+  roster: RosterTeam[];
+  onCopyAll: () => void;
+  copiedAll: boolean;
+}) {
+  const { t } = useI18n();
+  if (roster.length === 0) return null;
+  return (
+    <div className="mt-3 rounded-2xl bg-emerald-50/60 px-4 py-3 ring-1 ring-emerald-100">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+          <UsersRound size={14} strokeWidth={2} />
+          {t.admin.rosterTitle}
+        </p>
+        <button
+          type="button"
+          onClick={onCopyAll}
+          className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[11px] text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-50"
+        >
+          {copiedAll ? <Check size={12} strokeWidth={2.4} /> : <Copy size={12} strokeWidth={2} />}
+          {copiedAll ? t.common.copied : t.admin.rosterCopyAll}
+        </button>
+      </div>
+
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {roster.map((team) => (
+          <div key={team.team_id} className="rounded-xl bg-white p-3 ring-1 ring-zinc-100">
+            <p className="text-xs font-bold text-zinc-800">
+              <span className={team.gender === 'male' ? 'text-blue-600' : 'text-sakura-600'}>
+                {team.gender === 'male' ? t.admin.maleTeam : t.admin.femaleTeam}
+              </span>
+              <span className="ml-1.5 font-medium text-zinc-500">"{team.intro}"</span>
+            </p>
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              {t.admin.rosterOwner(team.owner_name, team.owner_username)}
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {(team.members ?? []).map((m, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate text-zinc-700">
+                    {m.nickname}
+                    <span className="ml-1 text-[11px] text-zinc-400">{t.schools.short[m.school] ?? m.school}</span>
+                  </span>
+                  {m.contact_type === 'instagram' ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 ring-1 ring-amber-200">
+                      <TriangleAlert size={11} strokeWidth={2} />
+                      {t.admin.legacyInstagram}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 font-mono text-[11px] text-zinc-600">
+                      {labelContact(m.contact_type)} {m.contact_id}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-2 text-[11px] leading-relaxed text-emerald-700/80">
+        {t.admin.rosterFooter}
+      </p>
+    </div>
+  );
+}
+
 export default function AdminNotificationsPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<NotificationWithTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +166,7 @@ export default function AdminNotificationsPage() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedRosterId, setCopiedRosterId] = useState<string | null>(null);
   const [tempPasswords, setTempPasswords] = useState<Record<string, string>>({});
   const copyTimer = useRef<number | null>(null);
 
@@ -113,12 +216,22 @@ export default function AdminNotificationsPage() {
   const onCopy = async (n: NotificationWithTarget) => {
     const ok = await copyToClipboard(buildMessage(n));
     if (!ok) {
-      alert('복사에 실패했어요. 문구를 길게 눌러 직접 복사해주세요.');
+      alert(t.admin.copyFailed);
       return;
     }
     setCopiedId(n.id);
     if (copyTimer.current) window.clearTimeout(copyTimer.current);
     copyTimer.current = window.setTimeout(() => setCopiedId(null), 1800);
+  };
+
+  const onCopyRoster = async (n: NotificationWithTarget) => {
+    const ok = await copyToClipboard(rosterToText(rosterOf(n)));
+    if (!ok) {
+      alert(t.admin.rosterCopyFailed);
+      return;
+    }
+    setCopiedRosterId(n.id);
+    window.setTimeout(() => setCopiedRosterId((cur) => (cur === n.id ? null : cur)), 1800);
   };
 
   const onToggleHandled = async (n: NotificationWithTarget) => {
@@ -145,16 +258,16 @@ export default function AdminNotificationsPage() {
         <div>
           <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-zinc-900">
             <BellRing size={22} strokeWidth={1.8} className="text-sakura-500" />
-            알림
+            {t.admin.notifTitle}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            신청과 수락이 발생하면 자동으로 쌓입니다. 문구를 복사해 카카오톡으로 직접 보내주세요.
+            {t.admin.notifSubtitle}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {lastSync && (
             <span className="text-[11px] text-zinc-400">
-              {formatDateTime(lastSync.toISOString())} 기준
+              {t.admin.asOf(formatDateTime(lastSync.toISOString()))}
             </span>
           )}
           <button
@@ -163,7 +276,7 @@ export default function AdminNotificationsPage() {
             className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-200"
           >
             <RefreshCw size={14} strokeWidth={2} className={refreshing ? 'animate-spin' : ''} />
-            새로고침
+            {t.common.refresh}
           </button>
         </div>
       </div>
@@ -179,7 +292,7 @@ export default function AdminNotificationsPage() {
               : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'
           }`}
         >
-          미처리 {unhandledOnly && unhandledCount > 0 ? `(${unhandledCount})` : ''}
+          {t.admin.filterUnhandled} {unhandledOnly && unhandledCount > 0 ? `(${unhandledCount})` : ''}
         </button>
         <button
           type="button"
@@ -190,7 +303,7 @@ export default function AdminNotificationsPage() {
               : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'
           }`}
         >
-          전체
+          {t.common.all}
         </button>
 
         <span className="mx-1 h-4 w-px bg-zinc-200" />
@@ -206,23 +319,23 @@ export default function AdminNotificationsPage() {
                 : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'
             }`}
           >
-            {f.label}
+            {f.label(t)}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <Loading label="알림을 불러오고 있어요" />
+        <Loading />
       ) : items.length === 0 ? (
         <div className="card mt-5 flex flex-col items-center justify-center py-16 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600">
             <Check size={24} strokeWidth={1.8} />
           </span>
           <p className="mt-3 font-semibold text-zinc-700">
-            {unhandledOnly ? '미처리 알림이 없습니다' : '알림이 없습니다'}
+            {unhandledOnly ? t.admin.notifEmptyUnhandled : t.admin.notifEmptyAll}
           </p>
           <p className="mt-1 text-sm text-zinc-400">
-            새 신청이나 수락이 생기면 30초 안에 여기에 표시됩니다.
+            {t.admin.notifEmptyDesc}
           </p>
         </div>
       ) : (
@@ -246,9 +359,9 @@ export default function AdminNotificationsPage() {
                       {labelNotificationType(n.type)}
                     </Badge>
                     {n.is_handled ? (
-                      <Badge tone="gray">처리 완료</Badge>
+                      <Badge tone="gray">{t.admin.handledBadge}</Badge>
                     ) : (
-                      <Badge tone="amber">미처리</Badge>
+                      <Badge tone="amber">{t.admin.unhandledBadge}</Badge>
                     )}
                     {target?.school && (
                       <span
@@ -256,7 +369,7 @@ export default function AdminNotificationsPage() {
                           SCHOOL_BADGE_COLOR[target.school as School]
                         }`}
                       >
-                        {target.school}
+                        {t.schools.short[target.school] ?? target.school}
                       </span>
                     )}
                   </div>
@@ -285,7 +398,7 @@ export default function AdminNotificationsPage() {
                           className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[11px] text-zinc-600 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
                         >
                           <Copy size={12} strokeWidth={2} />
-                          ID 복사
+                          {t.admin.copyId}
                         </button>
                         {instagramUrl && (
                           <a
@@ -295,27 +408,35 @@ export default function AdminNotificationsPage() {
                             className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[11px] text-zinc-600 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
                           >
                             <ExternalLink size={12} strokeWidth={2} />
-                            인스타
+                            {t.admin.instagramLink}
                           </a>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-zinc-400">대상 회원 정보를 찾을 수 없습니다. (탈퇴했을 수 있습니다)</p>
+                    <p className="text-xs text-zinc-400">{t.admin.targetMissing}</p>
                   )}
                 </div>
+
+                {/* 매칭 성사: 단체방 개설용 양 팀 명단 + 연락처 */}
+                {n.type === 'match_accepted' && (
+                  <RosterPanel
+                    roster={rosterOf(n)}
+                    onCopyAll={() => void onCopyRoster(n)}
+                    copiedAll={copiedRosterId === n.id}
+                  />
+                )}
 
                 {/* 비밀번호 재설정: 임시 비밀번호 입력 */}
                 {n.type === 'password_reset' && (
                   <div className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-100">
                     <p className="text-xs font-semibold text-amber-800">
-                      Supabase 대시보드 &gt; Authentication &gt; Users 에서 비밀번호를 바꾼 뒤,
-                      아래에 같은 값을 넣으면 문구에 자동으로 들어갑니다.
+                      {t.admin.pwBoxNote}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <input
                         className="input flex-1 py-2 font-mono text-sm"
-                        placeholder="임시 비밀번호"
+                        placeholder={t.admin.tempPasswordPlaceholder}
                         value={tempPasswords[n.id] ?? ''}
                         onChange={(e) =>
                           setTempPasswords((s) => ({ ...s, [n.id]: e.target.value }))
@@ -329,7 +450,7 @@ export default function AdminNotificationsPage() {
                         className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-2 text-xs text-zinc-700 ring-1 ring-zinc-200 transition hover:bg-zinc-50"
                       >
                         <Shuffle size={13} strokeWidth={2} />
-                        생성
+                        {t.admin.generate}
                       </button>
                     </div>
                   </div>
@@ -337,7 +458,7 @@ export default function AdminNotificationsPage() {
 
                 {/* 발송 문구 */}
                 <div className="mt-3">
-                  <p className="mb-1.5 text-xs font-medium text-zinc-500">카카오톡 발송 문구</p>
+                  <p className="mb-1.5 text-xs font-medium text-zinc-500">{t.admin.messageLabel}</p>
                   <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-2xl bg-white px-4 py-3 text-[13px] leading-relaxed text-zinc-700 ring-1 ring-zinc-200">
 {buildMessage(n)}
                   </pre>
@@ -350,9 +471,9 @@ export default function AdminNotificationsPage() {
                     className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-sakura-500 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-sakura-600"
                   >
                     {copiedId === n.id ? (
-                      <><Check size={15} strokeWidth={2.4} /> 복사됨</>
+                      <><Check size={15} strokeWidth={2.4} /> {t.common.copied}</>
                     ) : (
-                      <><Copy size={15} strokeWidth={2} /> 문구 복사</>
+                      <><Copy size={15} strokeWidth={2} /> {t.admin.copyMessage}</>
                     )}
                   </button>
                   <button
@@ -366,9 +487,9 @@ export default function AdminNotificationsPage() {
                     }`}
                   >
                     {n.is_handled ? (
-                      <><RotateCcw size={15} strokeWidth={2} /> 미처리로</>
+                      <><RotateCcw size={15} strokeWidth={2} /> {t.admin.markUnhandled}</>
                     ) : (
-                      <><Check size={15} strokeWidth={2.4} /> 처리 완료</>
+                      <><Check size={15} strokeWidth={2.4} /> {t.admin.markHandled}</>
                     )}
                   </button>
                 </div>

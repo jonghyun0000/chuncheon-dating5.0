@@ -4,7 +4,8 @@
 
 export type Gender = 'male' | 'female';
 export type School = '강원대' | '한림대' | '성심대' | '춘교대';
-export type ContactType = 'kakao' | 'instagram';
+/** 'instagram' 은 5.0 개편 이전 가입자의 레거시 값 (신규 입력 불가) */
+export type ContactType = 'kakao' | 'phone' | 'instagram';
 export type TeamStatus = 'active' | 'hidden' | 'matched';
 export type MatchStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';
@@ -135,6 +136,25 @@ export interface AppNotification {
   handled_by: string | null;
   admin_memo: string | null;
   created_at: string;
+}
+
+/** 매칭 성사 알림 payload.roster — 관리자 단체방 개설용 양 팀 명단 */
+export interface RosterMember {
+  member_order: number;
+  nickname: string;
+  school: School;
+  department: string;
+  contact_type: ContactType;
+  contact_id: string;
+}
+
+export interface RosterTeam {
+  team_id: string;
+  gender: Gender;
+  intro: string;
+  owner_name: string;
+  owner_username: string;
+  members: RosterMember[];
 }
 
 /** 알림 + 대상 회원 연락처 (관리자 화면 전용) */

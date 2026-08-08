@@ -1,4 +1,4 @@
-import type { ContactType, Gender, School } from '@/types/database.types';
+import type { Gender, School } from '@/types/database.types';
 
 export interface RegisterInput {
   username: string;
@@ -8,7 +8,8 @@ export interface RegisterInput {
   school: School;
   /** 학번 (아이디 찾기 본인 확인에 사용) */
   student_number: string;
-  contact_type: ContactType;
+  /** 신규 가입은 카카오톡 ID 또는 전화번호만 허용 (인스타그램은 레거시) */
+  contact_type: 'kakao' | 'phone';
   contact_id: string;
   /** 학생증 이미지 파일 */
   studentIdFile: File;

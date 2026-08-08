@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/terms';
 import { acceptCurrentTerms } from './auth.api';
 import { koMessage } from '@/utils/errors';
+import { useI18n } from '@/i18n';
 
 /**
  * 약관이 개정되면 기존 회원에게 재동의를 받습니다.
@@ -21,6 +22,7 @@ export default function ReconsentPage() {
   const nav = useNavigate();
   const loc = useLocation() as { state?: { from?: string } };
   const { profile, refreshProfile, signOut } = useAuth();
+  const { t } = useI18n();
   const [agree, setAgree] = useState<TermsAgreementState>(EMPTY_TERMS_AGREEMENT);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function ReconsentPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!isAllAgreed(agree)) return setErr('필수 약관 3개에 모두 동의해야 서비스를 계속 이용하실 수 있습니다.');
+    if (!isAllAgreed(agree)) return setErr(t.reconsent.errRequired);
 
     setSaving(true);
     try {
@@ -51,24 +53,22 @@ export default function ReconsentPage() {
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-sakura-100 text-sakura-600">
             <FileText size={28} strokeWidth={1.6} />
           </div>
-          <h1 className="font-display text-2xl font-bold text-sakura-600">약관이 새로 정리되었습니다</h1>
+          <h1 className="font-display text-2xl font-bold text-sakura-600">{t.reconsent.title}</h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-            {isFirstTime
-              ? '안전한 이용을 위해 약관을 다시 정리했습니다. 계속 이용하시려면 아래 3개 약관에 동의해주세요.'
-              : `약관이 ${TERMS_VERSION} 으로 개정되었습니다. 계속 이용하시려면 다시 동의해주세요.`}
+            {isFirstTime ? t.reconsent.firstTimeDesc : t.reconsent.versionedDesc(TERMS_VERSION)}
           </p>
         </div>
 
         <form onSubmit={submit} className="card space-y-4 p-5">
           <div className="rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-100">
-            <p className="text-xs font-semibold text-amber-800">이번에 새로 추가된 내용</p>
+            <p className="text-xs font-semibold text-amber-800">{t.reconsent.whatsNew}</p>
             <ul className="ml-4 mt-1.5 list-disc space-y-1 text-xs leading-relaxed text-amber-700">
-              <li>학생증 사진 유출에 대한 책임 범위</li>
-              <li>매칭 이후 발생하는 사건(언행·안전사고·금전 요구·개인정보 유출·스토킹)에 대한 책임 범위</li>
-              <li>안전하게 만나기 위한 수칙 8가지</li>
+              <li>{t.reconsent.newItem1}</li>
+              <li>{t.reconsent.newItem2}</li>
+              <li>{t.reconsent.newItem3}</li>
             </ul>
             <p className="mt-2 text-[11px] text-amber-700">
-              전문 보기를 눌러 꼭 읽어보신 뒤 동의해주세요. (시행일 {TERMS_EFFECTIVE_DATE})
+              {t.reconsent.readNote(TERMS_EFFECTIVE_DATE)}
             </p>
           </div>
 
@@ -78,14 +78,14 @@ export default function ReconsentPage() {
             <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600 ring-1 ring-rose-100">{err}</div>
           )}
 
-          <Button type="submit" loading={saving} className="w-full">동의하고 계속하기</Button>
+          <Button type="submit" loading={saving} className="w-full">{t.reconsent.agree}</Button>
 
           <button
             type="button"
             onClick={async () => { await signOut(); nav('/login', { replace: true }); }}
             className="w-full py-2 text-center text-sm text-zinc-400 transition hover:text-zinc-600"
           >
-            나중에 하기 (로그아웃)
+            {t.reconsent.later}
           </button>
         </form>
       </div>

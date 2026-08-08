@@ -15,18 +15,21 @@ import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
 import Modal from '@/components/common/Modal';
 import TermsModal from '@/components/common/TermsModal';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useAuth } from '@/hooks/useAuth';
-import { ADMIN_EMAIL, labelContact, labelGender } from '@/lib/constants';
-import { TERMS_DOCS, type TermsDoc } from '@/lib/terms';
+import { ADMIN_EMAIL, labelContact, labelGender, schoolLabel } from '@/lib/constants';
+import { getTermsDocs, type TermsDoc } from '@/lib/terms';
 import { deleteMyAccount, getMyStudentIdSignedUrl } from './mypage.api';
 import { fetchMyTeam } from '@/features/teams/teams.api';
 import type { Team } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { admissionLabel } from '@/utils/format';
-import { MatchedTeamBanner, ReportLink, VerificationBanner } from '@/components/common/StatusBanner';
+import { ContactUpdateBanner, MatchedTeamBanner, ReportLink, VerificationBanner } from '@/components/common/StatusBanner';
+import { useI18n } from '@/i18n';
 
 export default function MyPage() {
   const { profile, signOut, refreshProfile, loading } = useAuth();
+  const { t } = useI18n();
   const nav = useNavigate();
   const [studentUrl, setStudentUrl] = useState<string | null>(null);
   const [myTeam, setMyTeam] = useState<Team | null>(null);
@@ -48,23 +51,22 @@ export default function MyPage() {
 
   if (!profile) {
     return (
-      <PageLayout subtitle="내 정보">
+      <PageLayout subtitle={t.mypage.subtitle}>
         <div className="card space-y-3 p-6 text-center">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
             <CircleAlert size={24} strokeWidth={1.8} />
           </div>
-          <h2 className="font-display text-lg text-zinc-900">프로필을 불러오지 못했어요</h2>
-          <p className="text-sm text-zinc-500">
-            네트워크가 잠시 불안정하거나 로그인 정보가 만료되었을 수 있어요.<br />
-            아래 버튼으로 새로고침하거나 다시 로그인해주세요.
+          <h2 className="font-display text-lg text-zinc-900">{t.mypage.profileFailTitle}</h2>
+          <p className="whitespace-pre-line text-sm text-zinc-500">
+            {t.mypage.profileFailDesc}
           </p>
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button variant="ghost" onClick={() => refreshProfile()}>새로고침</Button>
+            <Button variant="ghost" onClick={() => refreshProfile()}>{t.common.refresh}</Button>
             <Button variant="danger" onClick={async () => { await signOut(); nav('/login'); }}>
-              다시 로그인
+              {t.mypage.reLogin}
             </Button>
           </div>
-          {loading && <p className="text-xs text-zinc-400">불러오는 중...</p>}
+          {loading && <p className="text-xs text-zinc-400">{t.common.loading}</p>}
         </div>
       </PageLayout>
     );
@@ -75,19 +77,19 @@ export default function MyPage() {
     profile.verification_status === 'rejected' ? 'gray' :
     'amber';
   const verifyLabel =
-    profile.verification_status === 'approved' ? '인증 완료' :
-    profile.verification_status === 'rejected' ? '인증 거절' :
-    '인증 대기 중';
+    profile.verification_status === 'approved' ? t.mypage.verifyApproved :
+    profile.verification_status === 'rejected' ? t.mypage.verifyRejected :
+    t.mypage.verifyPending;
 
   const onDelete = async () => {
-    if (deleteConfirm !== '탈퇴합니다') {
-      alert('확인 문구를 정확히 입력해주세요.');
+    if (deleteConfirm !== t.mypage.deleteConfirmWord) {
+      alert(t.mypage.deleteConfirmMismatch);
       return;
     }
     setDeleting(true);
     try {
       await deleteMyAccount();
-      alert('탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.');
+      alert(t.mypage.deleteDone);
       nav('/login', { replace: true });
     } catch (e) {
       alert(koMessage(e));
@@ -96,9 +98,10 @@ export default function MyPage() {
   };
 
   return (
-    <PageLayout subtitle="내 정보 및 설정">
+    <PageLayout subtitle={t.mypage.subtitle}>
       <MatchedTeamBanner show={myTeam?.status === 'matched'} />
       <VerificationBanner />
+      <ContactUpdateBanner />
 
       <section className="card p-5">
         <div className="flex items-center gap-3">
@@ -113,22 +116,22 @@ export default function MyPage() {
 
         <ul className="mt-4 divide-y divide-zinc-100 rounded-2xl bg-zinc-50/60 text-sm ring-1 ring-zinc-100">
           <li className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-500">성별</span>
+            <span className="text-zinc-500">{t.mypage.gender}</span>
             <span className="font-medium text-zinc-800">{labelGender(profile.gender)}</span>
           </li>
           <li className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-500">학교</span>
+            <span className="text-zinc-500">{t.mypage.school}</span>
             <span className="font-medium text-zinc-800">
-              {profile.school}
+              {schoolLabel(profile.school)}
               {profile.student_number ? ` · ${admissionLabel(profile.student_number)}` : ''}
             </span>
           </li>
           <li className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-500">연락수단</span>
+            <span className="text-zinc-500">{t.mypage.contact}</span>
             <span className="font-medium text-zinc-800">{labelContact(profile.contact_type)} · {profile.contact_id}</span>
           </li>
           <li className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-500">학교 인증</span>
+            <span className="text-zinc-500">{t.mypage.verification}</span>
             <Badge tone={verifyTone} className="gap-1">
               {profile.verification_status === 'approved' && <ShieldCheck size={12} strokeWidth={2.2} />}
               {verifyLabel}
@@ -138,28 +141,28 @@ export default function MyPage() {
 
         {studentUrl && (
           <details className="mt-3 text-sm text-zinc-600">
-            <summary className="cursor-pointer">내 학생증 사진 보기</summary>
-            <img src={studentUrl} alt="학생증" className="mt-2 w-full rounded-xl" />
-            <p className="mt-1 text-[11px] text-zinc-400">* 본인만 볼 수 있는 이미지입니다.</p>
+            <summary className="cursor-pointer">{t.mypage.viewStudentId}</summary>
+            <img src={studentUrl} alt={t.admin.studentIdAlt} className="mt-2 w-full rounded-xl" />
+            <p className="mt-1 text-[11px] text-zinc-400">{t.mypage.studentIdPrivate}</p>
           </details>
         )}
       </section>
 
       {/* 계정 관리 */}
       <section className="card mt-4 overflow-hidden">
-        <h3 className="px-5 pb-2 pt-5 text-sm font-semibold text-zinc-800">계정 관리</h3>
+        <h3 className="px-5 pb-2 pt-5 text-sm font-semibold text-zinc-800">{t.mypage.accountSection}</h3>
         <ul className="divide-y divide-zinc-100">
           <li>
             <Link to="/me/edit" className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-zinc-50">
               <UserPen size={18} strokeWidth={1.8} className="text-zinc-400" />
-              <span className="flex-1 text-sm text-zinc-700">개인정보 수정</span>
+              <span className="flex-1 text-sm text-zinc-700">{t.mypage.editProfile}</span>
               <ChevronRight size={16} strokeWidth={2} className="text-zinc-300" />
             </Link>
           </li>
           <li>
             <Link to="/me/change-password" className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-zinc-50">
               <KeyRound size={18} strokeWidth={1.8} className="text-zinc-400" />
-              <span className="flex-1 text-sm text-zinc-700">비밀번호 변경</span>
+              <span className="flex-1 text-sm text-zinc-700">{t.mypage.changePassword}</span>
               <ChevronRight size={16} strokeWidth={2} className="text-zinc-300" />
             </Link>
           </li>
@@ -167,16 +170,22 @@ export default function MyPage() {
         </ul>
       </section>
 
+      {/* 언어 설정 */}
       <section className="card mt-4 p-5">
-        <h3 className="font-semibold text-zinc-800">내 팀</h3>
+        <h3 className="text-sm font-semibold text-zinc-800">{t.mypage.languageSection}</h3>
+        <LanguageSwitcher variant="row" className="mt-3" />
+      </section>
+
+      <section className="card mt-4 p-5">
+        <h3 className="font-semibold text-zinc-800">{t.mypage.myTeamSection}</h3>
         {myTeam ? (
           <div className="mt-2 flex items-center justify-between">
             <p className="text-sm text-zinc-700">"{myTeam.intro}"</p>
-            <Link to="/team" className="text-sm font-semibold text-sakura-600">자세히</Link>
+            <Link to="/team" className="text-sm font-semibold text-sakura-600">{t.mypage.teamDetail}</Link>
           </div>
         ) : (
           <Link to="/team" className="mt-2 inline-flex items-center gap-0.5 text-sm font-semibold text-sakura-600">
-            팀을 등록해보세요
+            {t.mypage.registerTeam}
             <ChevronRight size={15} strokeWidth={2.2} />
           </Link>
         )}
@@ -184,9 +193,9 @@ export default function MyPage() {
 
       {/* 약관 다시 보기 */}
       <section className="card mt-4 overflow-hidden">
-        <h3 className="px-5 pb-2 pt-5 text-sm font-semibold text-zinc-800">약관 및 정책</h3>
+        <h3 className="px-5 pb-2 pt-5 text-sm font-semibold text-zinc-800">{t.mypage.termsSection}</h3>
         <ul className="divide-y divide-zinc-100">
-          {TERMS_DOCS.map((doc) => (
+          {getTermsDocs().map((doc) => (
             <li key={doc.key}>
               <button
                 type="button"
@@ -201,19 +210,18 @@ export default function MyPage() {
         </ul>
         {profile.terms_version && (
           <p className="px-5 pb-4 text-[11px] text-zinc-400">
-            동의한 약관 버전: {profile.terms_version}
+            {t.mypage.agreedVersion(profile.terms_version)}
           </p>
         )}
       </section>
 
       <section className="card mt-4 p-5">
-        <h3 className="font-semibold text-zinc-800">문의</h3>
+        <h3 className="font-semibold text-zinc-800">{t.mypage.contactSection}</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          매칭 상대에 대한 신고는 위 [신고하기]에서 접수해주세요.
-          그 밖의 문의는 관리자 이메일로 보내주시면 됩니다.
+          {t.mypage.contactDesc}
         </p>
         <a
-          href={`mailto:${ADMIN_EMAIL}?subject=[춘천과팅] 신고/문의`}
+          href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t.mypage.mailSubject)}`}
           className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 font-mono text-sm text-zinc-700"
         >
           <Mail size={14} strokeWidth={1.8} />
@@ -225,10 +233,10 @@ export default function MyPage() {
         <section className="card mt-4 p-5">
           <h3 className="flex items-center gap-1.5 font-semibold text-sakura-700">
             <ShieldCheck size={16} strokeWidth={2} />
-            관리자 메뉴
+            {t.mypage.adminSection}
           </h3>
           <Link to="/admin" className="mt-2 inline-flex items-center gap-0.5 text-sm font-semibold text-sakura-600">
-            관리자 페이지로 이동
+            {t.mypage.toAdmin}
             <ChevronRight size={15} strokeWidth={2.2} />
           </Link>
         </section>
@@ -240,54 +248,54 @@ export default function MyPage() {
           className="w-full"
           onClick={async () => { await signOut(); nav('/login'); }}
         >
-          로그아웃
+          {t.common.logout}
         </Button>
         <button
           onClick={() => setShowDelete(true)}
           className="w-full py-3 text-center text-sm text-zinc-400 transition hover:text-rose-500"
         >
-          회원 탈퇴
+          {t.mypage.withdraw}
         </button>
       </div>
 
       <TermsModal doc={openedTerms} onClose={() => setOpenedTerms(null)} />
 
       {/* 회원 탈퇴 모달 */}
-      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteConfirm(''); }} title="정말 탈퇴하시겠어요?">
+      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteConfirm(''); }} title={t.mypage.deleteModalTitle}>
         <div className="space-y-4">
           <div className="rounded-2xl bg-rose-50 p-4 ring-1 ring-rose-100">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-rose-700">
               <TriangleAlert size={15} strokeWidth={2} />
-              탈퇴 시 다음 데이터가 모두 삭제됩니다
+              {t.mypage.deleteWarnTitle}
             </p>
             <ul className="ml-4 mt-2 list-disc space-y-1 text-xs text-rose-600">
-              <li>내가 등록한 팀 및 팀원 정보</li>
-              <li>주고받은 매칭 신청 내역</li>
-              <li>작성한 후기</li>
-              <li>학생증 사진</li>
+              <li>{t.mypage.deleteWarn1}</li>
+              <li>{t.mypage.deleteWarn2}</li>
+              <li>{t.mypage.deleteWarn3}</li>
+              <li>{t.mypage.deleteWarn4}</li>
             </ul>
-            <p className="mt-2 text-xs text-rose-600">탈퇴 후 동일 정보로 재가입은 어렵습니다.</p>
+            <p className="mt-2 text-xs text-rose-600">{t.mypage.deleteWarnNote}</p>
           </div>
           <div>
-            <label className="label">아래에 "탈퇴합니다"를 정확히 입력해주세요</label>
+            <label className="label">{t.mypage.deleteConfirmLabel}</label>
             <input
               className="input"
-              placeholder="탈퇴합니다"
+              placeholder={t.mypage.deleteConfirmWord}
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="ghost" onClick={() => { setShowDelete(false); setDeleteConfirm(''); }}>
-              취소
+              {t.common.cancel}
             </Button>
             <Button
               variant="danger"
               loading={deleting}
-              disabled={deleteConfirm !== '탈퇴합니다'}
+              disabled={deleteConfirm !== t.mypage.deleteConfirmWord}
               onClick={onDelete}
             >
-              탈퇴하기
+              {t.mypage.deleteButton}
             </Button>
           </div>
         </div>

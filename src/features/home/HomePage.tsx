@@ -9,11 +9,13 @@ import type { FilterSchool, FilterTeamSize } from '@/types/common.types';
 import { useAuth } from '@/hooks/useAuth';
 import { applyToTeam, fetchMyOutgoingRequestTeamIds } from '@/features/matches/matches.api';
 import { koMessage } from '@/utils/errors';
-import { MatchedTeamBanner, VerificationBanner } from '@/components/common/StatusBanner';
+import { ContactUpdateBanner, MatchedTeamBanner, VerificationBanner } from '@/components/common/StatusBanner';
 import { fetchMyMatchedTeam } from '@/features/teams/teams.api';
+import { useI18n } from '@/i18n';
 
 export default function HomePage() {
   const { profile } = useAuth();
+  const { t } = useI18n();
   const [stats, setStats] = useState<HomeStats | null>(null);
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function HomePage() {
     try {
       await applyToTeam(toTeamId);
       setAppliedTeamIds((s) => new Set(s).add(toTeamId));
-      alert('신청이 완료되었습니다! 신청내역에서 확인할 수 있어요.');
+      alert(t.home.applySuccess);
     } catch (e) {
       alert(koMessage(e));
     } finally {
@@ -59,21 +61,19 @@ export default function HomePage() {
     }
   };
 
-  const greeting = useMemo(() => {
-    if (!profile) return '오늘도 좋은 인연 만나세요';
-    return `${profile.name}님, 오늘도 좋은 인연 만나세요`;
-  }, [profile]);
+  const greeting = useMemo(() => t.home.greeting(profile?.name ?? null), [profile, t]);
 
   return (
     <PageLayout subtitle={greeting}>
       <MatchedTeamBanner show={hasMatchedTeam} />
       <VerificationBanner />
+      <ContactUpdateBanner />
 
       {/* 통계 */}
       <section className="grid grid-cols-3 gap-3 mb-4">
-        <StatCard label="등록 팀" value={stats?.total_teams ?? 0} />
-        <StatCard label="매칭 성사" value={stats?.matched_count ?? 0} accent />
-        <StatCard label="회원" value={stats?.total_users ?? 0} />
+        <StatCard label={t.home.statTeams} value={stats?.total_teams ?? 0} />
+        <StatCard label={t.home.statMatches} value={stats?.matched_count ?? 0} accent />
+        <StatCard label={t.home.statUsers} value={stats?.total_users ?? 0} />
       </section>
 
       <section className="mb-4">
@@ -88,7 +88,7 @@ export default function HomePage() {
       </section>
 
       {loading ? (
-        <Loading label="팀 정보를 불러오고 있어요" />
+        <Loading label={t.home.loadingTeams} />
       ) : teams.length === 0 ? (
         <EmptyState />
       ) : (
@@ -121,13 +121,14 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
 }
 
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="card flex flex-col items-center justify-center py-14 text-center">
       <span className="grid h-12 w-12 place-items-center rounded-full bg-sakura-50 text-sakura-500">
         <Users size={24} strokeWidth={1.8} />
       </span>
-      <p className="mt-3 font-semibold text-zinc-700">아직 등록된 상대팀이 없어요</p>
-      <p className="mt-1 text-sm text-zinc-400">친구들과 팀을 등록하고 첫 매칭의 주인공이 되어보세요!</p>
+      <p className="mt-3 font-semibold text-zinc-700">{t.home.emptyTitle}</p>
+      <p className="mt-1 text-sm text-zinc-400">{t.home.emptyDesc}</p>
     </div>
   );
 }

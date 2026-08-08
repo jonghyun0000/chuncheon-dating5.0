@@ -7,8 +7,11 @@ import { approveVerification, getStudentSignedUrl, listVerificationQueue, reject
 import type { Profile } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/format';
+import { labelVerificationStatus, schoolLabel } from '@/lib/constants';
+import { useI18n } from '@/i18n';
 
 export default function AdminVerificationPage() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Profile[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [urls, setUrls] = useState<Record<string, string | null>>({});
@@ -33,7 +36,7 @@ export default function AdminVerificationPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-zinc-900">인증관리</h1>
+      <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.verifyTitle}</h1>
 
       <div className="mt-3 mb-5 flex gap-2 flex-wrap">
         {(['pending', 'approved', 'rejected', 'all'] as const).map((k) => (
@@ -44,7 +47,7 @@ export default function AdminVerificationPage() {
               filter === k ? 'bg-sakura-500 text-white ring-sakura-500' : 'bg-white text-zinc-600 ring-zinc-200'
             }`}
           >
-            {k === 'pending' ? '대기' : k === 'approved' ? '승인' : k === 'rejected' ? '거절' : '전체'}
+            {k === 'pending' ? t.admin.filterPending : k === 'approved' ? t.admin.filterApproved : k === 'rejected' ? t.admin.filterRejected : t.common.all}
           </button>
         ))}
       </div>
@@ -54,34 +57,34 @@ export default function AdminVerificationPage() {
           <div key={p.id} className="card overflow-hidden">
             <div className="aspect-[4/3] bg-zinc-100">
               {urls[p.id] ? (
-                <img src={urls[p.id]!} alt="학생증" className="h-full w-full object-cover" />
+                <img src={urls[p.id]!} alt={t.admin.studentIdAlt} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full items-center justify-center text-xs text-zinc-400">학생증 없음</div>
+                <div className="flex h-full items-center justify-center text-xs text-zinc-400">{t.admin.noStudentId}</div>
               )}
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{p.name}</p>
                 <Badge tone={p.verification_status === 'approved' ? 'green' : p.verification_status === 'rejected' ? 'gray' : 'amber'}>
-                  {p.verification_status}
+                  {labelVerificationStatus(p.verification_status)}
                 </Badge>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
-                {p.school}{p.student_number ? ` · 학번 ${p.student_number}` : ''} · 가입 {formatDate(p.created_at)}
+                {schoolLabel(p.school)}{p.student_number ? ` · ${t.admin.studentNumberPrefix(p.student_number)}` : ''} · {t.admin.joinedPrefix(formatDate(p.created_at))}
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button
                   variant="ghost"
                   onClick={async () => { try { await rejectVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
-                  거절
+                  {t.admin.rejectBtn}
                 </Button>
                 <Button
                   className="gap-1.5"
                   onClick={async () => { try { await approveVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
                   <Check size={16} strokeWidth={2.4} />
-                  승인
+                  {t.admin.approve}
                 </Button>
               </div>
             </div>
@@ -90,7 +93,7 @@ export default function AdminVerificationPage() {
       </div>
 
       {visible.length === 0 && (
-        <p className="mt-10 text-center text-sm text-zinc-400">해당 조건의 회원이 없습니다.</p>
+        <p className="mt-10 text-center text-sm text-zinc-400">{t.admin.verifyEmpty}</p>
       )}
     </div>
   );

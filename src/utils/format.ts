@@ -1,3 +1,4 @@
+import { tr } from '@/i18n';
 import { normalizeStudentNumber } from './validators';
 
 export const formatDate = (s: string | null | undefined) => {
@@ -34,8 +35,8 @@ export const admissionYear = (studentNumber: string | null | undefined): string 
   return d.slice(0, 2);
 };
 
-/** 화면 표시용 라벨. 예: '23학번' (학번이 없으면 빈 문자열) */
+/** 화면 표시용 라벨. 예: '23학번' / "Class of '23" (학번이 없으면 빈 문자열) */
 export const admissionLabel = (studentNumber: string | null | undefined): string => {
   const y = admissionYear(studentNumber);
-  return y ? `${y}학번` : '';
+  return y ? tr().labels.admissionLabel(y) : '';
 };

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { tr } from '@/i18n';
 import type { Team, TeamMember } from '@/types/database.types';
 import type { TeamRegisterInput } from './teams.types';
 
@@ -82,7 +83,7 @@ export async function fetchMyMatchedTeam(): Promise<{ team: Team | null; members
 export async function createTeam(input: TeamRegisterInput) {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   const { data: prof, error: pErr } = await supabase
     .from('profiles')
@@ -92,10 +93,10 @@ export async function createTeam(input: TeamRegisterInput) {
   if (pErr) throw pErr;
 
   if (input.members.length !== input.team_size) {
-    throw new Error(`팀원 수가 사이즈(${input.team_size})와 일치하지 않습니다.`);
+    throw new Error(tr().team.errMemberCountMismatch(input.team_size));
   }
   if (!input.members_consent_confirmed) {
-    throw new Error('팀원 전원에게 정보 등록 동의를 받으셨는지 확인해주세요.');
+    throw new Error(tr().team.errConsent);
   }
 
   const { data: team, error: tErr } = await supabase
@@ -136,11 +137,11 @@ export async function createTeam(input: TeamRegisterInput) {
 /** 팀 정보 + 팀원 통째로 수정 (matched 상태가 아닐 때만) */
 export async function updateTeam(teamId: string, input: TeamRegisterInput) {
   if (input.members.length !== input.team_size) {
-    throw new Error(`팀원 수가 사이즈(${input.team_size})와 일치하지 않습니다.`);
+    throw new Error(tr().team.errMemberCountMismatch(input.team_size));
   }
 
   if (!input.members_consent_confirmed) {
-    throw new Error('팀원 전원에게 정보 등록 동의를 받으셨는지 확인해주세요.');
+    throw new Error(tr().team.errConsent);
   }
 
   const { error: tErr } = await supabase

@@ -8,13 +8,15 @@ import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
 import Stars from '@/components/common/Stars';
 import { PenLine, Sparkles } from 'lucide-react';
-import { SCHOOL_BADGE_COLOR, SCHOOLS } from '@/lib/constants';
+import { SCHOOL_BADGE_COLOR, SCHOOLS, schoolLabel } from '@/lib/constants';
+import { useI18n } from '@/i18n';
 import { createReview, fetchApprovedReviews, fetchMyReviews } from './reviews.api';
 import type { Review } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/format';
 
 export default function ReviewsPage() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState<Review[]>([]);
   const [mine, setMine] = useState<Review[]>([]);
@@ -43,12 +45,12 @@ export default function ReviewsPage() {
 
   const submit = async () => {
     setErr(null);
-    if (form.nickname.trim().length < 2) return setErr('닉네임을 입력해주세요.');
-    if (form.content.trim().length < 10) return setErr('후기는 최소 10자 이상 작성해주세요.');
+    if (form.nickname.trim().length < 2) return setErr(t.reviews.errNickname);
+    if (form.content.trim().length < 10) return setErr(t.reviews.errContent);
     setSubmitting(true);
     try {
       await createReview(form);
-      alert('후기가 등록되었습니다. 관리자 승인 후 공개됩니다.');
+      alert(t.reviews.submittedAlert);
       setOpen(false);
       setForm({ nickname: '', school: '강원대', rating: 5, content: '' });
       await load();
@@ -60,24 +62,24 @@ export default function ReviewsPage() {
   };
 
   return (
-    <PageLayout subtitle="춘천과팅의 따뜻한 인연들">
+    <PageLayout subtitle={t.reviews.subtitle}>
       <div className="mb-3 flex justify-end">
         <Button className="gap-1.5" onClick={() => setOpen(true)}>
           <PenLine size={16} strokeWidth={2} />
-          후기 작성
+          {t.reviews.write}
         </Button>
       </div>
 
       {/* 내 후기 (대기/거절 포함) */}
       {mine.length > 0 && (
         <section className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold text-zinc-500">내가 작성한 후기</h3>
+          <h3 className="mb-2 text-sm font-semibold text-zinc-500">{t.reviews.mySection}</h3>
           <div className="space-y-2">
             {mine.map((r) => (
               <div key={r.id} className="card p-4">
                 <div className="flex items-center justify-between">
                   <Badge tone={r.status === 'approved' ? 'green' : r.status === 'rejected' ? 'gray' : 'amber'}>
-                    {r.status === 'approved' ? '공개됨' : r.status === 'rejected' ? '비공개' : '승인대기'}
+                    {r.status === 'approved' ? t.reviews.statusApproved : r.status === 'rejected' ? t.reviews.statusRejected : t.reviews.statusPending}
                   </Badge>
                   <span className="text-xs text-zinc-400">{formatDate(r.created_at)}</span>
                 </div>
@@ -96,8 +98,8 @@ export default function ReviewsPage() {
           <span className="grid h-12 w-12 place-items-center rounded-full bg-sakura-50 text-sakura-500">
             <Sparkles size={24} strokeWidth={1.8} />
           </span>
-          <p className="mt-3 font-semibold text-zinc-700">아직 등록된 후기가 없어요</p>
-          <p className="mt-1 text-sm text-zinc-400">첫 번째 후기의 주인공이 되어주세요!</p>
+          <p className="mt-3 font-semibold text-zinc-700">{t.reviews.emptyTitle}</p>
+          <p className="mt-1 text-sm text-zinc-400">{t.reviews.emptyDesc}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -105,7 +107,7 @@ export default function ReviewsPage() {
             <article key={r.id} className="card relative overflow-hidden p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`badge ring-1 ${SCHOOL_BADGE_COLOR[r.school]}`}>{r.school}</span>
+                  <span className={`badge ring-1 ${SCHOOL_BADGE_COLOR[r.school]}`}>{schoolLabel(r.school)}</span>
                   <span className="font-semibold text-zinc-900">{r.nickname}</span>
                 </div>
                 <Stars rating={r.rating} />
@@ -117,29 +119,29 @@ export default function ReviewsPage() {
         </div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="후기 작성하기">
+      <Modal open={open} onClose={() => setOpen(false)} title={t.reviews.modalTitle}>
         <div className="space-y-3">
-          <Input label="닉네임" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
-          <Select label="학교" value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value as any })}>
-            {SCHOOLS.map((s) => <option key={s} value={s}>{s}</option>)}
+          <Input label={t.reviews.nickname} value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
+          <Select label={t.reviews.school} value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value as any })}>
+            {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
           </Select>
-          <Select label="별점" value={String(form.rating)} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })}>
-            {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}점</option>)}
+          <Select label={t.reviews.rating} value={String(form.rating)} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })}>
+            {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{t.reviews.ratingOption(n)}</option>)}
           </Select>
           <div>
-            <label className="label">후기 내용</label>
+            <label className="label">{t.reviews.contentLabel}</label>
             <textarea
               className="input min-h-[120px] resize-none"
               maxLength={500}
-              placeholder="춘천과팅에서 만난 인연에 대해 들려주세요!"
+              placeholder={t.reviews.contentPlaceholder}
               value={form.content}
               onChange={(e) => setForm({ ...form, content: e.target.value })}
             />
           </div>
           {err && <p className="text-sm text-rose-500">{err}</p>}
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>취소</Button>
-            <Button onClick={submit} loading={submitting}>등록</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>{t.common.cancel}</Button>
+            <Button onClick={submit} loading={submitting}>{t.common.submit}</Button>
           </div>
         </div>
       </Modal>

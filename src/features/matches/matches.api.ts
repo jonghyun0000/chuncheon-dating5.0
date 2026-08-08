@@ -1,5 +1,6 @@
 import { supabase, withTimeout } from '@/lib/supabaseClient';
 import { TEAM_SIZE_TOLERANCE } from '@/lib/constants';
+import { tr } from '@/i18n';
 import type { MatchRequestWithTeams } from './matches.types';
 
 /** 내가 보낸 신청들의 상대 team_id 목록 (홈에서 중복 신청 방지용) */
@@ -36,7 +37,7 @@ export async function fetchMyOutgoingRequestTeamIds(): Promise<string[]> {
 export async function applyToTeam(toTeamId: string): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   // 내 active 팀 조회 (사이즈 포함)
   const { data: myTeam, error: tErr } = await supabase
@@ -49,8 +50,8 @@ export async function applyToTeam(toTeamId: string): Promise<void> {
     .maybeSingle();
 
   if (tErr) throw tErr;
-  if (!myTeam) throw new Error('먼저 활성 상태인 내 팀을 등록해주세요.');
-  if ((myTeam as any).id === toTeamId) throw new Error('자기 팀에는 신청할 수 없습니다.');
+  if (!myTeam) throw new Error(tr().errors.needActiveTeam);
+  if ((myTeam as any).id === toTeamId) throw new Error(tr().errors.cannotApplySelf);
 
   // 상대 팀 정보 조회
   const { data: targetTeam, error: targetErr } = await supabase
@@ -60,29 +61,24 @@ export async function applyToTeam(toTeamId: string): Promise<void> {
     .maybeSingle();
 
   if (targetErr) throw targetErr;
-  if (!targetTeam) throw new Error('상대 팀을 찾을 수 없습니다.');
+  if (!targetTeam) throw new Error(tr().errors.targetNotFound);
 
   const me = myTeam as any;
   const target = targetTeam as any;
 
   // 사이즈 검증 (±1 까지 허용)
   if (Math.abs(me.team_size - target.team_size) > TEAM_SIZE_TOLERANCE) {
-    throw new Error(
-      `팀 인원 차이가 너무 커요.\n` +
-      `내 팀: ${me.team_size}:${me.team_size}\n` +
-      `상대 팀: ${target.team_size}:${target.team_size}\n\n` +
-      `인원 차이가 1명 이내인 팀에만 신청할 수 있어요.`
-    );
+    throw new Error(tr().errors.sizeGapTooBig(me.team_size, target.team_size));
   }
 
   // 성별 검증
   if (me.gender === target.gender) {
-    throw new Error('상대 성별 팀에만 신청할 수 있어요.');
+    throw new Error(tr().errors.sameGender);
   }
 
   // 상태 검증
   if (target.status !== 'active') {
-    throw new Error('이미 매칭되었거나 활성 상태가 아닌 팀이에요.');
+    throw new Error(tr().errors.targetInactive);
   }
 
   // 모든 검증 통과 → 신청
@@ -93,7 +89,7 @@ export async function applyToTeam(toTeamId: string): Promise<void> {
   });
   if (error) {
     if (/duplicate/i.test(error.message)) {
-      throw new Error('이미 해당 팀에 신청했습니다.');
+      throw new Error(tr().errors.alreadyApplied);
     }
     throw error;
   }
@@ -179,9 +175,11 @@ export async function fetchMyRequests(): Promise<{
         teamIds.add(r.to_team_id);
       }
 
+      // 연락처가 없는 공개 뷰만 사용합니다.
+      // (연락처는 서로 공개되지 않고, 관리자가 단체방을 만들 때만 사용)
       const { data: allMembers } = await withTimeout(
         supabase
-          .from('team_members')
+          .from('team_members_public')
           .select('*')
           .in('team_id', Array.from(teamIds))
           .order('member_order'),
@@ -238,11 +236,11 @@ export async function fetchMatchDetail(id: string): Promise<MatchRequestWithTeam
   // from_team/to_team이 없으면 null 반환 (안전 가드)
   if (!m.from_team || !m.to_team) return null;
 
-  // 양 팀 멤버 조회
+  // 양 팀 멤버 조회 — 연락처 없는 공개 뷰 사용 (상호 연락처 비공개 정책)
   try {
     const { data: members } = await withTimeout(
       supabase
-        .from('team_members')
+        .from('team_members_public')
         .select('*')
         .in('team_id', [m.from_team_id, m.to_team_id])
         .order('member_order'),

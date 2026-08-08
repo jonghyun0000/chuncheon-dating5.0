@@ -1,4 +1,5 @@
 import { supabase, withTimeout } from '@/lib/supabaseClient';
+import { tr } from '@/i18n';
 import type { Report, ReportWithPeople } from '@/types/database.types';
 import type { ReportInput } from './reports.types';
 
@@ -6,13 +7,13 @@ import type { ReportInput } from './reports.types';
 export async function createReport(input: ReportInput): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   if (input.target_user_id && input.target_user_id === uid) {
-    throw new Error('본인을 신고할 수는 없습니다.');
+    throw new Error(tr().report.errSelf);
   }
   if (input.detail.trim().length < 10) {
-    throw new Error('어떤 일이 있었는지 10자 이상 적어주세요. 구체적일수록 빠르게 처리할 수 있습니다.');
+    throw new Error(tr().report.errTooShort);
   }
 
   const { error } = await supabase.from('reports').insert({

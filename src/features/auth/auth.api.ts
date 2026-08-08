@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { ACCOUNT_LOOKUP_MIN_DELAY_MS, STORAGE_BUCKET } from '@/lib/constants';
+import { tr } from '@/i18n';
 import { TERMS_VERSION } from '@/lib/terms';
 import { usernameToFakeEmail } from '@/utils/security';
 import type { FindUsernameInput, RegisterInput, ResetPasswordRequestInput } from './auth.types';
@@ -13,7 +14,7 @@ export async function signIn(username: string, password: string) {
 
 export async function signUp(input: RegisterInput) {
   if (!input.agreed_privacy || !input.agreed_terms || !input.agreed_disclaimer) {
-    throw new Error('필수 약관 3개에 모두 동의해야 가입할 수 있습니다.');
+    throw new Error(tr().register.errTermsRequired);
   }
 
   const email = usernameToFakeEmail(input.username);
@@ -30,7 +31,7 @@ export async function signUp(input: RegisterInput) {
     },
   });
   if (authError) throw authError;
-  if (!authData.user) throw new Error('회원가입에 실패했습니다.');
+  if (!authData.user) throw new Error(tr().register.errSignUpFailed);
 
   const uid = authData.user.id;
 
@@ -125,7 +126,7 @@ export async function requestPasswordReset(input: ResetPasswordRequestInput): Pr
 export async function acceptCurrentTerms(): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   const { error } = await supabase
     .from('profiles')
@@ -144,14 +145,14 @@ export async function acceptCurrentTerms(): Promise<void> {
 export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const email = u.user?.email;
-  if (!email) throw new Error('로그인이 필요합니다.');
+  if (!email) throw new Error(tr().errors.loginRequired);
 
   // 현재 비밀번호 재확인
   const { error: reauthErr } = await supabase.auth.signInWithPassword({
     email,
     password: currentPassword,
   });
-  if (reauthErr) throw new Error('현재 비밀번호가 올바르지 않습니다.');
+  if (reauthErr) throw new Error(tr().changePassword.errWrongCurrent);
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;

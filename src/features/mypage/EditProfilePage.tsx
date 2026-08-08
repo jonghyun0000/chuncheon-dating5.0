@@ -1,53 +1,58 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, UserPen } from 'lucide-react';
+import { ArrowLeft, Lock, MessageCircleWarning, UserPen } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
 import { useAuth } from '@/hooks/useAuth';
-import { labelGender } from '@/lib/constants';
-import type { ContactType } from '@/types/database.types';
+import { CONTACT_TYPES, labelContact, labelGender, schoolLabel } from '@/lib/constants';
 import { updateMyProfile } from './mypage.api';
 import {
-  isValidContactId, isValidName, isValidStudentNumber, normalizeStudentNumber,
-  studentNumberError, studentNumberHint, studentNumberPlaceholder,
+  isValidName, isValidStudentNumber, normalizeContactId, normalizeStudentNumber,
+  validateContact,
 } from '@/utils/validators';
 import { koMessage } from '@/utils/errors';
+import { useI18n } from '@/i18n';
 
 export default function EditProfilePage() {
   const { profile, refreshProfile, loading } = useAuth();
+  const { t } = useI18n();
   const nav = useNavigate();
 
   const [form, setForm] = useState({
     name: '',
     student_number: '',
-    contact_type: 'kakao' as ContactType,
+    contact_type: 'kakao' as 'kakao' | 'phone',
     contact_id: '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // 5.0 개편 이전에 인스타그램으로 가입한 회원은 재입력이 필요합니다.
+  const legacyInstagram = profile?.contact_type === 'instagram';
 
   useEffect(() => {
     if (!profile) return;
     setForm({
       name: profile.name ?? '',
       student_number: profile.student_number ?? '',
-      contact_type: profile.contact_type,
-      contact_id: profile.contact_id ?? '',
+      // 인스타그램(레거시)은 더 이상 선택할 수 없으므로 카카오톡으로 초기화하고 재입력을 받습니다.
+      contact_type: profile.contact_type === 'phone' ? 'phone' : 'kakao',
+      contact_id: profile.contact_type === 'instagram' ? '' : (profile.contact_id ?? ''),
     });
   }, [profile?.id, profile?.name, profile?.student_number, profile?.contact_type, profile?.contact_id]);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  if (loading && !profile) return <PageLayout subtitle="개인정보 수정"><Loading /></PageLayout>;
+  if (loading && !profile) return <PageLayout subtitle={t.editProfile.subtitle}><Loading /></PageLayout>;
   if (!profile) {
     return (
-      <PageLayout subtitle="개인정보 수정">
+      <PageLayout subtitle={t.editProfile.subtitle}>
         <div className="card p-6 text-center text-sm text-zinc-500">
-          프로필을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+          {t.editProfile.profileLoadFail}
         </div>
       </PageLayout>
     );
@@ -57,17 +62,22 @@ export default function EditProfilePage() {
     e.preventDefault();
     setErr(null);
 
-    if (!isValidName(form.name)) return setErr('이름을 2~20자로 입력해주세요.');
-    if (!isValidContactId(form.contact_id)) return setErr('연락처 ID를 2~50자로 입력해주세요.');
+    if (!isValidName(form.name)) return setErr(t.validators.nameError);
+    const contactErr = validateContact(form.contact_type, form.contact_id);
+    if (contactErr) return setErr(contactErr);
     if (form.student_number.trim() && !isValidStudentNumber(form.student_number)) {
-      return setErr(studentNumberError);
+      return setErr(t.validators.studentNumberError);
     }
 
     setSaving(true);
     try {
-      await updateMyProfile({ ...form, student_number: normalizeStudentNumber(form.student_number) });
+      await updateMyProfile({
+        ...form,
+        student_number: normalizeStudentNumber(form.student_number),
+        contact_id: normalizeContactId(form.contact_type, form.contact_id),
+      });
       await refreshProfile();
-      alert('개인정보가 수정되었습니다.');
+      alert(t.editProfile.savedAlert);
       nav('/me', { replace: true });
     } catch (e) {
       setErr(koMessage(e));
@@ -77,38 +87,46 @@ export default function EditProfilePage() {
   };
 
   return (
-    <PageLayout subtitle="개인정보 수정" hideNav>
+    <PageLayout subtitle={t.editProfile.subtitle} hideNav>
       <button
         type="button"
         onClick={() => nav(-1)}
         className="mb-3 inline-flex items-center gap-1 text-sm text-zinc-500 transition hover:text-zinc-800"
       >
         <ArrowLeft size={16} strokeWidth={2} />
-        내 정보로
+        {t.editProfile.backToMe}
       </button>
+
+      {legacyInstagram && (
+        <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-100">
+          <MessageCircleWarning size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-amber-600" />
+          <p className="text-xs leading-relaxed text-amber-800">
+            {t.editProfile.legacyBanner}
+          </p>
+        </div>
+      )}
 
       {/* 변경 불가 항목 */}
       <section className="card p-5">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
           <Lock size={15} strokeWidth={2} className="text-zinc-400" />
-          변경할 수 없는 항목
+          {t.editProfile.lockedTitle}
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-          아이디·성별·학교는 학생증 인증과 연결되어 있어 수정할 수 없습니다.
-          잘못 입력하셨다면 관리자에게 문의해주세요.
+          {t.editProfile.lockedDesc}
         </p>
         <ul className="mt-3 divide-y divide-zinc-100 rounded-2xl bg-zinc-50/60 text-sm ring-1 ring-zinc-100">
           <li className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-zinc-500">아이디</span>
+            <span className="text-zinc-500">{t.editProfile.username}</span>
             <span className="font-mono text-zinc-700">{profile.username}</span>
           </li>
           <li className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-zinc-500">성별</span>
+            <span className="text-zinc-500">{t.mypage.gender}</span>
             <span className="font-medium text-zinc-700">{labelGender(profile.gender)}</span>
           </li>
           <li className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-zinc-500">학교</span>
-            <span className="font-medium text-zinc-700">{profile.school}</span>
+            <span className="text-zinc-500">{t.mypage.school}</span>
+            <span className="font-medium text-zinc-700">{schoolLabel(profile.school)}</span>
           </li>
         </ul>
       </section>
@@ -117,17 +135,17 @@ export default function EditProfilePage() {
       <form onSubmit={submit} className="card mt-4 space-y-4 p-5">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700">
           <UserPen size={15} strokeWidth={2} className="text-sakura-500" />
-          수정할 수 있는 항목
+          {t.editProfile.editableTitle}
         </h3>
 
-        <Input label="이름" placeholder="실명" value={form.name} onChange={(e) => set('name', e.target.value)} />
+        <Input label={t.register.name} placeholder={t.register.namePlaceholder} value={form.name} onChange={(e) => set('name', e.target.value)} />
 
         <Input
-          label="학번"
-          placeholder={studentNumberPlaceholder}
+          label={t.register.studentNumber}
+          placeholder={t.validators.studentNumberPlaceholder}
           inputMode="numeric"
           maxLength={14}
-          hint={`${studentNumberHint} 아이디 찾기에서 본인 확인용으로 사용됩니다.`}
+          hint={`${t.validators.studentNumberHint} ${t.editProfile.studentNumberHintExtra}`}
           value={form.student_number}
           onChange={(e) => set('student_number', e.target.value)}
         />
@@ -135,18 +153,20 @@ export default function EditProfilePage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Select
-              label="연락수단"
+              label={t.register.contactType}
               value={form.contact_type}
-              onChange={(e) => set('contact_type', e.target.value as ContactType)}
+              onChange={(e) => set('contact_type', e.target.value as 'kakao' | 'phone')}
             >
-              <option value="kakao">카카오톡</option>
-              <option value="instagram">인스타</option>
+              {CONTACT_TYPES.map((v) => (
+                <option key={v} value={v}>{labelContact(v)}</option>
+              ))}
             </Select>
           </div>
           <div>
             <Input
-              label="연락처 ID"
-              placeholder={form.contact_type === 'kakao' ? '카카오톡 ID' : '인스타 아이디'}
+              label={form.contact_type === 'kakao' ? t.register.kakaoId : t.register.phone}
+              placeholder={form.contact_type === 'kakao' ? t.register.kakaoId : t.validators.phonePlaceholder}
+              inputMode={form.contact_type === 'phone' ? 'tel' : undefined}
               value={form.contact_id}
               onChange={(e) => set('contact_id', e.target.value)}
             />
@@ -154,8 +174,7 @@ export default function EditProfilePage() {
         </div>
 
         <p className="text-xs leading-relaxed text-zinc-400">
-          연락처를 바꾸시면 이후 매칭된 팀에게 새 연락처가 공개됩니다.
-          이미 등록한 팀의 팀원 연락처는 [팀등록] 화면에서 따로 수정해주세요.
+          {t.editProfile.contactPrivacyNote}
         </p>
 
         {err && (
@@ -165,7 +184,7 @@ export default function EditProfilePage() {
         )}
 
         <Button type="submit" loading={saving} className="w-full">
-          저장하기
+          {t.common.save}
         </Button>
       </form>
     </PageLayout>

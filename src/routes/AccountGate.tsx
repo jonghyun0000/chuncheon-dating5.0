@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import Button from '@/components/common/Button';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { TERMS_VERSION } from '@/lib/terms';
+import { useI18n } from '@/i18n';
 
 /** 재동의 화면과 신고 화면은 게이트 대상에서 제외 (무한 리다이렉트 방지) */
 const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
@@ -17,6 +18,7 @@ const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
  */
 export default function AccountGate({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
+  const { t } = useI18n();
   const loc = useLocation();
 
   if (!profile) return <>{children}</>;
@@ -28,20 +30,19 @@ export default function AccountGate({ children }: { children: ReactNode }) {
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-rose-50 text-rose-500">
             <Ban size={28} strokeWidth={1.8} />
           </div>
-          <h2 className="font-display text-lg font-bold text-zinc-900">이용이 제한된 계정입니다</h2>
+          <h2 className="font-display text-lg font-bold text-zinc-900">{t.gate.suspendedTitle}</h2>
           <p className="text-sm leading-relaxed text-zinc-500">
-            신고 누적 또는 이용약관 위반으로 서비스 이용이 일시 중지되었습니다.
-            사유가 궁금하시거나 이의가 있으시면 아래 메일로 문의해주세요.
+            {t.gate.suspendedDesc}
           </p>
           <a
-            href={`mailto:${ADMIN_EMAIL}?subject=[춘천과팅] 이용제한 문의 (${profile.username})`}
+            href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t.gate.mailSubjectSuspended(profile.username))}`}
             className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3.5 py-2 font-mono text-sm text-zinc-700"
           >
             <Mail size={14} strokeWidth={1.8} />
             {ADMIN_EMAIL}
           </a>
           <Button variant="ghost" className="w-full" onClick={() => void signOut()}>
-            로그아웃
+            {t.common.logout}
           </Button>
         </div>
       </div>

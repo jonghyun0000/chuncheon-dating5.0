@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { TermsDoc } from '@/lib/terms';
+import { useI18n } from '@/i18n';
 
 interface Props {
   doc: TermsDoc | null;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function TermsModal({ doc, onClose }: Props) {
+  const { t } = useI18n();
   if (!doc) return null;
 
   return (
@@ -26,7 +28,7 @@ export default function TermsModal({ doc, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t.common.close}
             className="shrink-0 rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
           >
             <X size={20} strokeWidth={2} />
@@ -50,7 +52,7 @@ export default function TermsModal({ doc, onClose }: Props) {
 
         <footer className="border-t border-zinc-100 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button type="button" onClick={onClose} className="btn-ghost w-full">
-            닫기
+            {t.common.close}
           </button>
         </footer>
       </div>

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { STORAGE_BUCKET } from '@/lib/constants';
+import { tr } from '@/i18n';
 import type { ContactType } from '@/types/database.types';
 
 export async function getMyStudentIdSignedUrl(path: string): Promise<string | null> {
@@ -25,7 +26,7 @@ export interface UpdateProfileInput {
 export async function updateMyProfile(input: UpdateProfileInput): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   const { error } = await supabase
     .from('profiles')

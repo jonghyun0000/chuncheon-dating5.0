@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { tr } from '@/i18n';
 import type { Review } from '@/types/database.types';
 import type { ReviewInput } from './reviews.types';
 
@@ -28,7 +29,7 @@ export async function fetchMyReviews(): Promise<Review[]> {
 export async function createReview(input: ReviewInput) {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id;
-  if (!uid) throw new Error('로그인이 필요합니다.');
+  if (!uid) throw new Error(tr().errors.loginRequired);
 
   const { error } = await supabase.from('reviews').insert({
     user_id: uid,

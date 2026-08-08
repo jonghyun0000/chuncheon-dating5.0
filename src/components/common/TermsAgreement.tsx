@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { TERMS_DOCS, type TermsDoc } from '@/lib/terms';
+import { getTermsDocs, type TermsDoc } from '@/lib/terms';
+import { useI18n } from '@/i18n';
 import TermsModal from './TermsModal';
 
 export interface TermsAgreementState {
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function TermsAgreement({ value, onChange }: Props) {
+  const { t } = useI18n();
   const [opened, setOpened] = useState<TermsDoc | null>(null);
   const all = isAllAgreed(value);
 
@@ -38,11 +40,11 @@ export default function TermsAgreement({ value, onChange }: Props) {
           checked={all}
           onChange={(e) => toggleAll(e.target.checked)}
         />
-        <span className="text-sm font-semibold text-zinc-800">약관에 모두 동의합니다</span>
+        <span className="text-sm font-semibold text-zinc-800">{t.termsUi.agreeAll}</span>
       </label>
 
       <div className="mt-1 space-y-0.5 border-t border-zinc-200 pt-1">
-        {TERMS_DOCS.map((doc) => (
+        {getTermsDocs().map((doc) => (
           <div key={doc.key} className="flex items-center justify-between gap-2 px-1 py-1">
             <label className="flex flex-1 cursor-pointer items-center gap-2">
               <input
@@ -52,7 +54,7 @@ export default function TermsAgreement({ value, onChange }: Props) {
                 onChange={(e) => onChange({ ...value, [doc.key]: e.target.checked })}
               />
               <span className="text-[13px] text-zinc-600">
-                <span className="text-sakura-600">(필수)</span> {doc.label}
+                <span className="text-sakura-600">{t.termsUi.required}</span> {doc.label}
               </span>
             </label>
             <button
@@ -60,7 +62,7 @@ export default function TermsAgreement({ value, onChange }: Props) {
               onClick={() => setOpened(doc)}
               className="inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[12px] text-zinc-500 transition hover:bg-white hover:text-zinc-800"
             >
-              전문 보기
+              {t.termsUi.viewFull}
               <ChevronRight size={14} strokeWidth={2} />
             </button>
           </div>

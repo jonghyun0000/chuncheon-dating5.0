@@ -1,19 +1,23 @@
+import { tr } from '@/i18n';
+
 export const SCHOOLS = ['강원대', '한림대', '성심대', '춘교대'] as const;
 export type School = (typeof SCHOOLS)[number];
 
-/** 화면에 풀네임이 필요할 때 사용 */
-export const SCHOOL_FULL_NAME: Record<School, string> = {
-  강원대: '강원대학교',
-  한림대: '한림대학교',
-  성심대: '한림성심대학교',
-  춘교대: '춘천교육대학교',
-};
+/** 학교 표시명 (현재 언어) — 값(DB)은 한국어 그대로, 화면 라벨만 번역 */
+export const schoolLabel = (s: School | string) => tr().schools.short[s] ?? s;
+export const schoolFullLabel = (s: School | string) => tr().schools.full[s] ?? s;
 
 export const GENDERS = ['male', 'female'] as const;
 export type Gender = (typeof GENDERS)[number];
 
-export const CONTACT_TYPES = ['kakao', 'instagram'] as const;
-export type ContactType = (typeof CONTACT_TYPES)[number];
+/**
+ * 입력 가능한 연락수단. (5.0 개편: 인스타그램 → 전화번호)
+ * 연락처는 상대 팀에게 절대 공개되지 않고,
+ * 매칭 성사 시 관리자가 카카오톡 단체방을 만들어 초대하는 데에만 사용됩니다.
+ * 'instagram' 은 기존 회원 데이터 표시용으로만 남아 있습니다. (신규 선택 불가)
+ */
+export const CONTACT_TYPES = ['kakao', 'phone'] as const;
+export type ContactType = 'kakao' | 'phone' | 'instagram';
 
 export const TEAM_STATUS = ['active', 'hidden', 'matched'] as const;
 export type TeamStatus = (typeof TEAM_STATUS)[number];
@@ -39,33 +43,28 @@ export const SCHOOL_BADGE_COLOR: Record<School, string> = {
   춘교대: 'bg-orange-100 text-orange-700 ring-orange-200',
 };
 
-export const labelGender = (g: Gender) => (g === 'male' ? '남자' : '여자');
-export const labelContact = (c: ContactType) => (c === 'kakao' ? '카카오톡' : '인스타그램');
+// ---- 표시 라벨 (현재 언어 사전에서 조회) --------------------------------
+export const labelGender = (g: Gender) => tr().labels.gender[g];
+export const labelTeamGender = (g: Gender) => tr().labels.teamGender[g];
+export const labelContact = (c: ContactType) => tr().labels.contact[c] ?? c;
+export const labelSmoking = (v: boolean) => tr().labels.smoking(v);
 
 export const labelNotificationType = (t: NotificationType) =>
-  t === 'match_request' ? '매칭 신청'
-  : t === 'match_accepted' ? '매칭 성사'
-  : t === 'report' ? '신고'
-  : '비밀번호 재설정';
+  tr().labels.notificationType[t] ?? t;
 
-/** 신고 유형 */
-export const REPORT_CATEGORIES = [
-  { key: 'inappropriate', label: '부적절한 언행', desc: '성희롱, 폭언, 비하, 협박 등' },
-  { key: 'no_show',       label: '약속 불이행',   desc: '노쇼, 일방적 연락 두절' },
-  { key: 'fraud',         label: '금전 요구·사기', desc: '대여금 요구, 투자·대출 권유, 물품 판매' },
-  { key: 'privacy',       label: '개인정보 유출', desc: '동의 없이 캡처·저장·외부 공유' },
-  { key: 'stalking',      label: '스토킹·괴롭힘', desc: '거절 후에도 계속되는 연락, 추적' },
-  { key: 'fake',          label: '허위 정보·사칭', desc: '타인 사칭, 학생증 도용, 거짓 정보' },
-  { key: 'other',         label: '기타',          desc: '위에 해당하지 않는 문제' },
+/** 신고 유형 키 (라벨·설명은 언어 사전에서) */
+export const REPORT_CATEGORY_KEYS = [
+  'inappropriate', 'no_show', 'fraud', 'privacy', 'stalking', 'fake', 'other',
 ] as const;
+export type ReportCategoryKey = (typeof REPORT_CATEGORY_KEYS)[number];
 
-export type ReportCategoryKey = (typeof REPORT_CATEGORIES)[number]['key'];
-
-export const labelReportCategory = (k: string) =>
-  REPORT_CATEGORIES.find((c) => c.key === k)?.label ?? '기타';
-
-export const labelReportStatus = (s: string) =>
-  s === 'pending' ? '접수' : s === 'reviewing' ? '확인 중' : s === 'resolved' ? '처리 완료' : '반려';
+export const labelReportCategory = (k: string) => tr().labels.reportCategory[k] ?? k;
+export const labelReportCategoryDesc = (k: string) => tr().labels.reportCategoryDesc[k] ?? '';
+export const labelReportStatus = (s: string) => tr().labels.reportStatus[s] ?? s;
+export const labelReviewStatus = (s: string) => tr().labels.reviewStatus[s] ?? s;
+export const labelUserStatus = (s: string) => tr().labels.userStatus[s] ?? s;
+export const labelTeamStatus = (s: string) => tr().labels.teamStatus[s] ?? s;
+export const labelVerificationStatus = (s: string) => tr().labels.verificationStatus[s] ?? s;
 
 /** 매칭 가능한 팀 사이즈 차이 (±1 까지 허용) */
 export const TEAM_SIZE_TOLERANCE = 1;

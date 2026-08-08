@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, Clock, PartyPopper, ShieldAlert, XCircle } from 'lucide-react';
+import { ChevronRight, Clock, MessageCircleWarning, PartyPopper, ShieldAlert, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n';
 
 /**
  * 계정 상태에 따른 상단 안내 배너.
@@ -11,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
  */
 export function VerificationBanner() {
   const { profile } = useAuth();
+  const { t } = useI18n();
   if (!profile) return null;
   if (profile.is_verified && profile.verification_status === 'approved') return null;
 
@@ -30,13 +32,11 @@ export function VerificationBanner() {
       <div className={`text-xs leading-relaxed ${rejected ? 'text-rose-800' : 'text-amber-800'}`}>
         {rejected ? (
           <>
-            <strong>학생증 인증이 거절되었습니다.</strong> 학생증 사진이 흐리거나 정보가 가려져 있으면
-            승인이 어렵습니다. 마이페이지 안내의 관리자 이메일로 다시 보내주세요.
+            <strong>{t.banners.verifyRejectedTitle}</strong> {t.banners.verifyRejectedDesc}
           </>
         ) : (
           <>
-            <strong>학생증 인증을 기다리는 중입니다.</strong> 승인 전까지는 팀 등록과 매칭 신청이
-            제한됩니다. 보통 하루 안에 처리되며, 승인되면 바로 이용하실 수 있어요.
+            <strong>{t.banners.verifyPendingTitle}</strong> {t.banners.verifyPendingDesc}
           </>
         )}
       </div>
@@ -45,10 +45,35 @@ export function VerificationBanner() {
 }
 
 /**
+ * 5.0 연락수단 개편 안내 배너.
+ * 인스타그램(레거시)으로 가입한 회원은 관리자가 카카오톡 단체방을
+ * 만들 수 없으므로, 카카오톡 ID 또는 전화번호 재등록을 유도합니다.
+ */
+export function ContactUpdateBanner() {
+  const { profile } = useAuth();
+  const { t } = useI18n();
+  if (!profile || profile.contact_type !== 'instagram') return null;
+
+  return (
+    <Link
+      to="/me/edit"
+      className="mb-4 flex items-start gap-2.5 rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-100 transition hover:bg-amber-100/70"
+    >
+      <MessageCircleWarning size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-amber-600" />
+      <div className="flex-1 text-xs leading-relaxed text-amber-800">
+        <strong>{t.banners.contactUpdateTitle}</strong> {t.banners.contactUpdateDesc}
+      </div>
+      <ChevronRight size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-amber-400" />
+    </Link>
+  );
+}
+
+/**
  * 매칭 완료 상태로 오래 머무르면 계정이 사실상 묶입니다.
  * (활성 팀 1개 제한 때문에 새 팀을 못 만듦)
  */
 export function MatchedTeamBanner({ show }: { show: boolean }) {
+  const { t } = useI18n();
   if (!show) return null;
   return (
     <Link
@@ -57,10 +82,8 @@ export function MatchedTeamBanner({ show }: { show: boolean }) {
     >
       <PartyPopper size={20} strokeWidth={1.8} className="shrink-0" />
       <div className="flex-1">
-        <p className="text-sm font-bold">과팅이 끝나셨나요?</p>
-        <p className="text-xs leading-relaxed text-white/85">
-          [새 과팅 시작하기]를 눌러야 다음 매칭에 다시 참여할 수 있어요.
-        </p>
+        <p className="text-sm font-bold">{t.banners.matchedTitle}</p>
+        <p className="text-xs leading-relaxed text-white/85">{t.banners.matchedDesc}</p>
       </div>
       <ChevronRight size={18} strokeWidth={2.2} className="shrink-0" />
     </Link>
@@ -69,13 +92,14 @@ export function MatchedTeamBanner({ show }: { show: boolean }) {
 
 /** 마이페이지 등에서 쓰는 신고 진입점 */
 export function ReportLink() {
+  const { t } = useI18n();
   return (
     <Link
       to="/report"
       className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-zinc-50"
     >
       <ShieldAlert size={18} strokeWidth={1.8} className="text-rose-400" />
-      <span className="flex-1 text-sm text-zinc-700">신고하기</span>
+      <span className="flex-1 text-sm text-zinc-700">{t.mypage.report}</span>
       <ChevronRight size={16} strokeWidth={2} className="text-zinc-300" />
     </Link>
   );

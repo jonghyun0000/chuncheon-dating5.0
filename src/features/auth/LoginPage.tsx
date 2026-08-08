@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { signIn } from './auth.api';
 import { koMessage } from '@/utils/errors';
+import { useI18n } from '@/i18n';
 
 export default function LoginPage() {
   const nav = useNavigate();
   const loc = useLocation() as { state?: { from?: string } };
+  const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,21 +48,25 @@ export default function LoginPage() {
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-12">
+        <div className="mb-6 flex justify-center">
+          <LanguageSwitcher />
+        </div>
+
         <div className="mb-10 text-center">
-          <p className="font-display text-4xl font-bold text-sakura-600">춘천과팅</p>
-          <p className="mt-2 text-sm text-zinc-500">강원대 · 한림대 · 성심대 · 춘교대 과팅 매칭</p>
+          <p className="font-display text-4xl font-bold text-sakura-600">{t.common.appName}</p>
+          <p className="mt-2 text-sm text-zinc-500">{t.login.subtitle}</p>
         </div>
 
         <form onSubmit={submit} className="card space-y-4 p-6">
           <Input
-            label="아이디"
-            placeholder="영문/숫자/언더바"
+            label={t.login.username}
+            placeholder={t.login.usernamePlaceholder}
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
           <Input
-            label="비밀번호"
+            label={t.login.password}
             type="password"
             placeholder="••••••••"
             autoComplete="current-password"
@@ -71,18 +78,18 @@ export default function LoginPage() {
               {err}
             </div>
           )}
-          <Button type="submit" loading={loading} className="w-full">로그인</Button>
+          <Button type="submit" loading={loading} className="w-full">{t.common.login}</Button>
 
           <div className="flex items-center justify-center gap-3 pt-1 text-sm text-zinc-500">
-            <Link to="/find-username" className="transition hover:text-zinc-800">아이디 찾기</Link>
+            <Link to="/find-username" className="transition hover:text-zinc-800">{t.common.findUsername}</Link>
             <span className="text-zinc-300">|</span>
-            <Link to="/reset-password-request" className="transition hover:text-zinc-800">비밀번호 재설정</Link>
+            <Link to="/reset-password-request" className="transition hover:text-zinc-800">{t.common.resetPassword}</Link>
           </div>
         </form>
 
         <p className="mt-6 text-center text-sm text-zinc-500">
-          처음이신가요?{' '}
-          <Link to="/register" className="font-semibold text-sakura-600">회원가입</Link>
+          {t.login.firstTime}{' '}
+          <Link to="/register" className="font-semibold text-sakura-600">{t.common.register}</Link>
         </p>
       </div>
     </div>

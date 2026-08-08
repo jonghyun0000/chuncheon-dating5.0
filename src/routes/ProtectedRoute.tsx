@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const loc = useLocation();
 
   // loading 중에는 절대 redirect하지 않음 (race condition 방지)
-  if (loading) return <Loading label="잠시만 기다려주세요" />;
+  if (loading) return <Loading />;
 
   if (!session) {
     return <Navigate to="/login" replace state={{ from: loc.pathname }} />;

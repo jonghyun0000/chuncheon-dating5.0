@@ -1,5 +1,7 @@
 import { Leaf } from 'lucide-react';
 import type { FilterSchool, FilterTeamSize } from '@/types/common.types';
+import { schoolLabel } from '@/lib/constants';
+import { useI18n } from '@/i18n';
 
 interface Props {
   school: FilterSchool;
@@ -14,6 +16,7 @@ const schoolOptions: FilterSchool[] = ['전체', '강원대', '한림대', '성�
 const sizeOptions: FilterTeamSize[] = ['전체', 1, 2, 3, 4];
 
 export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke, onSize }: Props) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       {/* 학교 + 비흡연 필터 */}
@@ -28,7 +31,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
                 : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'
             }`}
           >
-            {s}
+            {s === '전체' ? t.common.all : schoolLabel(s)}
           </button>
         ))}
         <button
@@ -40,7 +43,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
           }`}
         >
           <Leaf size={14} strokeWidth={2} />
-          비흡연만
+          {t.home.filterNoSmoke}
         </button>
       </div>
 
@@ -56,7 +59,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
                 : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'
             }`}
           >
-            {s === '전체' ? '모든 사이즈' : `${s} : ${s}`}
+            {s === '전체' ? t.home.filterAllSizes : `${s} : ${s}`}
           </button>
         ))}
       </div>
