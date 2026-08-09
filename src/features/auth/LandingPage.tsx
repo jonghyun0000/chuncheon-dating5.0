@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { GraduationCap, MessagesSquare, School, UsersRound } from 'lucide-react';
+import { CirclePlay, GraduationCap, MessagesSquare, School, UsersRound } from 'lucide-react';
 import { SCHOOLS, schoolFullLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
@@ -111,6 +111,13 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-8 space-y-3 pb-6">
+          <Link
+            to="/tour"
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-white py-3.5 text-center text-sm font-bold text-sakura-600 shadow-soft ring-2 ring-sakura-200 transition hover:ring-sakura-300 active:scale-[0.98]"
+          >
+            <CirclePlay size={17} strokeWidth={2} />
+            {t.tour.entry}
+          </Link>
           <Link
             to="/register"
             className="block w-full rounded-full bg-gradient-to-r from-sakura-500 to-sakura-400 py-4 text-center font-bold text-white shadow-soft transition active:scale-[0.98]"

@@ -3,6 +3,7 @@ import ProtectedRoute from '@/routes/ProtectedRoute';
 import AdminRoute from '@/routes/AdminRoute';
 
 import LandingPage from '@/features/auth/LandingPage';
+import TourPage from '@/features/tour/TourPage';
 import LoginPage from '@/features/auth/LoginPage';
 import RegisterPage from '@/features/auth/RegisterPage';
 import FindUsernamePage from '@/features/auth/FindUsernamePage';
@@ -39,6 +40,7 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<RootRoute />} />
+      <Route path="/tour" element={<TourPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/find-username" element={<FindUsernamePage />} />
