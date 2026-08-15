@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Shuffle,
   TriangleAlert,
+  UserMinus,
   UsersRound,
 } from 'lucide-react';
 import Loading from '@/components/common/Loading';
@@ -38,6 +39,7 @@ import {
   listNotifications,
   setNotificationHandled,
 } from './notifications.api';
+import { approveAccountDeletion } from './admin.api';
 
 type TypeFilter = NotificationType | 'all';
 
@@ -47,6 +49,7 @@ const TYPE_FILTERS: { key: TypeFilter; label: (t: Dict) => string }[] = [
   { key: 'match_accepted', label: (t) => t.admin.typeMatchAccepted },
   { key: 'password_reset', label: (t) => t.admin.typePassword },
   { key: 'report', label: (t) => t.admin.typeReport },
+  { key: 'account_deletion', label: (t) => t.admin.typeAccountDeletion },
 ];
 
 function TypeIcon({ type }: { type: NotificationType }) {
@@ -54,6 +57,7 @@ function TypeIcon({ type }: { type: NotificationType }) {
   if (type === 'match_request') return <Heart {...common} />;
   if (type === 'match_accepted') return <Handshake {...common} />;
   if (type === 'report') return <MessageSquareWarning {...common} />;
+  if (type === 'account_deletion') return <UserMinus {...common} />;
   return <KeyRound {...common} />;
 }
 
@@ -61,6 +65,7 @@ const typeTone = (t: NotificationType) =>
   t === 'match_request' ? 'pink'
   : t === 'match_accepted' ? 'green'
   : t === 'report' ? 'gray'
+  : t === 'account_deletion' ? 'gray'
   : 'amber';
 
 /** 매칭 성사 payload 에서 단체방 개설용 명단을 꺼냅니다. (없으면 빈 배열) */
@@ -232,6 +237,26 @@ export default function AdminNotificationsPage() {
     }
     setCopiedRosterId(n.id);
     window.setTimeout(() => setCopiedRosterId((cur) => (cur === n.id ? null : cur)), 1800);
+  };
+
+  /** 회원 탈퇴 승인 → 이름·연락처·학생증 사진까지 완전 삭제 */
+  const onApproveDeletion = async (n: NotificationWithTarget) => {
+    const uid = n.target?.id ?? n.ref_id;
+    if (!uid) {
+      alert(t.admin.targetMissing);
+      return;
+    }
+    if (!confirm(t.admin.withdrawalApproveConfirm(n.target?.name ?? ''))) return;
+    setBusyId(n.id);
+    try {
+      await approveAccountDeletion(uid);
+      alert(t.admin.withdrawalApproveDone);
+      await load(true);
+    } catch (e) {
+      alert(koMessage(e));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const onToggleHandled = async (n: NotificationWithTarget) => {
@@ -453,6 +478,26 @@ export default function AdminNotificationsPage() {
                         {t.admin.generate}
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* 회원 탈퇴: 승인 버튼 */}
+                {n.type === 'account_deletion' && (
+                  <div className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-100">
+                    <p className="text-xs leading-relaxed text-amber-800">
+                      {t.admin.accountDeletionBoxNote}
+                    </p>
+                    {!n.is_handled && (
+                      <button
+                        type="button"
+                        disabled={busyId === n.id}
+                        onClick={() => void onApproveDeletion(n)}
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        <UserMinus size={15} strokeWidth={2} />
+                        {t.admin.withdrawalApprove}
+                      </button>
+                    )}
                   </div>
                 )}
 

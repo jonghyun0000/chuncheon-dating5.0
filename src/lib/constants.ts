@@ -28,7 +28,9 @@ export type MatchStatus = (typeof MATCH_STATUS)[number];
 export const REVIEW_STATUS = ['pending', 'approved', 'rejected'] as const;
 export type ReviewStatus = (typeof REVIEW_STATUS)[number];
 
-export const NOTIFICATION_TYPES = ['match_request', 'match_accepted', 'password_reset', 'report'] as const;
+export const NOTIFICATION_TYPES = [
+  'match_request', 'match_accepted', 'password_reset', 'report', 'account_deletion',
+] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const ADMIN_EMAIL = 'john_1217@naver.com';
@@ -66,8 +68,12 @@ export const labelUserStatus = (s: string) => tr().labels.userStatus[s] ?? s;
 export const labelTeamStatus = (s: string) => tr().labels.teamStatus[s] ?? s;
 export const labelVerificationStatus = (s: string) => tr().labels.verificationStatus[s] ?? s;
 
-/** 매칭 가능한 팀 사이즈 차이 (±1 까지 허용) */
-export const TEAM_SIZE_TOLERANCE = 1;
+/**
+ * 매칭 가능한 팀 사이즈 차이.
+ * 0 = 인원수가 정확히 같은 팀끼리만 신청할 수 있습니다. (3:3 ↔ 3:3)
+ * DB 쪽 can_request_match() 함수도 동일한 규칙으로 막고 있습니다.
+ */
+export const TEAM_SIZE_TOLERANCE = 0;
 
 /** 알림 대시보드 자동 갱신 주기 (ms) */
 export const NOTIFICATION_POLL_MS = 30_000;

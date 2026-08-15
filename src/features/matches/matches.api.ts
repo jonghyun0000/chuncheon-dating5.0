@@ -66,7 +66,7 @@ export async function applyToTeam(toTeamId: string): Promise<void> {
   const me = myTeam as any;
   const target = targetTeam as any;
 
-  // 사이즈 검증 (±1 까지 허용)
+  // 사이즈 검증 (TEAM_SIZE_TOLERANCE = 0 → 인원수가 정확히 같아야 함)
   if (Math.abs(me.team_size - target.team_size) > TEAM_SIZE_TOLERANCE) {
     throw new Error(tr().errors.sizeGapTooBig(me.team_size, target.team_size));
   }
@@ -165,12 +165,15 @@ export async function fetchMyRequests(): Promise<{
   outgoing = outgoing.filter((r) => r.from_team && r.to_team);
   incoming = incoming.filter((r) => r.from_team && r.to_team);
 
-  // 수락된 신청에 대해 양 팀 멤버 정보 조회 (실패해도 진행)
-  const acceptedRequests = [...outgoing, ...incoming].filter((r) => r.status === 'accepted');
-  if (acceptedRequests.length > 0) {
+  // 모든 신청에 대해 양 팀 멤버 정보 조회 (실패해도 진행).
+  // 신청내역 화면에서 "상대 팀 정보 보기"를 지원하기 위해 대기 중인 신청도 포함합니다.
+  // 연락처가 없는 team_members_public 뷰만 사용하므로
+  // 전화번호·카카오톡 ID 는 어떤 경우에도 상대에게 노출되지 않습니다.
+  const allRequests = [...outgoing, ...incoming];
+  if (allRequests.length > 0) {
     try {
       const teamIds = new Set<string>();
-      for (const r of acceptedRequests) {
+      for (const r of allRequests) {
         teamIds.add(r.from_team_id);
         teamIds.add(r.to_team_id);
       }
@@ -185,7 +188,7 @@ export async function fetchMyRequests(): Promise<{
           .order('member_order'),
         6000,
         { data: [] } as any,
-        'fetchAcceptedMembers'
+        'fetchRequestMembers'
       );
 
       const membersByTeam = new Map<string, any[]>();
@@ -195,7 +198,7 @@ export async function fetchMyRequests(): Promise<{
       }
 
       // from_team/to_team null 체크 후 멤버 할당
-      for (const r of acceptedRequests) {
+      for (const r of allRequests) {
         if (r.from_team) {
           (r.from_team as any).members = membersByTeam.get(r.from_team_id) ?? [];
         }

@@ -118,7 +118,7 @@ export async function fetchHomeTeams(opts: {
   if (opts.sizeFilter && opts.sizeFilter !== '전체') {
     rows = rows.filter((team) => team.team_size === opts.sizeFilter);
   } else if (myTeamSize) {
-    // 사이즈 필터가 '전체'면 내 팀과 인원 차이 1명 이내인 팀만 (신청 가능한 팀)
+    // 사이즈 필터가 '전체'면 신청 가능한 팀(= 인원수가 같은 팀)만 보여줍니다.
     rows = rows.filter(
       (team) => Math.abs(team.team_size - myTeamSize) <= TEAM_SIZE_TOLERANCE
     );

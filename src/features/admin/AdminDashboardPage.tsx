@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BellRing, ChevronRight } from 'lucide-react';
+import { BellRing, ChevronRight, UserMinus } from 'lucide-react';
 import AdminStatsCard from '@/components/admin/AdminStatsCard';
 import Loading from '@/components/common/Loading';
 import { fetchAdminStats, type AdminStats } from './admin.api';
@@ -39,8 +39,25 @@ export default function AdminDashboardPage() {
         </Link>
       )}
 
+      {stats.pendingWithdrawals > 0 && (
+        <Link
+          to="/admin/users"
+          className="mt-3 flex items-center gap-3 rounded-2xl bg-amber-50 px-5 py-4 text-amber-900 ring-1 ring-amber-200 transition hover:bg-amber-100"
+        >
+          <UserMinus size={22} strokeWidth={1.8} />
+          <div className="flex-1">
+            <p className="text-sm font-bold">
+              {t.admin.withdrawalPending} {stats.pendingWithdrawals}
+            </p>
+            <p className="text-xs text-amber-800/85">{t.admin.accountDeletionBoxNote}</p>
+          </div>
+          <ChevronRight size={20} strokeWidth={2.2} />
+        </Link>
+      )}
+
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <AdminStatsCard label={t.admin.statUnhandled} value={stats.unhandledNotifications} tone="pink" hint={t.admin.statUnhandledHint} />
+        <AdminStatsCard label={t.admin.withdrawalPending} value={stats.pendingWithdrawals} tone="amber" />
         <AdminStatsCard label={t.admin.statTotalUsers} value={stats.totalUsers} tone="gray" />
         <AdminStatsCard
           label={t.admin.statVerified}

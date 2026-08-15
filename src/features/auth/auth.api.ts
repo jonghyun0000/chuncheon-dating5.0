@@ -12,6 +12,29 @@ export async function signIn(username: string, password: string) {
   return data;
 }
 
+/**
+ * 아이디 중복확인.
+ * 로그인 이메일이 소문자로 만들어지므로 서버도 대소문자를 구분하지 않고 검사합니다.
+ * true = 사용 가능 / false = 이미 사용 중이거나 형식이 규칙에 맞지 않음
+ */
+export class UsernameCheckUnavailableError extends Error {}
+
+export async function checkUsernameAvailable(username: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_username_available' as any, {
+    p_username: username.trim(),
+  } as any);
+  if (error) {
+    // DB 에 함수가 아직 없는 경우(마이그레이션 전)에는 중복확인을 건너뛰고
+    // 가입이 막히지 않게 합니다. 중복은 DB 의 unique 제약이 최종적으로 막습니다.
+    const code = (error as { code?: string }).code ?? '';
+    if (code === 'PGRST202' || /function .*is_username_available.* does not exist/i.test(error.message)) {
+      throw new UsernameCheckUnavailableError(error.message);
+    }
+    throw error;
+  }
+  return data === true;
+}
+
 export async function signUp(input: RegisterInput) {
   if (!input.agreed_privacy || !input.agreed_terms || !input.agreed_disclaimer) {
     throw new Error(tr().register.errTermsRequired);

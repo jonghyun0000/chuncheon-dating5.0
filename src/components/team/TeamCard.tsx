@@ -15,8 +15,12 @@ interface Props {
 
 export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn }: Props) {
   const { t } = useI18n();
-  const sizeGap =
-    team.my_team_size != null ? Math.abs(team.team_size - team.my_team_size) : 0;
+  /**
+   * 인원수가 정확히 같은 팀에만 신청할 수 있습니다.
+   * (내 팀이 없으면 my_team_size 가 null 이라 판정하지 않습니다.)
+   */
+  const sizeMismatch =
+    team.my_team_size != null && team.team_size !== team.my_team_size;
 
   return (
     <article className="card p-5 animate-fade-up">
@@ -34,8 +38,8 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
             <Badge tone="amber">
               {team.team_size} : {team.team_size}
             </Badge>
-            {sizeGap === 1 && (
-              <Badge tone="sky">{t.teamCard.sizeGapBadge}</Badge>
+            {sizeMismatch && !isOwn && (
+              <Badge tone="gray">{t.teamCard.sizeMismatchBadge}</Badge>
             )}
           </div>
           <p className="mt-2.5 font-display text-lg leading-snug text-zinc-900">
@@ -65,9 +69,9 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
         ))}
       </ul>
 
-      {sizeGap === 1 && !isOwn && (
-        <p className="mt-3 rounded-2xl bg-sky-50 px-4 py-2.5 text-xs leading-relaxed text-sky-800 ring-1 ring-sky-100">
-          {t.teamCard.sizeGapNote(team.my_team_size!)}
+      {sizeMismatch && !isOwn && (
+        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-2.5 text-xs leading-relaxed text-amber-800 ring-1 ring-amber-100">
+          {t.teamCard.sizeMismatchNote(team.my_team_size!, team.team_size)}
         </p>
       )}
 
@@ -76,6 +80,8 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
           <button disabled className="btn-ghost cursor-not-allowed opacity-60">{t.teamCard.myTeam}</button>
         ) : alreadyApplied ? (
           <button disabled className="btn-ghost cursor-not-allowed gap-1.5"><Check size={16} strokeWidth={2.4} />{t.teamCard.applied}</button>
+        ) : sizeMismatch ? (
+          <button disabled className="btn-ghost cursor-not-allowed opacity-60">{t.teamCard.sizeMismatchBtn}</button>
         ) : (
           <button className="btn-primary gap-1.5" disabled={applying} onClick={() => onApply(team.id)}>
             {!applying && <Send size={16} strokeWidth={2} />}

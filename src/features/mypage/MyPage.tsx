@@ -276,6 +276,9 @@ export default function MyPage() {
             </ul>
             <p className="mt-2 text-xs text-rose-600">{t.mypage.deleteWarnNote}</p>
           </div>
+          <p className="rounded-2xl bg-zinc-50 px-4 py-3 text-xs leading-relaxed text-zinc-500 ring-1 ring-zinc-100">
+            {t.mypage.deleteAdminNote}
+          </p>
           <div>
             <label className="label">{t.mypage.deleteConfirmLabel}</label>
             <input

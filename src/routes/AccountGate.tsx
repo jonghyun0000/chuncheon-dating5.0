@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Ban, Mail } from 'lucide-react';
+import { Ban, Mail, UserMinus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Button from '@/components/common/Button';
 import { ADMIN_EMAIL } from '@/lib/constants';
@@ -22,6 +22,31 @@ export default function AccountGate({ children }: { children: ReactNode }) {
   const loc = useLocation();
 
   if (!profile) return <>{children}</>;
+
+  // 탈퇴한 계정은 다시 로그인해도 서비스를 이용할 수 없습니다.
+  if (profile.status === 'deleted') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream px-6">
+        <div className="card max-w-sm space-y-4 p-8 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-zinc-100 text-zinc-500">
+            <UserMinus size={28} strokeWidth={1.8} />
+          </div>
+          <h2 className="font-display text-lg font-bold text-zinc-900">{t.gate.deletedTitle}</h2>
+          <p className="text-sm leading-relaxed text-zinc-500">{t.gate.deletedDesc}</p>
+          <a
+            href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t.gate.mailSubjectDeleted(profile.username))}`}
+            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3.5 py-2 font-mono text-sm text-zinc-700"
+          >
+            <Mail size={14} strokeWidth={1.8} />
+            {ADMIN_EMAIL}
+          </a>
+          <Button variant="ghost" className="w-full" onClick={() => void signOut()}>
+            {t.common.logout}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (profile.status === 'inactive') {
     return (

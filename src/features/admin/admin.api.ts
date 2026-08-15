@@ -10,10 +10,12 @@ export interface AdminStats {
   pendingReviews: number;
   pendingVerifications: number;
   unhandledNotifications: number;
+  /** 회원이 요청했지만 아직 승인하지 않은 탈퇴 건수 */
+  pendingWithdrawals: number;
 }
 
 export async function fetchAdminStats(): Promise<AdminStats> {
-  const [u, vu, t, mt, pr, pv, un] = await Promise.all([
+  const [u, vu, t, mt, pr, pv, un, pw] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', true),
     supabase.from('teams').select('*', { count: 'exact', head: true }),
@@ -21,6 +23,11 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('is_handled', false),
+    supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_handled', false)
+      .eq('type', 'account_deletion'),
   ]);
   return {
     totalUsers: u.count ?? 0,
@@ -30,6 +37,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     pendingReviews: pr.count ?? 0,
     pendingVerifications: pv.count ?? 0,
     unhandledNotifications: un.count ?? 0,
+    pendingWithdrawals: pw.count ?? 0,
   };
 }
 
@@ -45,9 +53,40 @@ export async function setUserStatus(uid: string, status: 'active' | 'inactive' |
   if (error) throw error;
 }
 
+/**
+ * 학생증 사진 파일 삭제 (best-effort).
+ * 스토리지 삭제가 실패해도 DB 처리는 계속 진행합니다.
+ */
+async function removeStudentIdFile(uid: string) {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('student_id_image_path')
+      .eq('id', uid)
+      .maybeSingle();
+    const path = (data as { student_id_image_path?: string | null } | null)?.student_id_image_path;
+    if (path) await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+  } catch (e) {
+    console.warn('[admin] student id file remove failed:', e);
+  }
+}
+
+/**
+ * 회원 삭제 (관리자).
+ * 예전에는 profiles.status 만 'deleted' 로 바꿔서 목록에 그대로 남아
+ * "삭제가 되지 않는다"고 보였습니다. 이제는 전용 RPC 로
+ * 팀·팀원·매칭신청·후기·알림까지 실제로 지우고 개인정보를 익명화합니다.
+ */
 export async function deleteUser(uid: string) {
-  // profiles row 삭제 (auth.users는 service_role 필요 - 클라이언트에서는 비활성화 권장)
-  const { error } = await supabase.from('profiles').update({ status: 'deleted' }).eq('id', uid);
+  await removeStudentIdFile(uid);
+  const { error } = await supabase.rpc('admin_delete_user' as any, { p_uid: uid } as any);
+  if (error) throw error;
+}
+
+/** 회원이 요청한 탈퇴를 승인 → 개인정보 완전 삭제 */
+export async function approveAccountDeletion(uid: string) {
+  await removeStudentIdFile(uid);
+  const { error } = await supabase.rpc('admin_approve_account_deletion' as any, { p_uid: uid } as any);
   if (error) throw error;
 }
 

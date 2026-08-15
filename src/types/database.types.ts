@@ -12,7 +12,13 @@ export type ReviewStatus = 'pending' | 'approved' | 'rejected';
 export type UserStatus = 'active' | 'inactive' | 'deleted';
 export type Role = 'user' | 'admin';
 export type TeamSize = 1 | 2 | 3 | 4;
-export type NotificationType = 'match_request' | 'match_accepted' | 'password_reset' | 'report';
+export type NotificationType =
+  | 'match_request'
+  | 'match_accepted'
+  | 'password_reset'
+  | 'report'
+  /** 회원 탈퇴 요청 — 관리자가 승인하면 개인정보가 완전히 삭제됩니다. */
+  | 'account_deletion';
 export type ReportCategory =
   | 'inappropriate' | 'no_show' | 'fraud' | 'privacy' | 'stalking' | 'fake' | 'other';
 export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed';

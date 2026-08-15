@@ -4,6 +4,8 @@ import AdminRoute from '@/routes/AdminRoute';
 
 import LandingPage from '@/features/auth/LandingPage';
 import TourPage from '@/features/tour/TourPage';
+import PublicDocPage from '@/features/legal/PublicDocPage';
+import AccountDeletionPage from '@/features/legal/AccountDeletionPage';
 import LoginPage from '@/features/auth/LoginPage';
 import RegisterPage from '@/features/auth/RegisterPage';
 import FindUsernamePage from '@/features/auth/FindUsernamePage';
@@ -45,6 +47,12 @@ export default function AppRouter() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/find-username" element={<FindUsernamePage />} />
       <Route path="/reset-password-request" element={<ResetPasswordRequestPage />} />
+
+      {/* 공개 법적 페이지 (로그인 불필요, 플레이스토어 요건) */}
+      <Route path="/privacy" element={<PublicDocPage docKey="privacy" />} />
+      <Route path="/terms-of-service" element={<PublicDocPage docKey="service" />} />
+      <Route path="/disclaimer" element={<PublicDocPage docKey="disclaimer" />} />
+      <Route path="/account-deletion" element={<AccountDeletionPage />} />
 
       <Route path="/team" element={<ProtectedRoute><TeamRegisterPage /></ProtectedRoute>} />
       <Route path="/requests" element={<ProtectedRoute><RequestsPage /></ProtectedRoute>} />
