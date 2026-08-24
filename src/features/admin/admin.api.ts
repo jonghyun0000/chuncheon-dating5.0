@@ -2,24 +2,53 @@ import { supabase } from '@/lib/supabaseClient';
 import { STORAGE_BUCKET } from '@/lib/constants';
 import type { Profile, Review, Team, TeamMember } from '@/types/database.types';
 
+/** 한쪽 성별의 팀 현황 */
+export interface GenderTeamStats {
+  /** 지금 살아 있는 팀 (신청 가능 + 매칭 진행 중) */
+  live: number;
+  /** 홈에 노출되어 신청을 받을 수 있는 팀 */
+  active: number;
+  /** 매칭되어 진행 중인 팀 */
+  matched: number;
+  /** 과팅을 끝내고 내려간 팀 */
+  finished: number;
+}
+
 export interface AdminStats {
   totalUsers: number;
   verifiedUsers: number;
-  totalTeams: number;
-  matchedCount: number;
   pendingReviews: number;
   pendingVerifications: number;
   unhandledNotifications: number;
   /** 회원이 요청했지만 아직 승인하지 않은 탈퇴 건수 */
   pendingWithdrawals: number;
+
+  // ---- 팀 ----
+  /** 지금 살아 있는 팀 수 (active + matched) — 홈 화면의 [등록 팀]과 같은 기준 */
+  liveTeams: number;
+  /** 지금까지 만들어진 모든 팀 (종료된 팀 포함) */
+  totalTeams: number;
+  male: GenderTeamStats;
+  female: GenderTeamStats;
+
+  /**
+   * 매칭 성사 건수.
+   * 팀 상태가 아니라 '수락된 신청' 을 셉니다.
+   * (예전에는 matched 팀 수 ÷ 2 였는데, 한쪽이 과팅을 끝내면
+   *  짝이 홀수가 되어 성사 건수가 깎이는 버그가 있었습니다)
+   */
+  matchedCount: number;
 }
 
+const emptyGender = (): GenderTeamStats => ({ live: 0, active: 0, matched: 0, finished: 0 });
+
 export async function fetchAdminStats(): Promise<AdminStats> {
-  const [u, vu, t, mt, pr, pv, un, pw] = await Promise.all([
+  const [u, vu, teams, mc, pr, pv, un, pw] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', true),
-    supabase.from('teams').select('*', { count: 'exact', head: true }),
-    supabase.from('teams').select('*', { count: 'exact', head: true }).eq('status', 'matched'),
+    // 성별·상태별로 나눠 세야 하므로 한 번에 가져와 집계합니다.
+    supabase.from('teams').select('gender, status'),
+    supabase.from('match_requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('is_handled', false),
@@ -29,15 +58,31 @@ export async function fetchAdminStats(): Promise<AdminStats> {
       .eq('is_handled', false)
       .eq('type', 'account_deletion'),
   ]);
+
+  const male = emptyGender();
+  const female = emptyGender();
+  const rows = (teams.data ?? []) as { gender: 'male' | 'female'; status: string }[];
+
+  for (const row of rows) {
+    const bucket = row.gender === 'female' ? female : male;
+    if (row.status === 'active') { bucket.active += 1; bucket.live += 1; }
+    else if (row.status === 'matched') { bucket.matched += 1; bucket.live += 1; }
+    else bucket.finished += 1;
+  }
+
   return {
     totalUsers: u.count ?? 0,
     verifiedUsers: vu.count ?? 0,
-    totalTeams: t.count ?? 0,
-    matchedCount: Math.floor((mt.count ?? 0) / 2),
     pendingReviews: pr.count ?? 0,
     pendingVerifications: pv.count ?? 0,
     unhandledNotifications: un.count ?? 0,
     pendingWithdrawals: pw.count ?? 0,
+
+    liveTeams: male.live + female.live,
+    totalTeams: rows.length,
+    male,
+    female,
+    matchedCount: mc.count ?? 0,
   };
 }
 
