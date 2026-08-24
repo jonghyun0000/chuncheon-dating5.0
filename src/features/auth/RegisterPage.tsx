@@ -10,7 +10,7 @@ import TermsAgreement, {
   type TermsAgreementState,
 } from '@/components/common/TermsAgreement';
 import { UsernameCheckUnavailableError, checkUsernameAvailable, signUp } from './auth.api';
-import { CONTACT_TYPES, SCHOOLS, labelContact, schoolLabel } from '@/lib/constants';
+import { CONTACT_TYPES, DEFAULT_CONTACT_TYPE, SCHOOLS, labelContact, schoolLabel } from '@/lib/constants';
 import {
   isValidName, isValidPassword, isValidStudentNumber, isValidUsername,
   normalizeContactId, normalizeStudentNumber, validateContact,
@@ -29,7 +29,7 @@ export default function RegisterPage() {
     gender: 'male' as 'male' | 'female',
     school: '강원대' as (typeof SCHOOLS)[number],
     student_number: '',
-    contact_type: 'kakao' as 'kakao' | 'phone',
+    contact_type: DEFAULT_CONTACT_TYPE as 'kakao' | 'phone',
     contact_id: '',
   });
   const [agree, setAgree] = useState<TermsAgreementState>(EMPTY_TERMS_AGREEMENT);

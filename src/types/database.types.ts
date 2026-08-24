@@ -73,6 +73,10 @@ export interface TeamMember {
   contact_type: ContactType;
   contact_id: string;
   created_at: string;
+  /** 나만의 취향 (영문 키, 최대 3개) */
+  taste_tags: string[];
+  /** 만나고 싶은 사람 (영문 키, 최대 3개) */
+  want_tags: string[];
 }
 
 export interface TeamMemberPublic {
@@ -85,6 +89,8 @@ export interface TeamMemberPublic {
   nickname: string;
   smoking: boolean;
   created_at: string;
+  taste_tags: string[];
+  want_tags: string[];
 }
 
 export interface MatchRequest {

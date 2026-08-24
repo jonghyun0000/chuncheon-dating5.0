@@ -4,6 +4,7 @@ import { CircleAlert, MessagesSquare, ShieldAlert, UsersRound } from 'lucide-rea
 import PageLayout from '@/components/layout/PageLayout';
 import Loading from '@/components/common/Loading';
 import Badge from '@/components/common/Badge';
+import MemberTags from '@/components/team/MemberTags';
 import Button from '@/components/common/Button';
 import { fetchMatchDetail } from './matches.api';
 import type { MatchRequestWithTeams } from './matches.types';
@@ -106,6 +107,7 @@ export default function MatchDetailPage() {
                     {labelSmoking(m.smoking)}
                   </Badge>
                 </div>
+                <MemberTags taste={m.taste_tags} want={m.want_tags} />
               </li>
             ))}
           </ul>

@@ -124,6 +124,8 @@ export async function createTeam(input: TeamRegisterInput) {
     smoking: m.smoking,
     contact_type: m.contact_type,
     contact_id: m.contact_id.trim(),
+    taste_tags: m.taste_tags,
+    want_tags: m.want_tags,
   }));
 
   const { error: mErr } = await supabase.from('team_members').insert(rows);
@@ -171,6 +173,8 @@ export async function updateTeam(teamId: string, input: TeamRegisterInput) {
     smoking: m.smoking,
     contact_type: m.contact_type,
     contact_id: m.contact_id.trim(),
+    taste_tags: m.taste_tags,
+    want_tags: m.want_tags,
   }));
   const { error: mErr } = await supabase.from('team_members').insert(rows);
   if (mErr) throw mErr;

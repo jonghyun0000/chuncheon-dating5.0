@@ -18,7 +18,7 @@ import type { MemberInput, TeamRegisterInput } from './teams.types';
 import type { Team, TeamMember, TeamSize } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { admissionLabel } from '@/utils/format';
-import { labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
+import { DEFAULT_CONTACT_TYPE, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import {
   isValidStudentNumber, normalizeContactId, normalizeStudentNumber, validateContact,
 } from '@/utils/validators';
@@ -32,8 +32,11 @@ const empty: MemberInput = {
   student_number: '',
   nickname: '',
   smoking: false,
-  contact_type: 'kakao',
+  // 매칭 성사 시 관리자가 단체방을 만들 때 전화번호가 가장 확실해서 기본값입니다.
+  contact_type: DEFAULT_CONTACT_TYPE,
   contact_id: '',
+  taste_tags: [],
+  want_tags: [],
 };
 
 type Mode = 'view' | 'create' | 'edit';
@@ -107,9 +110,11 @@ export default function TeamRegisterPage() {
         student_number: m.student_number,
         nickname: m.nickname,
         smoking: m.smoking,
-        // 인스타그램(레거시)은 더 이상 쓸 수 없으므로 카카오톡으로 바꾸고 재입력을 받습니다.
-        contact_type: m.contact_type === 'phone' ? 'phone' : 'kakao',
+        // 인스타그램(레거시)은 더 이상 쓸 수 없으므로 다시 입력받습니다.
+        contact_type: m.contact_type === 'instagram' ? DEFAULT_CONTACT_TYPE : m.contact_type,
         contact_id: m.contact_type === 'instagram' ? '' : m.contact_id,
+        taste_tags: m.taste_tags ?? [],
+        want_tags: m.want_tags ?? [],
       }))
     );
     setMode('edit');
@@ -158,6 +163,10 @@ export default function TeamRegisterPage() {
       const contactErr = validateContact(m.contact_type, m.contact_id);
       if (contactErr) {
         return setErr(t.team.errMemberContact(i + 1, contactErr));
+      }
+      // 카드가 비어 보이지 않도록 취향은 최소 1개를 받습니다. (만나고 싶은 사람은 선택)
+      if (m.taste_tags.length === 0) {
+        return setErr(t.team.errMemberTaste(i + 1));
       }
     }
     if (!consent) {

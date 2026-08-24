@@ -1,5 +1,6 @@
 import { BadgeCheck, Check, Send } from 'lucide-react';
 import Badge from '@/components/common/Badge';
+import MemberTags from '@/components/team/MemberTags';
 import { admissionLabel } from '@/utils/format';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
@@ -50,21 +51,24 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
 
       <ul className="mt-4 divide-y divide-zinc-100 rounded-2xl bg-zinc-50/60 ring-1 ring-zinc-100">
         {team.members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[11px] font-medium ring-1 ${SCHOOL_BADGE_COLOR[m.school]}`}
-              >
-                {schoolLabel(m.school)}
-              </span>
-              <div>
-                <p className="font-semibold text-zinc-900 leading-tight">{m.nickname}</p>
-                <p className="text-xs text-zinc-500">{m.department} · {admissionLabel(m.student_number)}</p>
+          <li key={m.id} className="px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-medium ring-1 ${SCHOOL_BADGE_COLOR[m.school]}`}
+                >
+                  {schoolLabel(m.school)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-zinc-900 leading-tight">{m.nickname}</p>
+                  <p className="truncate text-xs text-zinc-500">{m.department} · {admissionLabel(m.student_number)}</p>
+                </div>
               </div>
+              <Badge tone={m.smoking ? 'amber' : 'green'}>
+                {labelSmoking(m.smoking)}
+              </Badge>
             </div>
-            <Badge tone={m.smoking ? 'amber' : 'green'}>
-              {labelSmoking(m.smoking)}
-            </Badge>
+            <MemberTags taste={m.taste_tags} want={m.want_tags} compact />
           </li>
         ))}
       </ul>

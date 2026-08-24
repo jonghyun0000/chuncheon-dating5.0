@@ -8,6 +8,10 @@ export interface MemberInput {
   smoking: boolean;
   contact_type: ContactType;
   contact_id: string;
+  /** 나만의 취향 (필수 · 최소 1개) */
+  taste_tags: string[];
+  /** 만나고 싶은 사람 (선택) */
+  want_tags: string[];
 }
 
 export interface TeamRegisterInput {

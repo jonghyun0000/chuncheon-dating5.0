@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import Button from '@/components/common/Button';
+import MemberTags from '@/components/team/MemberTags';
 import { admissionLabel, formatDateTime } from '@/utils/format';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import type { MatchRequestWithTeams } from '@/features/matches/matches.types';
@@ -91,21 +92,24 @@ export default function MatchRequestCard({ request, side, onAccept, onReject, bu
             {members.length > 0 ? (
               <ul className="mt-3 divide-y divide-zinc-100 rounded-xl bg-zinc-50/60 ring-1 ring-zinc-100">
                 {members.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-medium ring-1 ${SCHOOL_BADGE_COLOR[m.school]}`}
-                      >
-                        {schoolLabel(m.school)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold leading-tight text-zinc-900">{m.nickname}</p>
-                        <p className="truncate text-xs text-zinc-500">
-                          {m.department} · {admissionLabel(m.student_number)}
-                        </p>
+                  <li key={m.id} className="px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-medium ring-1 ${SCHOOL_BADGE_COLOR[m.school]}`}
+                        >
+                          {schoolLabel(m.school)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold leading-tight text-zinc-900">{m.nickname}</p>
+                          <p className="truncate text-xs text-zinc-500">
+                            {m.department} · {admissionLabel(m.student_number)}
+                          </p>
+                        </div>
                       </div>
+                      <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
                     </div>
-                    <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
+                    <MemberTags taste={m.taste_tags} want={m.want_tags} compact />
                   </li>
                 ))}
               </ul>

@@ -1,6 +1,10 @@
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
-import { CONTACT_TYPES, SCHOOLS, labelContact, schoolLabel } from '@/lib/constants';
+import TagPicker from '@/components/common/TagPicker';
+import {
+  CONTACT_TYPES, MAX_TAGS_PER_GROUP, SCHOOLS, TASTE_TAGS, WANT_TAGS,
+  labelContact, labelTasteTag, labelWantTag, schoolLabel,
+} from '@/lib/constants';
 import { useI18n } from '@/i18n';
 import type { MemberInput } from '@/features/teams/teams.types';
 
@@ -38,6 +42,27 @@ export default function MemberForm({ index, value, onChange }: Props) {
         <option value="0">{t.memberForm.smokingNo}</option>
         <option value="1">{t.memberForm.smokingYes}</option>
       </Select>
+
+      {/* 태그 — 카드에 공개되는 정보입니다 */}
+      <TagPicker
+        label={t.memberForm.tasteTags}
+        options={TASTE_TAGS}
+        renderLabel={labelTasteTag}
+        value={value.taste_tags}
+        onChange={(v) => set('taste_tags', v)}
+        max={MAX_TAGS_PER_GROUP}
+        required
+        hint={t.memberForm.tasteTagsHint}
+      />
+      <TagPicker
+        label={t.memberForm.wantTags}
+        options={WANT_TAGS}
+        renderLabel={labelWantTag}
+        value={value.want_tags}
+        onChange={(v) => set('want_tags', v)}
+        max={MAX_TAGS_PER_GROUP}
+        hint={t.memberForm.wantTagsHint}
+      />
       <div className="grid grid-cols-2 gap-3">
         <Select label={t.memberForm.contactType} value={value.contact_type} onChange={(e) => set('contact_type', e.target.value as 'kakao' | 'phone')}>
           {CONTACT_TYPES.map((v) => (

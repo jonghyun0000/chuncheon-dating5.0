@@ -16,8 +16,11 @@ export type Gender = (typeof GENDERS)[number];
  * 매칭 성사 시 관리자가 카카오톡 단체방을 만들어 초대하는 데에만 사용됩니다.
  * 'instagram' 은 기존 회원 데이터 표시용으로만 남아 있습니다. (신규 선택 불가)
  */
-export const CONTACT_TYPES = ['kakao', 'phone'] as const;
+export const CONTACT_TYPES = ['phone', 'kakao'] as const;
 export type ContactType = 'kakao' | 'phone' | 'instagram';
+
+/** 새로 입력할 때의 기본 연락수단 — 관리자가 단체방을 만들 때 전화번호가 가장 확실합니다. */
+export const DEFAULT_CONTACT_TYPE: 'phone' = 'phone';
 
 export const TEAM_STATUS = ['active', 'hidden', 'matched'] as const;
 export type TeamStatus = (typeof TEAM_STATUS)[number];
@@ -74,6 +77,30 @@ export const labelVerificationStatus = (s: string) => tr().labels.verificationSt
  * DB 쪽 can_request_match() 함수도 동일한 규칙으로 막고 있습니다.
  */
 export const TEAM_SIZE_TOLERANCE = 0;
+
+// ---- 팀원 태그 -----------------------------------------------------------
+/**
+ * 태그는 DB 에 영문 키로만 저장하고 화면 라벨은 언어 사전에서 꺼냅니다.
+ * 덕분에 4개 언어가 자동으로 지원되고, 자유 텍스트가 아니라서
+ * 연락처를 적어 넣는 우회도 DB CHECK 로 막힙니다.
+ * 키를 바꾸면 sql/0008_member_tags.sql 의 허용 목록도 함께 고쳐야 합니다.
+ */
+export const TASTE_TAGS = [
+  'drink_love', 'drink_light', 'cafe', 'food', 'workout', 'game',
+  'movie', 'music', 'travel', 'photo', 'pet', 'fashion',
+] as const;
+export type TasteTag = (typeof TASTE_TAGS)[number];
+
+export const WANT_TAGS = [
+  'humor', 'reaction', 'talk', 'lively', 'calm', 'drinker', 'similar', 'easygoing',
+] as const;
+export type WantTag = (typeof WANT_TAGS)[number];
+
+/** 팀원 1명이 고를 수 있는 태그 최대 개수 (DB CHECK 와 동일하게 유지) */
+export const MAX_TAGS_PER_GROUP = 3;
+
+export const labelTasteTag = (k: string) => tr().labels.tasteTag[k] ?? k;
+export const labelWantTag = (k: string) => tr().labels.wantTag[k] ?? k;
 
 /** 알림 대시보드 자동 갱신 주기 (ms) */
 export const NOTIFICATION_POLL_MS = 30_000;
