@@ -115,13 +115,24 @@ export async function fetchHomeTeams(opts: {
     );
   }
 
+  // 사용자가 직접 고른 인원수 필터만 목록을 걸러냅니다.
   if (opts.sizeFilter && opts.sizeFilter !== '전체') {
     rows = rows.filter((team) => team.team_size === opts.sizeFilter);
-  } else if (myTeamSize) {
-    // 사이즈 필터가 '전체'면 신청 가능한 팀(= 인원수가 같은 팀)만 보여줍니다.
-    rows = rows.filter(
-      (team) => Math.abs(team.team_size - myTeamSize) <= TEAM_SIZE_TOLERANCE
-    );
+  }
+
+  /**
+   * 내 팀과 인원수가 다른 팀도 "숨기지 않고" 보여줍니다.
+   *
+   * 예전에는 인원수가 다르면 목록에서 제거했는데,
+   *   · 팀을 등록하는 순간 보이던 팀들이 이유 없이 사라지고
+   *   · 등록 팀이 적은 지금은 홈이 텅 비어 보이며
+   *   · "4:4 팀이 마음에 드니 우리도 한 명 더 데려오자" 같은 선택지가 아예 사라집니다.
+   * 그래서 신청 가능한 팀을 위로 올리기만 하고, 신청 불가 사유는 팀 카드에서 안내합니다.
+   */
+  if (myTeamSize) {
+    const applicable = (t: TeamWithMembers) =>
+      Math.abs(t.team_size - myTeamSize) <= TEAM_SIZE_TOLERANCE ? 0 : 1;
+    rows = [...rows].sort((a, b) => applicable(a) - applicable(b));
   }
 
   // 신청 가능 여부를 카드에서 표시할 수 있도록 내 팀 사이즈를 실어 보냅니다.
