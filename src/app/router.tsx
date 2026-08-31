@@ -4,6 +4,7 @@ import AdminRoute from '@/routes/AdminRoute';
 
 import LandingPage from '@/features/auth/LandingPage';
 import TourPage from '@/features/tour/TourPage';
+import InstallGuidePage from '@/features/install/InstallGuidePage';
 import PublicDocPage from '@/features/legal/PublicDocPage';
 import AccountDeletionPage from '@/features/legal/AccountDeletionPage';
 import LoginPage from '@/features/auth/LoginPage';
@@ -43,6 +44,7 @@ export default function AppRouter() {
     <Routes>
       <Route path="/" element={<RootRoute />} />
       <Route path="/tour" element={<TourPage />} />
+      <Route path="/install" element={<InstallGuidePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/find-username" element={<FindUsernamePage />} />

@@ -7,6 +7,7 @@ import {
   KeyRound,
   Mail,
   ShieldCheck,
+  Smartphone,
   TriangleAlert,
   UserPen,
 } from 'lucide-react';
@@ -156,6 +157,13 @@ export default function MyPage() {
             <Link to="/me/edit" className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-zinc-50">
               <UserPen size={18} strokeWidth={1.8} className="text-zinc-400" />
               <span className="flex-1 text-sm text-zinc-700">{t.mypage.editProfile}</span>
+              <ChevronRight size={16} strokeWidth={2} className="text-zinc-300" />
+            </Link>
+          </li>
+          <li>
+            <Link to="/install" className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-zinc-50">
+              <Smartphone size={18} strokeWidth={1.8} className="text-zinc-400" />
+              <span className="flex-1 text-sm text-zinc-700">{t.install.menuLabel}</span>
               <ChevronRight size={16} strokeWidth={2} className="text-zinc-300" />
             </Link>
           </li>

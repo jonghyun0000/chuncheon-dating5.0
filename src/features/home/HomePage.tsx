@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { applyToTeam, fetchMyOutgoingRequestTeamIds } from '@/features/matches/matches.api';
 import { koMessage } from '@/utils/errors';
 import { ContactUpdateBanner, MatchedTeamBanner, VerificationBanner } from '@/components/common/StatusBanner';
+import InstallBanner from '@/components/common/InstallBanner';
 import { fetchMyMatchedTeam } from '@/features/teams/teams.api';
 import { useI18n } from '@/i18n';
 
@@ -65,6 +66,7 @@ export default function HomePage() {
 
   return (
     <PageLayout subtitle={greeting}>
+      <InstallBanner />
       <MatchedTeamBanner show={hasMatchedTeam} />
       <VerificationBanner />
       <ContactUpdateBanner />
