@@ -867,6 +867,8 @@ export const en: Dict = {
     studentIdFill: 'Fill frame',
 
     verifyTitle: 'Verification',
+    verifySearchPlaceholder: 'Search name, student no. or ID',
+    verifyCount: (shown: number, total: number) => `${shown} of ${total}`,
     filterPending: 'Pending',
     filterApproved: 'Approved',
     filterRejected: 'Rejected',

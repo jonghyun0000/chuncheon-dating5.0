@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Loading from '@/components/common/Loading';
 import Badge from '@/components/common/Badge';
 import Button from '@/components/common/Button';
-import { Check, Expand, ExternalLink, Maximize2 } from 'lucide-react';
+import { Check, Expand, ExternalLink, Maximize2, Search, X } from 'lucide-react';
 import { approveVerification, getStudentSignedUrl, listVerificationQueue, rejectVerification } from './admin.api';
 import type { Profile } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
@@ -14,6 +14,8 @@ export default function AdminVerificationPage() {
   const { t } = useI18n();
   const [rows, setRows] = useState<Profile[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  /** 이름 · 학번 · 아이디 검색어 */
+  const [q, setQ] = useState('');
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   /** 학생증 사진 보기 방식 — 기본은 잘리지 않는 [전체 보기] */
   const [fill, setFill] = useState(false);
@@ -33,12 +35,61 @@ export default function AdminVerificationPage() {
 
   useEffect(() => { void load(); }, []);
 
+  /**
+   * 상태 필터와 검색어를 함께 적용합니다.
+   * 검색은 이름 · 학번 · 아이디를 대소문자 구분 없이 부분 일치로 찾습니다.
+   * (Hook 이므로 아래 조기 반환보다 위에 있어야 합니다.)
+   */
+  const visible = useMemo(() => {
+    const list = rows ?? [];
+    const needle = q.trim().toLowerCase();
+
+    return list.filter((p) => {
+      if (filter !== 'all' && p.verification_status !== filter) return false;
+      if (!needle) return true;
+      return (
+        (p.name ?? '').toLowerCase().includes(needle) ||
+        (p.student_number ?? '').toLowerCase().includes(needle) ||
+        (p.username ?? '').toLowerCase().includes(needle)
+      );
+    });
+  }, [rows, filter, q]);
+
   if (!rows) return <Loading />;
-  const visible = rows.filter((p) => filter === 'all' ? true : p.verification_status === filter);
 
   return (
     <div>
       <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.verifyTitle}</h1>
+
+      {/* 이름 · 학번 · 아이디 검색 */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[210px] flex-1">
+          <Search
+            size={15}
+            strokeWidth={2}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t.admin.verifySearchPlaceholder}
+            className="w-full rounded-full bg-white py-2 pl-9 pr-9 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none transition focus:ring-2 focus:ring-sakura-200"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ('')}
+              aria-label={t.common.close}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          )}
+        </div>
+        <span className="shrink-0 text-xs text-zinc-500">
+          {t.admin.verifyCount(visible.length, rows.length)}
+        </span>
+      </div>
 
       <div className="mt-3 mb-5 flex gap-2 flex-wrap">
         {(['pending', 'approved', 'rejected', 'all'] as const).map((k) => (

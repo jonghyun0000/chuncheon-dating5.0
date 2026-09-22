@@ -867,6 +867,8 @@ export const ja: Dict = {
     studentIdFill: 'いっぱいに表示',
 
     verifyTitle: '認証管理',
+    verifySearchPlaceholder: '名前 · 学籍番号 · IDを検索',
+    verifyCount: (shown: number, total: number) => `${total}人中 ${shown}人`,
     filterPending: '待機',
     filterApproved: '承認',
     filterRejected: '拒否',

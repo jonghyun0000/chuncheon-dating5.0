@@ -867,6 +867,8 @@ export const zh: Dict = {
     studentIdFill: '填满显示',
 
     verifyTitle: '认证管理',
+    verifySearchPlaceholder: '搜索姓名 · 学号 · 账号',
+    verifyCount: (shown: number, total: number) => `${total} 人中 ${shown} 人`,
     filterPending: '待审',
     filterApproved: '通过',
     filterRejected: '拒绝',

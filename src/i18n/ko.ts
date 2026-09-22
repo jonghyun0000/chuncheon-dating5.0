@@ -875,6 +875,8 @@ export const ko = {
     studentIdFill: '꽉 채워 보기',
 
     verifyTitle: '인증관리',
+    verifySearchPlaceholder: '이름 · 학번 · 아이디 검색',
+    verifyCount: (shown: number, total: number) => `${total}명 중 ${shown}명`,
     filterPending: '대기',
     filterApproved: '승인',
     filterRejected: '거절',
