@@ -1,84 +1,97 @@
-/**
- * 다국어(i18n) 코어.
- *  - 기본 언어는 한국어이며 시작화면(랜딩)에서 변경할 수 있습니다.
- *  - 선택한 언어는 localStorage 에 저장되어 다음 방문에도 유지됩니다.
- *  - React 컴포넌트는 useI18n() 의 t 를 사용 (언어 변경 시 자동 리렌더),
- *    React 밖의 모듈(api/errors/validators)은 tr() 로 현재 사전을 읽습니다.
- *  - en/zh/ja 는 Dict(= typeof ko) 타입이므로 번역 키가 하나라도 빠지면
- *    컴파일 에러가 나서 누락을 원천 차단합니다.
- */
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+/** Synchronous t/tr API; language changes commit only after their dictionary loads. */
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ko, type Dict } from './ko';
-import { en } from './en';
-import { zh } from './zh';
-import { ja } from './ja';
-
-export type Lang = 'ko' | 'en' | 'zh' | 'ja';
-export type { Dict };
-
-const DICTS: Record<Lang, Dict> = { ko, en, zh, ja };
+import { getCachedDictionary, loadDictionary, type Lang } from './dictionaries';
+export type { Lang, Dict };
 
 export const LANG_OPTIONS: { value: Lang; label: string }[] = [
-  { value: 'ko', label: '한국어' },
-  { value: 'en', label: 'English' },
-  { value: 'zh', label: '中文' },
-  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' }, { value: 'en', label: 'English' },
+  { value: 'zh', label: '中文' }, { value: 'ja', label: '日本語' },
 ];
-
+const languageMessages = {
+  ko: { loading: '언어를 불러오는 중…', failed: '언어를 불러오지 못했습니다. 언어 버튼을 눌러 다시 시도해주세요.' },
+  en: { loading: 'Loading language…', failed: 'The language could not be loaded. Select it again to retry.' },
+  zh: { loading: '正在加载语言…', failed: '无法加载语言，请再次选择以重试。' },
+  ja: { loading: '言語を読み込み中…', failed: '言語を読み込めませんでした。もう一度選択してください。' },
+};
 const STORAGE_KEY = 'cg_lang';
-
 const readStored = (): Lang => {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === 'ko' || v === 'en' || v === 'zh' || v === 'ja') return v;
-  } catch {
-    /* localStorage 접근 불가 환경(사파리 시크릿 등)은 기본값 사용 */
-  }
+    const value = localStorage.getItem(STORAGE_KEY);
+    if (value === 'ko' || value === 'en' || value === 'zh' || value === 'ja') return value;
+  } catch { /* Language switching also works without storage access. */ }
   return 'ko';
 };
-
-let currentLang: Lang = readStored();
-
-/** 현재 언어 코드 (React 밖에서 사용) */
+let currentLang: Lang = 'ko';
+let currentDictionary: Dict = ko;
 export const getLang = (): Lang => currentLang;
-
-/** 현재 언어 사전 (React 밖 — api/errors/validators — 에서 사용) */
-export const tr = (): Dict => DICTS[currentLang];
+export const tr = (): Dict => currentDictionary;
 
 interface I18nContextValue {
   lang: Lang;
-  setLang: (l: Lang) => void;
+  setLang: (lang: Lang) => void;
   t: Dict;
+  pendingLang: Lang | null;
+  languageError: string | null;
+  languageLoadingMessage: string;
 }
-
 const I18nContext = createContext<I18nContextValue>({
-  lang: 'ko',
-  setLang: () => undefined,
-  t: ko,
+  lang: 'ko', setLang: () => undefined, t: ko, pendingLang: null,
+  languageError: null, languageLoadingMessage: languageMessages.ko.loading,
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(currentLang);
+  const [preferred] = useState(readStored);
+  const [selection, setSelection] = useState(() => ({
+    lang: currentLang,
+    t: currentDictionary,
+  }));
+  const [ready, setReady] = useState(() => preferred === currentLang);
+  const [pendingLang, setPendingLang] = useState<Lang | null>(null);
+  const [failed, setFailed] = useState(false);
+  const requestId = useRef(0);
 
-  const setLang = (l: Lang) => {
-    currentLang = l;
-    try {
-      localStorage.setItem(STORAGE_KEY, l);
-    } catch {
-      /* 저장 실패해도 이번 세션은 동작 */
-    }
-    setLangState(l);
-  };
+  const setLang = useCallback((lang: Lang) => {
+    const request = ++requestId.current;
+    setFailed(false);
+    const commit = (dictionary: Dict) => {
+      if (request !== requestId.current) return;
+      currentLang = lang;
+      currentDictionary = dictionary;
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+      try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* Optional persistence. */ }
+      setSelection({ lang, t: dictionary });
+      setPendingLang(null);
+      setReady(true);
+    };
+    const cached = getCachedDictionary(lang);
+    if (cached) { commit(cached); return; }
+    setPendingLang(lang);
+    void loadDictionary(lang).then(commit).catch(() => {
+      if (request !== requestId.current) return;
+      setPendingLang(null);
+      setFailed(true);
+      setReady(true);
+    });
+  }, []);
 
   useEffect(() => {
-    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
-  }, [lang]);
+    setLang(preferred);
+    return () => { requestId.current += 1; };
+  }, [preferred, setLang]);
 
   return (
-    <I18nContext.Provider value={{ lang, setLang, t: DICTS[lang] }}>
-      {children}
+    <I18nContext.Provider value={{
+      ...selection, setLang, pendingLang,
+      languageLoadingMessage: languageMessages[pendingLang ?? selection.lang].loading,
+      languageError: failed ? languageMessages[selection.lang].failed : null,
+    }}>
+      {ready ? children : (
+        <div className="flex min-h-screen items-center justify-center px-5" role="status" lang={preferred}>
+          {languageMessages[preferred].loading}
+        </div>
+      )}
     </I18nContext.Provider>
   );
 }
-
 export const useI18n = () => useContext(I18nContext);

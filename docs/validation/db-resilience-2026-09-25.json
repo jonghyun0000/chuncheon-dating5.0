@@ -1,0 +1,187 @@
+{
+  "scope": "Isolated synthetic PostgreSQL 17; no production connections or data; no actual Storage file bytes.",
+  "startedAt": "2026-09-24T17:42:32.788Z",
+  "checks": [
+    {
+      "label": "restore reproduces all table row counts and content digests",
+      "passed": true
+    },
+    {
+      "label": "restore preserves functions views policies triggers indexes owners and roles",
+      "passed": true
+    },
+    {
+      "label": "restore preserves every normalized schema table sequence and function ACL",
+      "passed": true
+    },
+    {
+      "label": "snapshot correctly excludes the known post-backup write",
+      "passed": true
+    },
+    {
+      "label": "restored database retains real ordinary-user isolation and blocked privileged writes",
+      "passed": true
+    },
+    {
+      "label": "home-read: 320 transactions completed without aborted log rows",
+      "passed": true
+    },
+    {
+      "label": "home-read: zero failed transactions",
+      "passed": true
+    },
+    {
+      "label": "team-write: 160 transactions completed without aborted log rows",
+      "passed": true
+    },
+    {
+      "label": "team-write: zero failed transactions",
+      "passed": true
+    },
+    {
+      "label": "team-contention: 160 transactions completed without aborted log rows",
+      "passed": true
+    },
+    {
+      "label": "team-contention: zero failed transactions",
+      "passed": true
+    },
+    {
+      "label": "load leaves all teams complete with no torn roster edits or duplicate open teams",
+      "passed": true
+    }
+  ],
+  "load": [
+    {
+      "name": "home-read",
+      "clients": 16,
+      "transactions": 320,
+      "elapsedMs": 1342.5,
+      "p50Ms": 59.733,
+      "p95Ms": 104.439,
+      "maxMs": 138.992,
+      "transactionsPerSecond": 242.241827,
+      "failedTransactions": 0
+    },
+    {
+      "name": "team-write",
+      "clients": 16,
+      "transactions": 160,
+      "elapsedMs": 56.7,
+      "p50Ms": 2.153,
+      "p95Ms": 10.37,
+      "maxMs": 16.801,
+      "transactionsPerSecond": 4567.51356,
+      "failedTransactions": 0
+    },
+    {
+      "name": "team-contention",
+      "clients": 16,
+      "transactions": 160,
+      "elapsedMs": 126,
+      "p50Ms": 9.568,
+      "p95Ms": 20.446,
+      "maxMs": 29.542,
+      "transactionsPerSecond": 1547.733055,
+      "failedTransactions": 0
+    }
+  ],
+  "productionBackupValidated": false,
+  "postgresVersion": "initdb (PostgreSQL) 17.10 (Homebrew)",
+  "migrations": [
+    {
+      "name": "20260924171521_harden_authorization_and_atomic_teams.sql",
+      "sha256": "7172fcf6f7ebb468e14ad1c26646262eb5505282a4e495bf1a08ecaa1653d0c9"
+    },
+    {
+      "name": "20260924172034_redact_completed_deletion_snapshots.sql",
+      "sha256": "a87cc0851a1d728f142db3b36f059b9fbbf4cb3dac7dd807c7beaf4a248272e9"
+    },
+    {
+      "name": "20260924173007_admin_home_visibility.sql",
+      "sha256": "87177b20debe06c88e1b8a7ce136dc5bbce49fbd290deafe16802f6f3615ea3b"
+    },
+    {
+      "name": "20260924173227_enforce_opted_in_admin_mfa.sql",
+      "sha256": "a1e33b0e2eaa3e6d6ce1cd16d17ccebae6b8ab3bf2ff19c8c702486e660d1728"
+    },
+    {
+      "name": "20260924173729_protect_relationship_helper_privacy.sql",
+      "sha256": "2daf5167cfd02b88399fc687d9a5f098a6bf710c98ef657fbf1aa8a67d6c8305"
+    }
+  ],
+  "durability": {
+    "fsync": "on",
+    "synchronous_commit": "on"
+  },
+  "dataset": {
+    "auth.mfa_factors": {
+      "rows": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "auth.users": {
+      "rows": 209,
+      "digest": "5582930fe6a7486c1e391e996177f640"
+    },
+    "public.lookup_attempts": {
+      "rows": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.match_requests": {
+      "rows": 2,
+      "digest": "cdd2a26277945247104e58fa811f5e06"
+    },
+    "public.notifications": {
+      "rows": 2,
+      "digest": "2823166284086d781e2685a4f2172229"
+    },
+    "public.profiles": {
+      "rows": 208,
+      "digest": "31192903432ee79c47f944a896ccb9a0"
+    },
+    "public.reports": {
+      "rows": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "public.reviews": {
+      "rows": 1,
+      "digest": "4a18b37e590c8f69a51b9c1f90d6fd03"
+    },
+    "public.team_members": {
+      "rows": 412,
+      "digest": "486ab11f2555a48867b5ca03b7e5eacd"
+    },
+    "public.teams": {
+      "rows": 206,
+      "digest": "7159789cd0f922be5499537e008ea446"
+    },
+    "storage.buckets": {
+      "rows": 1,
+      "digest": "6b74dd3b23febfe3da6bc3fa79cebe60"
+    },
+    "storage.objects": {
+      "rows": 208,
+      "digest": "71f4c34f6e80bcf0b6013a569ec82b6a"
+    }
+  },
+  "backup": {
+    "durationMs": 83.1,
+    "bytes": 155213,
+    "sourceQuiescentDuringSnapshot": true
+  },
+  "recovery": {
+    "localMeasuredRestoreAndVerificationMs": 865.1,
+    "backupAgeAtSimulatedFailureMs": 16.5,
+    "knownCommittedRowsAfterSnapshotNotRecovered": 1,
+    "scope": "Clean native cluster reconstruction plus roles, pg_restore and verification; excludes real incident detection, infrastructure provisioning, hosted backups/PITR, and Storage object bytes. This is not a production RTO/RPO guarantee."
+  },
+  "loadConsistency": {
+    "load_teams": 200,
+    "torn_edits": 0,
+    "load_members": 400,
+    "roster_mismatches": 0,
+    "duplicate_open_owners": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-09-24T17:42:36.649Z"
+}

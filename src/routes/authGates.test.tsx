@@ -6,6 +6,7 @@ import AdminRoute from './AdminRoute';
 import ProtectedRoute from './ProtectedRoute';
 const mock = vi.hoisted(() => ({ auth: {} as Record<string, unknown> }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mock.auth }));
+vi.mock('@/features/auth/AdminMfaGate', () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
 beforeEach(() => {
   mock.auth = {
     session: { user: { id: 'member-a' } },
@@ -32,8 +33,8 @@ describe('account route gates', () => {
     renderGate(true);
     expect(screen.queryByText('protected content')).not.toBeInTheDocument();
   });
-  it('allows a healthy account to keep using the service', () => {
+  it('allows a healthy account to keep using the service', async () => {
     renderGate(true);
-    expect(screen.getByText('protected content')).toBeInTheDocument();
+    expect(await screen.findByText('protected content')).toBeInTheDocument();
   });
 });

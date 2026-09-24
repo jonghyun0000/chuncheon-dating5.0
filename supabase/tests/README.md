@@ -6,8 +6,8 @@ Run `npm run test:db` with PostgreSQL **17** (`initdb`, `pg_ctl`, and `psql`) av
 
 The checks exercise:
 
-- Nine known authorization failures on the baseline, each required to fail its security assertion before the migration and pass afterward.
-- 39 independent transactions for anonymous, ordinary, suspended, unverified, and admin users, including signup, reconsent, private roster isolation, moderation, student-image protection, admin withdrawal, deletion preflight authorization, and current/previous-client team flows.
+- Known authorization failures on the baseline, each required to fail its security assertion before the migration and pass afterward.
+- Independent transactions for anonymous, ordinary, suspended, unverified, and admin users, including signup, reconsent, private roster isolation, moderation, student-image protection, admin withdrawal, deletion preflight authorization, and current/previous-client team flows.
 - A deliberately failing second member insert to verify the whole team edit rolls back.
 - Two real overlapping connections for competing match acceptance and duplicate team creation.
 - Idempotent historical notification redaction, with exact preservation of unaffected rows, row counts, and retained metadata.

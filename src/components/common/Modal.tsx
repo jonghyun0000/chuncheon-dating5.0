@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
+import Dialog from './Dialog';
 
 interface Props {
   open: boolean;
@@ -8,16 +9,15 @@ interface Props {
 }
 
 export default function Modal({ open, onClose, title, children }: Props) {
-  if (!open) return null;
+  const titleId = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <Dialog open={open} onClose={onClose} labelledBy={title ? titleId : undefined} label="Dialog" className="px-4">
       <div
-        className="w-full max-w-md rounded-3xl bg-white p-5 shadow-card animate-fade-up"
-        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-card animate-fade-up"
       >
-        {title && <h3 className="mb-3 text-lg font-bold text-zinc-900">{title}</h3>}
+        {title && <h3 id={titleId} className="mb-3 text-lg font-bold text-zinc-900">{title}</h3>}
         {children}
       </div>
-    </div>
+    </Dialog>
   );
 }

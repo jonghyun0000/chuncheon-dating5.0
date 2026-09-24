@@ -2,6 +2,7 @@ import { supabase, withTimeout } from '@/lib/supabaseClient';
 import type { Team, TeamMemberPublic } from '@/types/database.types';
 import type { FilterSchool, FilterTeamSize } from '@/types/common.types';
 import { TEAM_SIZE_TOLERANCE } from '@/lib/constants';
+import type { Gender } from '@/types/database.types';
 
 export interface HomeStats {
   total_teams: number;
@@ -35,8 +36,10 @@ export async function fetchHomeTeams(opts: {
   schoolFilter?: FilterSchool;
   noSmokeOnly?: boolean;
   sizeFilter?: FilterTeamSize;
+  genderFilter?: Gender | 'all';
 }): Promise<TeamWithMembers[]> {
-  const { data: u } = await supabase.auth.getUser();
+  const { data: u, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   const uid = u.user?.id;
 
   let myTeamSize: number | null = null;
@@ -78,6 +81,11 @@ export async function fetchHomeTeams(opts: {
     rows = rows.filter((team) =>
       team.members.some((member) => member.school === opts.schoolFilter)
     );
+  }
+
+  // Visibility is authorized by the RPC; this optional filter only narrows it.
+  if (opts.genderFilter && opts.genderFilter !== 'all') {
+    rows = rows.filter((team) => team.gender === opts.genderFilter);
   }
 
   if (opts.noSmokeOnly) {

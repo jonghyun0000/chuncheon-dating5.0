@@ -33,6 +33,7 @@ const AdminVerificationPage = lazy(() => import('@/features/admin/AdminVerificat
 const AdminTeamsPage = lazy(() => import('@/features/admin/AdminTeamsPage'));
 const AdminReportsPage = lazy(() => import('@/features/admin/AdminReportsPage'));
 const AdminReviewsPage = lazy(() => import('@/features/admin/AdminReviewsPage'));
+const AdminSecurityPage = lazy(() => import('@/features/admin/AdminSecurityPage'));
 
 import { useAuth } from '@/hooks/useAuth';
 
@@ -79,6 +80,7 @@ export default function AppRouter() {
         <Route path="teams" element={<AdminTeamsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="reviews" element={<AdminReviewsPage />} />
+        <Route path="security" element={<AdminSecurityPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

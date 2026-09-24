@@ -5,6 +5,7 @@ import { admissionLabel } from '@/utils/format';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 import type { TeamWithMembers } from '@/features/home/home.api';
+import { adminHomeCopy } from '@/features/home/adminHomeCopy';
 
 interface Props {
   team: TeamWithMembers;
@@ -12,10 +13,11 @@ interface Props {
   applying?: boolean;
   alreadyApplied?: boolean;
   isOwn?: boolean;
+  sameGender?: boolean;
 }
 
-export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn }: Props) {
-  const { t } = useI18n();
+export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn, sameGender }: Props) {
+  const { t, lang } = useI18n();
   /**
    * 인원수가 정확히 같은 팀에만 신청할 수 있습니다.
    * (내 팀이 없으면 my_team_size 가 null 이라 판정하지 않습니다.)
@@ -82,6 +84,8 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
       <div className="mt-4 flex justify-end">
         {isOwn ? (
           <button disabled className="btn-ghost cursor-not-allowed opacity-60">{t.teamCard.myTeam}</button>
+        ) : sameGender ? (
+          <button disabled className="btn-ghost cursor-not-allowed opacity-60">{adminHomeCopy(lang).sameGender}</button>
         ) : alreadyApplied ? (
           <button disabled className="btn-ghost cursor-not-allowed gap-1.5"><Check size={16} strokeWidth={2.4} />{t.teamCard.applied}</button>
         ) : sizeMismatch ? (
