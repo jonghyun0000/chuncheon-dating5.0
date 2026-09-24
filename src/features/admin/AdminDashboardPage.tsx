@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BellRing, ChevronRight, TriangleAlert, UserMinus, UsersRound } from 'lucide-react';
 import AdminStatsCard from '@/components/admin/AdminStatsCard';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import { fetchAdminStats, type AdminStats, type GenderTeamStats } from './admin.api';
 import { useI18n } from '@/i18n';
 
@@ -10,9 +11,14 @@ export default function AdminDashboardPage() {
   const { t } = useI18n();
   const [stats, setStats] = useState<AdminStats | null>(null);
 
-  useEffect(() => {
-    void fetchAdminStats().then(setStats).catch(console.warn);
+  const [loadError, setLoadError] = useState(false);
+  const load = useCallback(async () => {
+    setLoadError(false);
+    try { setStats(await fetchAdminStats()); } catch { setLoadError(true); }
   }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  if (loadError) return <LoadError retry={() => void load()} />;
 
   if (!stats) return <Loading />;
 

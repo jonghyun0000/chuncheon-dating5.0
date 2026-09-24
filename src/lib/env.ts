@@ -22,8 +22,17 @@ if (!url || !anon) {
   throw new Error(msg);
 }
 
-// service role 키 패턴이 노출되지 않도록 간단 검증
-if (anon.includes('service_role')) {
+// Legacy JWT keys encode their role; searching the opaque token text cannot
+// detect a service-role credential. New secret keys must also be rejected.
+let legacyRole: unknown;
+try {
+  const payload = anon.split('.')[1];
+  if (payload) {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    legacyRole = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='))).role;
+  }
+} catch { /* Publishable keys are opaque rather than JWTs. */ }
+if (anon.startsWith('sb_secret_') || legacyRole === 'service_role' || anon.includes('service_role')) {
   throw new Error('[보안 / Security] service_role key가 클라이언트에 사용되었습니다. 즉시 anon key로 교체하세요. (A service_role key was used in the client. Replace it with the anon key immediately.)');
 }
 

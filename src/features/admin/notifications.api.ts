@@ -32,14 +32,11 @@ export async function listNotifications(
   const { data, error } = await withTimeout(
     query,
     8000,
-    { data: [], error: null } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'listNotifications'
   );
 
-  if (error) {
-    console.warn('[admin] listNotifications error:', error.message);
-    return [];
-  }
+  if (error) throw error;
 
   return ((data ?? []) as any[]).map((n) => ({
     ...n,
@@ -51,10 +48,10 @@ export async function countUnhandledNotifications(): Promise<number> {
   const { data, error } = await withTimeout(
     supabase.rpc('unhandled_notification_count' as any),
     5000,
-    { data: 0, error: null } as any,
+    { data: null, error: { message: 'timeout' } } as any,
     'countUnhandledNotifications'
   );
-  if (error) return 0;
+  if (error) throw error;
   return Number(data ?? 0);
 }
 

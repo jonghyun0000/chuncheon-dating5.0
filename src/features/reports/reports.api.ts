@@ -31,10 +31,10 @@ export async function fetchMyReports(): Promise<Report[]> {
   const { data, error } = await withTimeout(
     supabase.from('reports').select('*').order('created_at', { ascending: false }),
     8000,
-    { data: [], error: null } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'fetchMyReports'
   );
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as Report[];
 }
 
@@ -57,11 +57,8 @@ export async function listReportsAdmin(
 
   if (status !== 'all') query = query.eq('status', status);
 
-  const { data, error } = await withTimeout(query, 8000, { data: [], error: null } as any, 'listReportsAdmin');
-  if (error) {
-    console.warn('[admin] listReportsAdmin error:', error.message);
-    return [];
-  }
+  const { data, error } = await withTimeout(query, 8000, { data: [], error: { message: 'timeout' } } as any, 'listReportsAdmin');
+  if (error) throw error;
 
   const one = (v: unknown) => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
   return ((data ?? []) as any[]).map((r) => ({
@@ -90,9 +87,9 @@ export async function countPendingReports(): Promise<number> {
   const { count, error } = await withTimeout(
     supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     5000,
-    { count: 0, error: null } as any,
+    { count: 0, error: { message: 'timeout' } } as any,
     'countPendingReports'
   );
-  if (error) return 0;
+  if (error) throw error;
   return count ?? 0;
 }

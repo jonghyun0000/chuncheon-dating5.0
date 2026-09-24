@@ -26,7 +26,7 @@ export default function MemberForm({ index, value, onChange }: Props) {
         {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
       </Select>
       <div className="grid grid-cols-2 gap-3">
-        <Input label={t.memberForm.department} value={value.department} onChange={(e) => set('department', e.target.value)} />
+        <Input label={t.memberForm.department} maxLength={60} value={value.department} onChange={(e) => set('department', e.target.value)} />
         <Input
           label={t.memberForm.studentNumber}
           placeholder={t.validators.studentNumberPlaceholder}
@@ -37,7 +37,7 @@ export default function MemberForm({ index, value, onChange }: Props) {
         />
       </div>
       <p className="-mt-1 text-xs text-zinc-400">{t.validators.studentNumberHint} {t.memberForm.publicNote}</p>
-      <Input label={t.memberForm.nickname} value={value.nickname} onChange={(e) => set('nickname', e.target.value)} />
+      <Input label={t.memberForm.nickname} maxLength={30} value={value.nickname} onChange={(e) => set('nickname', e.target.value)} />
       <Select label={t.memberForm.smoking} value={value.smoking ? '1' : '0'} onChange={(e) => set('smoking', e.target.value === '1')}>
         <option value="0">{t.memberForm.smokingNo}</option>
         <option value="1">{t.memberForm.smokingYes}</option>
@@ -74,6 +74,7 @@ export default function MemberForm({ index, value, onChange }: Props) {
             label={value.contact_type === 'phone' ? t.register.phone : t.register.kakaoId}
             placeholder={value.contact_type === 'phone' ? t.validators.phonePlaceholder : t.register.kakaoId}
             inputMode={value.contact_type === 'phone' ? 'tel' : undefined}
+            maxLength={100}
             value={value.contact_id}
             onChange={(e) => set('contact_id', e.target.value)}
           />

@@ -5,11 +5,12 @@ import type { TeamRegisterInput } from './teams.types';
 
 /** 본인의 가장 최근 팀 + 팀원 조회 (status 무관) */
 export async function fetchMyTeam(): Promise<{ team: Team | null; members: TeamMember[] }> {
-  const { data: u } = await supabase.auth.getUser();
+  const { data: u, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   const uid = u.user?.id;
   if (!uid) return { team: null, members: [] };
 
-  const { data: t } = await supabase
+  const { data: t, error: teamError } = await supabase
     .from('teams')
     .select('*')
     .eq('owner_id', uid)
@@ -17,24 +18,27 @@ export async function fetchMyTeam(): Promise<{ team: Team | null; members: TeamM
     .limit(1)
     .maybeSingle();
 
+  if (teamError) throw teamError;
   if (!t) return { team: null, members: [] };
 
-  const { data: ms } = await supabase
+  const { data: ms, error: membersError } = await supabase
     .from('team_members')
     .select('*')
     .eq('team_id', (t as any).id)
     .order('member_order');
 
+  if (membersError) throw membersError;
   return { team: t as Team, members: (ms ?? []) as TeamMember[] };
 }
 
 /** 본인의 active 팀만 조회 (등록 폼 표시 여부 판단용) */
 export async function fetchMyActiveTeam(): Promise<{ team: Team | null; members: TeamMember[] }> {
-  const { data: u } = await supabase.auth.getUser();
+  const { data: u, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   const uid = u.user?.id;
   if (!uid) return { team: null, members: [] };
 
-  const { data: t } = await supabase
+  const { data: t, error: teamError } = await supabase
     .from('teams')
     .select('*')
     .eq('owner_id', uid)
@@ -43,24 +47,27 @@ export async function fetchMyActiveTeam(): Promise<{ team: Team | null; members:
     .limit(1)
     .maybeSingle();
 
+  if (teamError) throw teamError;
   if (!t) return { team: null, members: [] };
 
-  const { data: ms } = await supabase
+  const { data: ms, error: membersError } = await supabase
     .from('team_members')
     .select('*')
     .eq('team_id', (t as any).id)
     .order('member_order');
 
+  if (membersError) throw membersError;
   return { team: t as Team, members: (ms ?? []) as TeamMember[] };
 }
 
 /** 본인의 matched 팀만 조회 (과팅 종료 버튼 표시용) */
 export async function fetchMyMatchedTeam(): Promise<{ team: Team | null; members: TeamMember[] }> {
-  const { data: u } = await supabase.auth.getUser();
+  const { data: u, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   const uid = u.user?.id;
   if (!uid) return { team: null, members: [] };
 
-  const { data: t } = await supabase
+  const { data: t, error: teamError } = await supabase
     .from('teams')
     .select('*')
     .eq('owner_id', uid)
@@ -69,115 +76,55 @@ export async function fetchMyMatchedTeam(): Promise<{ team: Team | null; members
     .limit(1)
     .maybeSingle();
 
+  if (teamError) throw teamError;
   if (!t) return { team: null, members: [] };
 
-  const { data: ms } = await supabase
+  const { data: ms, error: membersError } = await supabase
     .from('team_members')
     .select('*')
     .eq('team_id', (t as any).id)
     .order('member_order');
 
+  if (membersError) throw membersError;
   return { team: t as Team, members: (ms ?? []) as TeamMember[] };
 }
 
-export async function createTeam(input: TeamRegisterInput) {
-  const { data: u } = await supabase.auth.getUser();
-  const uid = u.user?.id;
-  if (!uid) throw new Error(tr().errors.loginRequired);
-
-  const { data: prof, error: pErr } = await supabase
-    .from('profiles')
-    .select('gender')
-    .eq('id', uid)
-    .single();
-  if (pErr) throw pErr;
-
+/** A single database transaction validates ownership and saves both team and roster. */
+async function saveTeam(teamId: string | null, input: TeamRegisterInput): Promise<Team> {
   if (input.members.length !== input.team_size) {
     throw new Error(tr().team.errMemberCountMismatch(input.team_size));
   }
-  if (!input.members_consent_confirmed) {
-    throw new Error(tr().team.errConsent);
-  }
-
-  const { data: team, error: tErr } = await supabase
-    .from('teams')
-    .insert({
-      owner_id: uid,
-      gender: (prof as any)!.gender,
-      intro: input.intro.trim(),
-      status: 'active',
-      team_size: input.team_size,
-      members_consent_confirmed: true,
-      members_consent_at: new Date().toISOString(),
-    })
-    .select('*')
-    .single();
-  if (tErr) throw tErr;
-
-  const rows = input.members.map((m, idx) => ({
-    team_id: (team as any)!.id,
-    member_order: (idx + 1) as 1 | 2 | 3 | 4,
-    school: m.school,
-    department: m.department.trim(),
-    student_number: m.student_number.trim(),
-    nickname: m.nickname.trim(),
-    smoking: m.smoking,
-    contact_type: m.contact_type,
-    contact_id: m.contact_id.trim(),
-    taste_tags: m.taste_tags,
-    want_tags: m.want_tags,
-  }));
-
-  const { error: mErr } = await supabase.from('team_members').insert(rows);
-  if (mErr) {
-    await supabase.from('teams').delete().eq('id', (team as any)!.id);
-    throw mErr;
-  }
+  if (!input.members_consent_confirmed) throw new Error(tr().team.errConsent);
+  const { data, error } = await supabase.rpc('save_my_team', {
+    p_team_id: teamId,
+    p_intro: input.intro.trim(),
+    p_team_size: input.team_size,
+    p_members_consent_confirmed: true,
+    p_members: input.members.map((m, index) => ({
+      member_order: index + 1,
+      school: m.school,
+      department: m.department.trim(),
+      student_number: m.student_number.trim(),
+      nickname: m.nickname.trim(),
+      smoking: m.smoking,
+      contact_type: m.contact_type,
+      contact_id: m.contact_id.trim(),
+      taste_tags: m.taste_tags,
+      want_tags: m.want_tags,
+    })),
+  });
+  if (error) throw error;
+  const team = Array.isArray(data) ? data[0] : data;
+  if (!team?.id) throw new Error('팀 저장 결과를 확인하지 못했습니다. 새로고침 후 확인해주세요.');
   return team as Team;
 }
 
-/** 팀 정보 + 팀원 통째로 수정 (matched 상태가 아닐 때만) */
+export async function createTeam(input: TeamRegisterInput) {
+  return saveTeam(null, input);
+}
+
 export async function updateTeam(teamId: string, input: TeamRegisterInput) {
-  if (input.members.length !== input.team_size) {
-    throw new Error(tr().team.errMemberCountMismatch(input.team_size));
-  }
-
-  if (!input.members_consent_confirmed) {
-    throw new Error(tr().team.errConsent);
-  }
-
-  const { error: tErr } = await supabase
-    .from('teams')
-    .update({
-      intro: input.intro.trim(),
-      team_size: input.team_size,
-      members_consent_confirmed: true,
-      members_consent_at: new Date().toISOString(),
-    })
-    .eq('id', teamId);
-  if (tErr) throw tErr;
-
-  const { error: dErr } = await supabase
-    .from('team_members')
-    .delete()
-    .eq('team_id', teamId);
-  if (dErr) throw dErr;
-
-  const rows = input.members.map((m, idx) => ({
-    team_id: teamId,
-    member_order: (idx + 1) as 1 | 2 | 3 | 4,
-    school: m.school,
-    department: m.department.trim(),
-    student_number: m.student_number.trim(),
-    nickname: m.nickname.trim(),
-    smoking: m.smoking,
-    contact_type: m.contact_type,
-    contact_id: m.contact_id.trim(),
-    taste_tags: m.taste_tags,
-    want_tags: m.want_tags,
-  }));
-  const { error: mErr } = await supabase.from('team_members').insert(rows);
-  if (mErr) throw mErr;
+  return saveTeam(teamId, input);
 }
 
 export async function deleteMyTeam(teamId: string) {

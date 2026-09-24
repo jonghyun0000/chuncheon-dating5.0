@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, CircleAlert, Inbox, Mail, PartyPopper, Send, Sprout, type LucideIcon } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
@@ -21,31 +21,48 @@ export default function RequestsPage() {
   const [incoming, setIncoming] = useState<MatchRequestWithTeams[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const requestId = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const mounted = useRef(true);
 
   const load = useCallback(async () => {
+    if (!mounted.current) return;
+    const request = ++requestId.current;
+    clearTimeout(timer.current);
+    setLoading(true);
     setErrorMsg(null);
     
     // 페이지 레벨 안전장치: 12초 안에 응답 없으면 강제 종료
     const safetyTimer = setTimeout(() => {
-      console.warn('[requests] page-level safety timeout');
+      if (request !== requestId.current) return;
       setLoading(false);
       setErrorMsg(t.requests.slowLoad);
     }, 12000);
+    timer.current = safetyTimer;
 
     try {
       const r = await fetchMyRequests();
+      if (request !== requestId.current) return;
       setIncoming(r.incoming);
       setOutgoing(r.outgoing);
+      setErrorMsg(null);
     } catch (e) {
-      console.warn('[requests] load error:', e);
-      setErrorMsg(koMessage(e));
+      if (request === requestId.current) setErrorMsg(koMessage(e));
     } finally {
       clearTimeout(safetyTimer);
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [t]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    mounted.current = true;
+    void load();
+    return () => {
+      mounted.current = false;
+      requestId.current += 1;
+      clearTimeout(timer.current);
+    };
+  }, [load]);
 
   const onAccept = async (id: string) => {
     setBusyId(id);

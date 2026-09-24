@@ -1,0 +1,44 @@
+name: Verify service
+on:
+  push:
+    branches: [main, 'harden/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+        env:
+          VITE_SUPABASE_URL: https://test.invalid
+          VITE_SUPABASE_ANON_KEY: test-only-key
+      - run: npm audit --audit-level=moderate
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test production schema with synthetic data in PostgreSQL 17
+        run: |
+          docker run --rm -v "$PWD:/workspace:ro" -w /workspace postgres:17 bash -lc '
+            apt-get update -qq && apt-get install -y -qq nodejs >/dev/null &&
+            gosu postgres node scripts/test-db.mjs
+          '

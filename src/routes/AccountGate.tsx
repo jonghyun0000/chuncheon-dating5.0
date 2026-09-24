@@ -6,6 +6,8 @@ import Button from '@/components/common/Button';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import { TERMS_VERSION } from '@/lib/terms';
 import { useI18n } from '@/i18n';
+import Loading from '@/components/common/Loading';
+import AuthRecovery from '@/features/auth/AuthRecovery';
 
 /** 재동의 화면과 신고 화면은 게이트 대상에서 제외 (무한 리다이렉트 방지) */
 const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
@@ -17,11 +19,12 @@ const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
  * 학생증 미인증은 둘러보기까지 막지 않고, 각 화면에서 배너로 안내합니다.
  */
 export default function AccountGate({ children }: { children: ReactNode }) {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, loading, error } = useAuth();
   const { t } = useI18n();
   const loc = useLocation();
 
-  if (!profile) return <>{children}</>;
+  if (loading) return <Loading />;
+  if (error || !profile) return <AuthRecovery />;
 
   // 탈퇴한 계정은 다시 로그인해도 서비스를 이용할 수 없습니다.
   if (profile.status === 'deleted') {

@@ -11,8 +11,7 @@ export function useUnhandledNotifications(enabled = true) {
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
-    const n = await countUnhandledNotifications();
-    setCount(n);
+    try { setCount(await countUnhandledNotifications()); } catch { /* Keep last confirmed count. */ }
   }, [enabled]);
 
   useEffect(() => {
@@ -23,8 +22,10 @@ export function useUnhandledNotifications(enabled = true) {
     let alive = true;
 
     const tick = async () => {
-      const n = await countUnhandledNotifications();
-      if (alive) setCount(n);
+      try {
+        const n = await countUnhandledNotifications();
+        if (alive) setCount(n);
+      } catch { /* Notification page shows the retryable error; never turn a failure into zero. */ }
     };
 
     void tick();

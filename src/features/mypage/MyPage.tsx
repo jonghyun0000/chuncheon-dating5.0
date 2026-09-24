@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -12,6 +12,7 @@ import {
   UserPen,
 } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
+import LoadError from '@/components/common/LoadError';
 import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
 import Modal from '@/components/common/Modal';
@@ -39,16 +40,20 @@ export default function MyPage() {
   const [deleting, setDeleting] = useState(false);
   const [openedTerms, setOpenedTerms] = useState<TermsDoc | null>(null);
 
-  useEffect(() => {
-    void (async () => {
-      if (profile?.student_id_image_path) {
-        const url = await getMyStudentIdSignedUrl(profile.student_id_image_path);
-        setStudentUrl(url);
-      }
-      const { team } = await fetchMyTeam();
+  const [loadError, setLoadError] = useState(false);
+  const load = useCallback(async () => {
+    setLoadError(false);
+    try {
+      const [url, { team }] = await Promise.all([
+        profile?.student_id_image_path ? getMyStudentIdSignedUrl(profile.student_id_image_path) : Promise.resolve(null),
+        fetchMyTeam(),
+      ]);
+      setStudentUrl(url);
       setMyTeam(team);
-    })();
+      if (profile?.student_id_image_path && !url) setLoadError(true);
+    } catch { setLoadError(true); }
   }, [profile?.student_id_image_path, profile?.id]);
+  useEffect(() => { void load(); }, [load]);
 
   if (!profile) {
     return (
@@ -100,6 +105,7 @@ export default function MyPage() {
 
   return (
     <PageLayout subtitle={t.mypage.subtitle}>
+      {loadError && <LoadError retry={() => void load()} />}
       <MatchedTeamBanner show={myTeam?.status === 'matched'} />
       <VerificationBanner />
       <ContactUpdateBanner />

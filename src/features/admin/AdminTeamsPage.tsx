@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import { deleteTeamAdmin, listTeamsAdmin, setTeamStatus, type TeamRowAdmin } from './admin.api';
 import { koMessage } from '@/utils/errors';
@@ -11,10 +12,15 @@ export default function AdminTeamsPage() {
   const { t } = useI18n();
   const [rows, setRows] = useState<TeamRowAdmin[] | null>(null);
 
-  const load = () => listTeamsAdmin().then(setRows).catch((e) => alert(koMessage(e)));
+  const [loadError, setLoadError] = useState(false);
+  const load = async () => {
+    setLoadError(false);
+    try { setRows(await listTeamsAdmin()); }
+    catch { setLoadError(true); }
+  };
   useEffect(() => { void load(); }, []);
 
-  if (!rows) return <Loading />;
+  if (!rows) return loadError ? <LoadError retry={() => void load()} /> : <Loading />;
 
   const cycleStatus = async (row: TeamRowAdmin) => {
     const next: 'active' | 'hidden' = row.status === 'active' ? 'hidden' : 'active';
@@ -31,6 +37,7 @@ export default function AdminTeamsPage() {
 
   return (
     <div>
+      {loadError && <LoadError retry={() => void load()} />}
       <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.teamsTitle}</h1>
       <p className="mt-1 text-sm text-zinc-500">{t.admin.teamsTotal(rows.length)}</p>
 

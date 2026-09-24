@@ -59,6 +59,10 @@ export async function fetchAdminStats(): Promise<AdminStats> {
       .eq('type', 'account_deletion'),
   ]);
 
+  for (const result of [u, vu, teams, mc, pr, pv, un, pw]) {
+    if (result.error) throw result.error;
+  }
+
   const male = emptyGender();
   const female = emptyGender();
   const rows = (teams.data ?? []) as { gender: 'male' | 'female'; status: string }[];
@@ -98,22 +102,21 @@ export async function setUserStatus(uid: string, status: 'active' | 'inactive' |
   if (error) throw error;
 }
 
-/**
- * 학생증 사진 파일 삭제 (best-effort).
- * 스토리지 삭제가 실패해도 DB 처리는 계속 진행합니다.
+/** Remove every file in this user's private folder before approving deletion.
+ * If storage fails, keep the profile/path and the pending request so the admin can retry.
  */
 async function removeStudentIdFile(uid: string) {
-  try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('student_id_image_path')
-      .eq('id', uid)
-      .maybeSingle();
-    const path = (data as { student_id_image_path?: string | null } | null)?.student_id_image_path;
-    if (path) await supabase.storage.from(STORAGE_BUCKET).remove([path]);
-  } catch (e) {
-    console.warn('[admin] student id file remove failed:', e);
+  const bucket = supabase.storage.from(STORAGE_BUCKET);
+  // Restart at offset zero after each batch because successful removal shifts the listing.
+  for (let batch = 0; batch < 100; batch += 1) {
+    const { data: files, error: listError } = await bucket.list(uid, { limit: 100 });
+    if (listError) throw listError;
+    if (!files?.length) return;
+    if (files.some((file) => !file.id)) throw new Error('학생증 폴더를 확인해주세요. 삭제 처리가 완료되지 않았습니다.');
+    const { error } = await bucket.remove(files.map((file) => `${uid}/${file.name}`));
+    if (error) throw error;
   }
+  throw new Error('파일 삭제가 아직 완료되지 않았습니다. 다시 시도해주세요.');
 }
 
 /**
@@ -123,6 +126,8 @@ async function removeStudentIdFile(uid: string) {
  * 팀·팀원·매칭신청·후기·알림까지 실제로 지우고 개인정보를 익명화합니다.
  */
 export async function deleteUser(uid: string) {
+  const { error: validationError } = await supabase.rpc('validate_account_deletion', { p_user_id: uid });
+  if (validationError) throw validationError;
   await removeStudentIdFile(uid);
   const { error } = await supabase.rpc('admin_delete_user' as any, { p_uid: uid } as any);
   if (error) throw error;
@@ -130,6 +135,8 @@ export async function deleteUser(uid: string) {
 
 /** 회원이 요청한 탈퇴를 승인 → 개인정보 완전 삭제 */
 export async function approveAccountDeletion(uid: string) {
+  const { error: validationError } = await supabase.rpc('validate_account_deletion', { p_user_id: uid });
+  if (validationError) throw validationError;
   await removeStudentIdFile(uid);
   const { error } = await supabase.rpc('admin_approve_account_deletion' as any, { p_uid: uid } as any);
   if (error) throw error;
