@@ -14,6 +14,9 @@
 # =====================================================================
 name: Supabase Keepalive
 
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: '0 0 * * *'   # 매일 09:00 (한국 시간)
@@ -32,11 +35,11 @@ jobs:
             echo "::error::SUPABASE_ANON_KEY 시크릿이 설정되지 않았습니다. 저장소 Settings > Secrets 에서 추가해주세요."
             exit 1
           fi
-          code=$(curl -sS -o /tmp/body -w '%{http_code}' \
-            "$SUPABASE_URL/rest/v1/reviews?select=id&limit=1" \
+          code=$(curl --max-time 20 --retry 2 -sS -o /tmp/body -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/rpc/get_home_stats" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY")
-          echo "HTTP $code / 응답: $(cat /tmp/body)"
+          echo "Supabase health HTTP $code"
           if [ "$code" != "200" ] && [ "$code" != "206" ]; then
             echo "::error::Supabase 응답이 비정상입니다 (HTTP $code). 프로젝트가 이미 일시정지됐거나 키가 잘못됐을 수 있습니다."
             exit 1

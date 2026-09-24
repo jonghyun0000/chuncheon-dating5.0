@@ -5,6 +5,7 @@ import PageLayout from '@/components/layout/PageLayout';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import MemberForm from '@/components/team/MemberForm';
 import {
   createTeam,
@@ -45,6 +46,7 @@ export default function TeamRegisterPage() {
   const nav = useNavigate();
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
@@ -63,31 +65,21 @@ export default function TeamRegisterPage() {
   const [consent, setConsent] = useState(false);
 
   const reload = useCallback(async () => {
-    const [active, matched] = await Promise.all([
-      fetchMyActiveTeam(),
-      fetchMyMatchedTeam(),
-    ]);
-    setActiveTeam(active.team);
-    setActiveMembers(active.members);
-    setMatchedTeam(matched.team);
-    setMatchedMembers(matched.members);
-
-    if (active.team) {
-      setMode('view');
-    } else {
-      setMode('create');
-    }
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [active, matched] = await Promise.all([fetchMyActiveTeam(), fetchMyMatchedTeam()]);
+      setActiveTeam(active.team);
+      setActiveMembers(active.members);
+      setMatchedTeam(matched.team);
+      setMatchedMembers(matched.members);
+      setMode(active.team ? 'view' : 'create');
+    } catch {
+      setLoadError(true);
+    } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        await reload();
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [reload]);
+  useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
     setMembers((prev) => {
@@ -203,6 +195,8 @@ export default function TeamRegisterPage() {
   if (loading) {
     return <PageLayout><Loading /></PageLayout>;
   }
+
+  if (loadError) return <PageLayout><LoadError retry={() => void reload()} /></PageLayout>;
 
   // ===== 케이스 A: matched 팀이 있고 active 팀은 없는 상태 =====
   // (매칭 성사 직후의 일반적 상황)

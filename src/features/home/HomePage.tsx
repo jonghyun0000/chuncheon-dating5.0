@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Users } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 import TeamFilter from './TeamFilter';
 import TeamCard from '@/components/team/TeamCard';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import { fetchHomeStats, fetchHomeTeams, type TeamWithMembers, type HomeStats } from './home.api';
 import type { FilterSchool, FilterTeamSize } from '@/types/common.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,6 +18,8 @@ import { useI18n } from '@/i18n';
 export default function HomePage() {
   const { profile } = useAuth();
   const { t } = useI18n();
+  const requestId = useRef(0);
+  const [loadError, setLoadError] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,9 @@ export default function HomePage() {
   const [hasMatchedTeam, setHasMatchedTeam] = useState(false);
 
   const load = useCallback(async () => {
+    const request = ++requestId.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const [s, t, applied, matched] = await Promise.all([
         fetchHomeStats(),
@@ -36,14 +41,15 @@ export default function HomePage() {
         fetchMyOutgoingRequestTeamIds(),
         fetchMyMatchedTeam(),
       ]);
+      if (request !== requestId.current) return;
       setStats(s);
       setTeams(t);
       setAppliedTeamIds(new Set(applied));
       setHasMatchedTeam(!!matched.team);
     } catch (e) {
-      console.warn(e);
+      if (request === requestId.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [school, noSmoke, size]);
 
@@ -73,9 +79,9 @@ export default function HomePage() {
 
       {/* 통계 */}
       <section className="grid grid-cols-3 gap-3 mb-4">
-        <StatCard label={t.home.statTeams} value={stats?.total_teams ?? 0} />
-        <StatCard label={t.home.statMatches} value={stats?.matched_count ?? 0} accent />
-        <StatCard label={t.home.statUsers} value={stats?.total_users ?? 0} />
+        <StatCard label={t.home.statTeams} value={stats?.total_teams ?? null} />
+        <StatCard label={t.home.statMatches} value={stats?.matched_count ?? null} accent />
+        <StatCard label={t.home.statUsers} value={stats?.total_users ?? null} />
       </section>
 
       <section className="mb-4">
@@ -89,9 +95,10 @@ export default function HomePage() {
         />
       </section>
 
+      {loadError && <LoadError retry={() => void load()} />}
       {loading ? (
         <Loading label={t.home.loadingTeams} />
-      ) : teams.length === 0 ? (
+      ) : loadError ? null : teams.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="space-y-3">
@@ -111,11 +118,11 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function StatCard({ label, value, accent }: { label: string; value: number | null; accent?: boolean }) {
   return (
     <div className={`card px-3 py-3 text-center ${accent ? 'bg-gradient-to-br from-sakura-50 to-white' : ''}`}>
       <p className={`font-display text-2xl font-bold ${accent ? 'text-sakura-600' : 'text-zinc-900'}`}>
-        {value}
+        {value ?? '—'}
       </p>
       <p className="mt-0.5 text-[11px] text-zinc-500">{label}</p>
     </div>

@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import {
   NOTIFICATION_POLL_MS,
@@ -163,6 +164,8 @@ function RosterPanel({
 
 export default function AdminNotificationsPage() {
   const { t } = useI18n();
+  const [loadError, setLoadError] = useState(false);
+  const loadId = useRef(0);
   const [items, setItems] = useState<NotificationWithTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -177,15 +180,22 @@ export default function AdminNotificationsPage() {
 
   const load = useCallback(
     async (silent = false) => {
+      const request = ++loadId.current;
       if (silent) setRefreshing(true);
       else setLoading(true);
       try {
         const rows = await listNotifications({ unhandledOnly, type: typeFilter });
+        if (request !== loadId.current) return;
+        setLoadError(false);
         setItems(rows);
         setLastSync(new Date());
+      } catch {
+        if (request === loadId.current) setLoadError(true);
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (request === loadId.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [unhandledOnly, typeFilter]
@@ -349,9 +359,10 @@ export default function AdminNotificationsPage() {
         ))}
       </div>
 
+      {loadError && <LoadError retry={() => void load(true)} />}
       {loading ? (
         <Loading />
-      ) : items.length === 0 ? (
+      ) : loadError && items.length === 0 ? null : items.length === 0 ? (
         <div className="card mt-5 flex flex-col items-center justify-center py-16 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600">
             <Check size={24} strokeWidth={1.8} />

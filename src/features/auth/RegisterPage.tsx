@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
@@ -17,10 +17,17 @@ import {
 } from '@/utils/validators';
 import { koMessage } from '@/utils/errors';
 import { useI18n } from '@/i18n';
+import { useAuth } from '@/hooks/useAuth';
+import { authMessages } from './auth.messages';
+import { STUDENT_ID_ACCEPT, studentIdFileMetadata } from './studentIdFile';
 
 export default function RegisterPage() {
   const nav = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const m = authMessages(lang);
+  const { refreshProfile } = useAuth();
+  const [params] = useSearchParams();
+  const [resume, setResume] = useState(params.get('resume') === '1');
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -93,7 +100,7 @@ export default function RegisterPage() {
     setErr(null);
 
     if (!isValidUsername(form.username)) return setErr(t.validators.usernameHint);
-    if (!usernameOk && !checkUnsupported) return setErr(t.register.errUsernameNotChecked);
+    if (!usernameOk && !checkUnsupported && !resume) return setErr(t.register.errUsernameNotChecked);
     if (!isValidPassword(form.password)) return setErr(t.validators.passwordHint);
     if (form.password !== form.password2) return setErr(t.register.errPasswordMismatch);
     if (!isValidName(form.name)) return setErr(t.register.errName);
@@ -102,7 +109,7 @@ export default function RegisterPage() {
     if (contactErr) return setErr(contactErr);
     if (!file) return setErr(t.register.errStudentIdPhoto);
     if (!isAllAgreed(agree)) return setErr(t.register.errTermsRequired);
-    if (file.size > 5 * 1024 * 1024) return setErr(t.register.errImageTooLarge);
+    try { studentIdFileMetadata(file); } catch (error) { return setErr(koMessage(error)); }
 
     setLoading(true);
     try {
@@ -120,8 +127,9 @@ export default function RegisterPage() {
         agreed_terms: true,
         agreed_disclaimer: true,
       });
+      await refreshProfile();
       alert(t.register.successAlert);
-      nav('/login', { replace: true });
+      nav('/', { replace: true });
     } catch (e) {
       setErr(koMessage(e));
     } finally {
@@ -138,11 +146,19 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={submit} className="card space-y-4 p-5">
+          <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-600">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={resume} onChange={(event) => setResume(event.target.checked)} />
+              {m.resumeMode}
+            </label>
+            {resume && <p className="mt-2 leading-relaxed">{m.resumeHint}</p>}
+          </div>
           {/* 아이디 + 중복확인 */}
           <div>
-            <label className="label">{t.login.username}</label>
+            <label className="label" htmlFor="register-username">{t.login.username}</label>
             <div className="flex items-start gap-2">
               <input
+                id="register-username"
                 className="input flex-1"
                 value={form.username}
                 autoComplete="username"
@@ -232,15 +248,24 @@ export default function RegisterPage() {
           </p>
 
           <div>
-            <label className="label">{t.register.studentIdPhoto}</label>
+            <label className="label" htmlFor="register-student-id">{t.register.studentIdPhoto}</label>
             <input
+              id="register-student-id"
               type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              accept={STUDENT_ID_ACCEPT}
+              onChange={(e) => {
+                const selected = e.target.files?.[0] ?? null;
+                setFile(null);
+                setErr(null);
+                if (!selected) return;
+                try { studentIdFileMetadata(selected); setFile(selected); }
+                catch (error) { setErr(koMessage(error)); e.target.value = ''; }
+              }}
               className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-sakura-100 file:px-4 file:py-2 file:text-sakura-700"
             />
             <p className="mt-1 text-xs text-zinc-400">
               {t.register.studentIdNote}
+              <br />{m.formats}
             </p>
           </div>
 

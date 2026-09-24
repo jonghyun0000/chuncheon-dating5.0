@@ -1,46 +1,51 @@
+import { lazy, Suspense } from 'react';
+import Loading from '@/components/common/Loading';
+import AuthRecovery from '@/features/auth/AuthRecovery';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import AdminRoute from '@/routes/AdminRoute';
 
 import LandingPage from '@/features/auth/LandingPage';
-import TourPage from '@/features/tour/TourPage';
-import InstallGuidePage from '@/features/install/InstallGuidePage';
-import PublicDocPage from '@/features/legal/PublicDocPage';
-import AccountDeletionPage from '@/features/legal/AccountDeletionPage';
-import LoginPage from '@/features/auth/LoginPage';
-import RegisterPage from '@/features/auth/RegisterPage';
-import FindUsernamePage from '@/features/auth/FindUsernamePage';
-import ResetPasswordRequestPage from '@/features/auth/ResetPasswordRequestPage';
-import ReconsentPage from '@/features/auth/ReconsentPage';
-import ReportPage from '@/features/reports/ReportPage';
-import HomePage from '@/features/home/HomePage';
-import TeamRegisterPage from '@/features/teams/TeamRegisterPage';
-import RequestsPage from '@/features/matches/RequestsPage';
-import MatchDetailPage from '@/features/matches/MatchDetailPage';
-import ReviewsPage from '@/features/reviews/ReviewsPage';
-import MyPage from '@/features/mypage/MyPage';
-import EditProfilePage from '@/features/mypage/EditProfilePage';
-import ChangePasswordPage from '@/features/mypage/ChangePasswordPage';
+const TourPage = lazy(() => import('@/features/tour/TourPage'));
+const InstallGuidePage = lazy(() => import('@/features/install/InstallGuidePage'));
+const PublicDocPage = lazy(() => import('@/features/legal/PublicDocPage'));
+const AccountDeletionPage = lazy(() => import('@/features/legal/AccountDeletionPage'));
+const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
+const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
+const FindUsernamePage = lazy(() => import('@/features/auth/FindUsernamePage'));
+const ResetPasswordRequestPage = lazy(() => import('@/features/auth/ResetPasswordRequestPage'));
+const ReconsentPage = lazy(() => import('@/features/auth/ReconsentPage'));
+const ReportPage = lazy(() => import('@/features/reports/ReportPage'));
+const HomePage = lazy(() => import('@/features/home/HomePage'));
+const TeamRegisterPage = lazy(() => import('@/features/teams/TeamRegisterPage'));
+const RequestsPage = lazy(() => import('@/features/matches/RequestsPage'));
+const MatchDetailPage = lazy(() => import('@/features/matches/MatchDetailPage'));
+const ReviewsPage = lazy(() => import('@/features/reviews/ReviewsPage'));
+const MyPage = lazy(() => import('@/features/mypage/MyPage'));
+const EditProfilePage = lazy(() => import('@/features/mypage/EditProfilePage'));
+const ChangePasswordPage = lazy(() => import('@/features/mypage/ChangePasswordPage'));
 
-import AdminLayout from '@/features/admin/AdminLayout';
-import AdminDashboardPage from '@/features/admin/AdminDashboardPage';
-import AdminNotificationsPage from '@/features/admin/AdminNotificationsPage';
-import AdminUsersPage from '@/features/admin/AdminUsersPage';
-import AdminVerificationPage from '@/features/admin/AdminVerificationPage';
-import AdminTeamsPage from '@/features/admin/AdminTeamsPage';
-import AdminReportsPage from '@/features/admin/AdminReportsPage';
-import AdminReviewsPage from '@/features/admin/AdminReviewsPage';
+const AdminLayout = lazy(() => import('@/features/admin/AdminLayout'));
+const AdminDashboardPage = lazy(() => import('@/features/admin/AdminDashboardPage'));
+const AdminNotificationsPage = lazy(() => import('@/features/admin/AdminNotificationsPage'));
+const AdminUsersPage = lazy(() => import('@/features/admin/AdminUsersPage'));
+const AdminVerificationPage = lazy(() => import('@/features/admin/AdminVerificationPage'));
+const AdminTeamsPage = lazy(() => import('@/features/admin/AdminTeamsPage'));
+const AdminReportsPage = lazy(() => import('@/features/admin/AdminReportsPage'));
+const AdminReviewsPage = lazy(() => import('@/features/admin/AdminReviewsPage'));
 
 import { useAuth } from '@/hooks/useAuth';
 
 function RootRoute() {
-  const { session, loading } = useAuth();
-  if (loading) return null;
-  return session ? <HomePage /> : <LandingPage />;
+  const { session, loading, error } = useAuth();
+  if (loading) return <Loading />;
+  if (error === 'session') return <AuthRecovery />;
+  return session ? <ProtectedRoute><HomePage /></ProtectedRoute> : <LandingPage />;
 }
 
 export default function AppRouter() {
   return (
+    <Suspense fallback={<Loading />}>
     <Routes>
       <Route path="/" element={<RootRoute />} />
       <Route path="/tour" element={<TourPage />} />
@@ -78,5 +83,6 @@ export default function AppRouter() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

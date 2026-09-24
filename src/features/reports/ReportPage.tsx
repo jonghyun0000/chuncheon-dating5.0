@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CircleCheck, Phone, ShieldAlert } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
+import LoadError from '@/components/common/LoadError';
 import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
 import { REPORT_CATEGORY_KEYS, labelReportCategory, labelReportCategoryDesc, labelReportStatus } from '@/lib/constants';
@@ -25,7 +26,12 @@ export default function ReportPage() {
   const [done, setDone] = useState(false);
   const [mine, setMine] = useState<Report[]>([]);
 
-  const load = async () => setMine(await fetchMyReports());
+  const [loadError, setLoadError] = useState(false);
+  const load = async () => {
+    setLoadError(false);
+    try { setMine(await fetchMyReports()); }
+    catch { setLoadError(true); }
+  };
   useEffect(() => { void load(); }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -122,8 +128,9 @@ export default function ReportPage() {
         </div>
 
         <div>
-          <label className="label">{t.report.detailLabel}</label>
+          <label className="label" htmlFor="report-detail">{t.report.detailLabel}</label>
           <textarea
+            id="report-detail"
             className="input min-h-[140px] resize-none"
             maxLength={1000}
             placeholder={t.report.detailPlaceholder}
@@ -144,6 +151,7 @@ export default function ReportPage() {
         </p>
       </form>
 
+      {loadError && <LoadError retry={() => void load()} />}
       {mine.length > 0 && (
         <section className="mt-4">
           <h3 className="mb-2 text-sm font-semibold text-zinc-500">{t.report.mySection}</h3>

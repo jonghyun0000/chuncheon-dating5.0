@@ -57,6 +57,28 @@ export default function LandingPage() {
           ))}
         </div>
 
+        <div className="mt-6 space-y-3">
+          <Link
+            to="/tour"
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-white py-3.5 text-center text-sm font-bold text-sakura-600 shadow-soft ring-2 ring-sakura-200 transition hover:ring-sakura-300 active:scale-[0.98]"
+          >
+            <CirclePlay size={17} strokeWidth={2} />
+            {t.tour.entry}
+          </Link>
+          <Link
+            to="/register"
+            className="block w-full rounded-full bg-gradient-to-r from-sakura-500 to-sakura-400 py-4 text-center font-bold text-white shadow-soft transition active:scale-[0.98]"
+          >
+            {t.landing.ctaStart}
+          </Link>
+          <Link
+            to="/login"
+            className="block w-full rounded-full bg-white py-4 text-center font-semibold text-zinc-700 ring-1 ring-zinc-200"
+          >
+            {t.landing.ctaHaveAccount}
+          </Link>
+        </div>
+
         <div className="mt-8 space-y-3">
           <div className="flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3.5 shadow-soft ring-1 ring-white backdrop-blur">
             <GraduationCap size={22} strokeWidth={1.8} className="shrink-0 text-sakura-500" />
@@ -110,27 +132,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="mt-8 space-y-3 pb-6">
-          <Link
-            to="/tour"
-            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-white py-3.5 text-center text-sm font-bold text-sakura-600 shadow-soft ring-2 ring-sakura-200 transition hover:ring-sakura-300 active:scale-[0.98]"
-          >
-            <CirclePlay size={17} strokeWidth={2} />
-            {t.tour.entry}
-          </Link>
-          <Link
-            to="/register"
-            className="block w-full rounded-full bg-gradient-to-r from-sakura-500 to-sakura-400 py-4 text-center font-bold text-white shadow-soft transition active:scale-[0.98]"
-          >
-            {t.landing.ctaStart}
-          </Link>
-          <Link
-            to="/login"
-            className="block w-full rounded-full bg-white py-4 text-center font-semibold text-zinc-700 ring-1 ring-zinc-200"
-          >
-            {t.landing.ctaHaveAccount}
-          </Link>
-        </div>
+
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CircleAlert, MessagesSquare, ShieldAlert, UsersRound } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import MemberTags from '@/components/team/MemberTags';
 import Button from '@/components/common/Button';
@@ -21,19 +22,25 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<MatchRequestWithTeams | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    void (async () => {
+  const [loadError, setLoadError] = useState(false);
+  const load = useCallback(async () => {
+      setLoading(true);
+      setLoadError(false);
       if (!id) { setLoading(false); return; }
       try {
         const m = await fetchMatchDetail(id);
         setMatch(m);
+      } catch {
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
-    })();
   }, [id]);
+  useEffect(() => { void load(); }, [load]);
 
   if (loading) return <PageLayout><Loading /></PageLayout>;
+
+  if (loadError) return <PageLayout><LoadError retry={() => void load()} /></PageLayout>;
 
   if (!match || match.status !== 'accepted') {
     return (

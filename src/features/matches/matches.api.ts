@@ -5,31 +5,33 @@ import type { MatchRequestWithTeams } from './matches.types';
 
 /** 내가 보낸 신청들의 상대 team_id 목록 (홈에서 중복 신청 방지용) */
 export async function fetchMyOutgoingRequestTeamIds(): Promise<string[]> {
-  const { data: u } = await withTimeout(
+  const { data: u, error: userError } = await withTimeout(
     supabase.auth.getUser(),
     3000,
-    { data: { user: null } } as any,
+    { data: { user: null }, error: { message: 'timeout' } } as any,
     'getUser'
   );
+  if (userError) throw userError;
   const uid = u?.user?.id;
   if (!uid) return [];
 
-  const { data: myTeams } = await withTimeout(
+  const { data: myTeams, error: teamsError } = await withTimeout(
     supabase.from('teams').select('id').eq('owner_id', uid),
     5000,
-    { data: [] } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'fetchMyTeams'
   );
+  if (teamsError) throw teamsError;
   const ids = ((myTeams ?? []) as any[]).map((t) => t.id);
   if (ids.length === 0) return [];
 
   const { data, error } = await withTimeout(
     supabase.from('match_requests').select('to_team_id, status').in('from_team_id', ids),
     5000,
-    { data: [], error: null } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'fetchOutgoingRequests'
   );
-  if (error) return [];
+  if (error) throw error;
   return ((data ?? []) as any[]).map((r) => r.to_team_id);
 }
 
@@ -100,21 +102,23 @@ export async function fetchMyRequests(): Promise<{
   outgoing: MatchRequestWithTeams[];
   incoming: MatchRequestWithTeams[];
 }> {
-  const { data: u } = await withTimeout(
+  const { data: u, error: userError } = await withTimeout(
     supabase.auth.getUser(),
     3000,
-    { data: { user: null } } as any,
+    { data: { user: null }, error: { message: 'timeout' } } as any,
     'getUser'
   );
+  if (userError) throw userError;
   const uid = u?.user?.id;
   if (!uid) return { outgoing: [], incoming: [] };
 
-  const { data: myTeams } = await withTimeout(
+  const { data: myTeams, error: teamsError } = await withTimeout(
     supabase.from('teams').select('id').eq('owner_id', uid),
     5000,
-    { data: [] } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'fetchMyTeams'
   );
+  if (teamsError) throw teamsError;
   const myTeamIds = ((myTeams ?? []) as any[]).map((t) => t.id);
   if (myTeamIds.length === 0) return { outgoing: [], incoming: [] };
 
@@ -135,7 +139,7 @@ export async function fetchMyRequests(): Promise<{
           .in('from_team_id', myTeamIds)
           .order('created_at', { ascending: false }),
         8000,
-        { data: [], error: null } as any,
+        { data: [], error: { message: 'timeout' } } as any,
         'fetchOutgoing'
       ),
       withTimeout(
@@ -149,16 +153,17 @@ export async function fetchMyRequests(): Promise<{
           .in('to_team_id', myTeamIds)
           .order('created_at', { ascending: false }),
         8000,
-        { data: [], error: null } as any,
+        { data: [], error: { message: 'timeout' } } as any,
         'fetchIncoming'
       ),
     ]);
 
+    if (outRes.error) throw outRes.error;
+    if (inRes.error) throw inRes.error;
     outgoing = (outRes?.data ?? []) as unknown as MatchRequestWithTeams[];
     incoming = (inRes?.data ?? []) as unknown as MatchRequestWithTeams[];
   } catch (e) {
-    console.warn('[matches] fetch requests failed:', e);
-    return { outgoing: [], incoming: [] };
+    throw e;
   }
 
   // 중요: from_team / to_team이 null인 항목은 필터링 (RLS 등으로 인한 빈 데이터 방어)
@@ -180,17 +185,18 @@ export async function fetchMyRequests(): Promise<{
 
       // 연락처가 없는 공개 뷰만 사용합니다.
       // (연락처는 서로 공개되지 않고, 관리자가 단체방을 만들 때만 사용)
-      const { data: allMembers } = await withTimeout(
+      const { data: allMembers, error: membersError } = await withTimeout(
         supabase
           .from('team_members_public')
           .select('*')
           .in('team_id', Array.from(teamIds))
           .order('member_order'),
         6000,
-        { data: [] } as any,
+        { data: [], error: { message: 'timeout' } } as any,
         'fetchRequestMembers'
       );
 
+      if (membersError) throw membersError;
       const membersByTeam = new Map<string, any[]>();
       for (const m of (allMembers ?? []) as any[]) {
         if (!membersByTeam.has(m.team_id)) membersByTeam.set(m.team_id, []);
@@ -207,8 +213,7 @@ export async function fetchMyRequests(): Promise<{
         }
       }
     } catch (e) {
-      console.warn('[matches] member fetch failed:', e);
-      // 멤버 조회 실패해도 카드는 표시되게 진행
+      throw e;
     }
   }
 
@@ -228,10 +233,11 @@ export async function fetchMatchDetail(id: string): Promise<MatchRequestWithTeam
       .eq('id', id)
       .maybeSingle(),
     8000,
-    { data: null, error: null } as any,
+    { data: null, error: { message: 'timeout' } } as any,
     'fetchMatchDetail'
   );
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
 
   const m = data as unknown as MatchRequestWithTeams;
   if (m.status !== 'accepted') return m;
@@ -241,21 +247,22 @@ export async function fetchMatchDetail(id: string): Promise<MatchRequestWithTeam
 
   // 양 팀 멤버 조회 — 연락처 없는 공개 뷰 사용 (상호 연락처 비공개 정책)
   try {
-    const { data: members } = await withTimeout(
+    const { data: members, error: membersError } = await withTimeout(
       supabase
         .from('team_members_public')
         .select('*')
         .in('team_id', [m.from_team_id, m.to_team_id])
         .order('member_order'),
       5000,
-      { data: [] } as any,
+      { data: [], error: { message: 'timeout' } } as any,
       'fetchMatchMembers'
     );
+    if (membersError) throw membersError;
     const ms = (members ?? []) as any[];
     (m.from_team as any).members = ms.filter((x) => x.team_id === m.from_team_id);
     (m.to_team as any).members = ms.filter((x) => x.team_id === m.to_team_id);
   } catch (e) {
-    console.warn('[matches] match detail member fetch failed:', e);
+    throw e;
   }
 
   return m;

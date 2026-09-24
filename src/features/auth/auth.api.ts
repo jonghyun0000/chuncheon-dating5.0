@@ -4,6 +4,8 @@ import { tr } from '@/i18n';
 import { TERMS_VERSION } from '@/lib/terms';
 import { usernameToFakeEmail } from '@/utils/security';
 import type { FindUsernameInput, RegisterInput, ResetPasswordRequestInput } from './auth.types';
+import { authMessages } from './auth.messages';
+import { validateStudentIdFile } from './studentIdFile';
 
 export async function signIn(username: string, password: string) {
   const email = usernameToFakeEmail(username);
@@ -40,7 +42,8 @@ export async function signUp(input: RegisterInput) {
     throw new Error(tr().register.errTermsRequired);
   }
 
-  const email = usernameToFakeEmail(input.username);
+  const { extension, contentType } = await validateStudentIdFile(input.studentIdFile);
+  const email = usernameToFakeEmail(input.username.trim());
 
   // 1) Auth 계정 생성
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -53,23 +56,39 @@ export async function signUp(input: RegisterInput) {
       },
     },
   });
-  if (authError) throw authError;
-  if (!authData.user) throw new Error(tr().register.errSignUpFailed);
-
-  const uid = authData.user.id;
+  let user = authData.user;
+  if (authError) {
+    const duplicate = ['user_already_exists', 'email_exists'].includes(authError.code ?? '') || /already registered|already exists/i.test(authError.message);
+    if (!duplicate) throw authError;
+    // A partial signup may already own the login. Prove password ownership
+    // before inspecting or completing its profile; never overwrite a profile.
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
+    if (error || !data.user || !data.session) throw new Error(authMessages().verifyPassword);
+    user = data.user;
+  } else if (!authData.session) {
+    // Some Auth configurations return an obfuscated user for existing emails.
+    // Such a response is not proof of ownership and cannot authorize uploads.
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password });
+    if (error || !data.user || !data.session) throw new Error(authMessages().verifyPassword);
+    user = data.user;
+  }
+  if (!user || user.email?.toLowerCase() !== email) throw new Error(tr().register.errSignUpFailed);
+  const uid = user.id;
+  const { data: existing, error: existingError } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) throw new Error(authMessages().existing);
 
   // 2) 학생증 업로드 (private)
-  const ext = input.studentIdFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const path = `${uid}/student_${Date.now()}.${ext}`;
+  const path = `${uid}/student_${crypto.randomUUID()}.${extension}`;
   const { error: upErr } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(path, input.studentIdFile, { contentType: input.studentIdFile.type, upsert: false });
+    .upload(path, input.studentIdFile, { contentType, upsert: false });
   if (upErr) throw upErr;
 
   // 3) profiles row 생성
   const { error: profErr } = await supabase.from('profiles').insert({
     id: uid,
-    username: input.username,
+    username: input.username.trim(),
     name: input.name,
     gender: input.gender,
     school: input.school,
@@ -84,8 +103,14 @@ export async function signUp(input: RegisterInput) {
     terms_agreed_at: new Date().toISOString(),
   });
   if (profErr) {
-    // 롤백 시도 (best-effort)
-    await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+    // A lost response may hide a committed insert. Never remove a file that is
+    // already referenced, or when the follow-up read also fails.
+    const { data: saved, error: readError } = await supabase.from('profiles')
+      .select('student_id_image_path').eq('id', uid).maybeSingle();
+    if (!readError && saved?.student_id_image_path === path) return { uid };
+    if (!readError) {
+      try { await supabase.storage.from(STORAGE_BUCKET).remove([path]); } catch { /* Retried signup can recover safely. */ }
+    }
     throw profErr;
   }
 

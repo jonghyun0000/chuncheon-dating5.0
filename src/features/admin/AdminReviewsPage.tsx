@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminTable from '@/components/admin/AdminTable';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import Stars from '@/components/common/Stars';
 import { deleteReviewAdmin, listAllReviews, setReviewStatus } from './admin.api';
@@ -15,10 +16,15 @@ export default function AdminReviewsPage() {
   const [rows, setRows] = useState<Review[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
-  const load = () => listAllReviews().then(setRows).catch((e) => alert(koMessage(e)));
+  const [loadError, setLoadError] = useState(false);
+  const load = async () => {
+    setLoadError(false);
+    try { setRows(await listAllReviews()); }
+    catch { setLoadError(true); }
+  };
   useEffect(() => { void load(); }, []);
 
-  if (!rows) return <Loading />;
+  if (!rows) return loadError ? <LoadError retry={() => void load()} /> : <Loading />;
 
   const visible = rows.filter((r) => filter === 'all' ? true : r.status === filter);
 
@@ -35,6 +41,7 @@ export default function AdminReviewsPage() {
 
   return (
     <div>
+      {loadError && <LoadError retry={() => void load()} />}
       <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.reviewsTitle}</h1>
 
       <div className="mt-3 mb-5 flex gap-2 flex-wrap">

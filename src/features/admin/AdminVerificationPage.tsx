@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import Button from '@/components/common/Button';
 import { Check, Expand, ExternalLink, Maximize2, Search, X } from 'lucide-react';
@@ -20,7 +21,9 @@ export default function AdminVerificationPage() {
   /** 학생증 사진 보기 방식 — 기본은 잘리지 않는 [전체 보기] */
   const [fill, setFill] = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
   const load = async () => {
+    setLoadError(false);
     try {
       const list = await listVerificationQueue();
       setRows(list);
@@ -30,7 +33,7 @@ export default function AdminVerificationPage() {
         u[p.id] = await getStudentSignedUrl(p.student_id_image_path);
       }));
       setUrls(u);
-    } catch (e) { alert(koMessage(e)); }
+    } catch { setLoadError(true); }
   };
 
   useEffect(() => { void load(); }, []);
@@ -55,10 +58,11 @@ export default function AdminVerificationPage() {
     });
   }, [rows, filter, q]);
 
-  if (!rows) return <Loading />;
+  if (!rows) return loadError ? <LoadError retry={() => void load()} /> : <Loading />;
 
   return (
     <div>
+      {loadError && <LoadError retry={() => void load()} />}
       <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.verifyTitle}</h1>
 
       {/* 이름 · 학번 · 아이디 검색 */}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Modal from '@/components/common/Modal';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
@@ -18,6 +19,7 @@ import { formatDate } from '@/utils/format';
 export default function ReviewsPage() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [list, setList] = useState<Review[]>([]);
   const [mine, setMine] = useState<Review[]>([]);
   const [open, setOpen] = useState(false);
@@ -32,10 +34,13 @@ export default function ReviewsPage() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [a, m] = await Promise.all([fetchApprovedReviews(), fetchMyReviews()]);
       setList(a);
       setMine(m);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -93,6 +98,8 @@ export default function ReviewsPage() {
       {/* 승인된 후기 목록 */}
       {loading ? (
         <Loading />
+      ) : loadError ? (
+        <LoadError retry={() => void load()} />
       ) : list.length === 0 ? (
         <div className="card flex flex-col items-center justify-center py-14 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-sakura-50 text-sakura-500">

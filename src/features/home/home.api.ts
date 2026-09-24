@@ -18,12 +18,7 @@ export async function fetchHomeStats(): Promise<HomeStats> {
   );
 
   if (error || !data) {
-    console.warn('[home] fetchHomeStats error:', error?.message);
-    return {
-      total_teams: 0,
-      matched_count: 0,
-      total_users: 0,
-    };
+    throw error ?? new Error('Statistics unavailable');
   }
 
   return data as HomeStats;
@@ -47,7 +42,7 @@ export async function fetchHomeTeams(opts: {
   let myTeamSize: number | null = null;
 
   if (uid) {
-    const { data: myTeam } = await withTimeout(
+    const { data: myTeam, error: myTeamError } = await withTimeout(
       supabase
         .from('teams')
         .select('team_size')
@@ -57,49 +52,27 @@ export async function fetchHomeTeams(opts: {
         .limit(1)
         .maybeSingle(),
       8000,
-      { data: null, error: null } as any,
+      { data: null, error: { message: 'timeout' } } as any,
       'fetchMyTeamSize'
     );
 
+    if (myTeamError) throw myTeamError;
     myTeamSize = (myTeam as any)?.team_size ?? null;
   }
 
   const { data, error } = await withTimeout(
-    supabase
-      .from('teams')
-      .select(`
-        id,
-        owner_id,
-        gender,
-        intro,
-        status,
-        matched_at,
-        created_at,
-        team_size,
-        members:team_members_public(*),
-        owner:profiles!teams_owner_id_fkey(is_verified)
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false }),
+    supabase.rpc('get_home_teams'),
     8000,
-    { data: [], error: null } as any,
+    { data: [], error: { message: 'timeout' } } as any,
     'fetchHomeTeams'
   );
 
-  if (error) {
-    console.warn('[home] fetchHomeTeams error:', error.message);
-    return [];
-  }
-
-  let rows = ((data ?? []) as any[]).map((t: any) => {
-    const ownerData = Array.isArray(t.owner) ? t.owner[0] : t.owner;
-
-    return {
-      ...t,
-      members: (t.members ?? []) as TeamMemberPublic[],
-      owner_verified: !!ownerData?.is_verified,
-    };
-  }) as TeamWithMembers[];
+  if (error) throw error;
+  let rows = ((data ?? []) as TeamWithMembers[]).map((team) => ({
+    ...team,
+    members: team.members ?? [],
+    owner_verified: !!team.owner_verified,
+  }));
 
   if (opts.schoolFilter && opts.schoolFilter !== '전체') {
     rows = rows.filter((team) =>

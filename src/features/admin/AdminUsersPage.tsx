@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw, Search, UserMinus } from 'lucide-react';
 import AdminTable from '@/components/admin/AdminTable';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import { approveAccountDeletion, deleteUser, listUsers, setUserStatus } from './admin.api';
 import type { Profile } from '@/types/database.types';
@@ -26,7 +27,12 @@ export default function AdminUsersPage() {
   const [status, setStatus] = useState<StatusFilter>('active');
   const [sort, setSort] = useState<SortKey>('newest');
 
-  const load = () => listUsers().then(setRows).catch((e) => alert(koMessage(e)));
+  const [loadError, setLoadError] = useState(false);
+  const load = async () => {
+    setLoadError(false);
+    try { setRows(await listUsers()); }
+    catch { setLoadError(true); }
+  };
   useEffect(() => { void load(); }, []);
 
   const visible = useMemo(() => {
@@ -66,7 +72,7 @@ export default function AdminUsersPage() {
   const isWithdrawalPending = (u: Profile) =>
     u.status === 'deleted' && (u.contact_id ?? '') !== '';
 
-  if (!rows) return <Loading />;
+  if (!rows) return loadError ? <LoadError retry={() => void load()} /> : <Loading />;
 
   const run = async (uid: string, fn: () => Promise<void>, doneMsg?: string) => {
     setBusyId(uid);
@@ -88,11 +94,13 @@ export default function AdminUsersPage() {
   };
 
   const onDelete = (u: Profile) => {
+    if (u.role === 'admin') return;
     if (!confirm(t.admin.deleteUserConfirm)) return;
     void run(u.id, () => deleteUser(u.id), t.admin.deleteUserDone);
   };
 
   const onApproveWithdrawal = (u: Profile) => {
+    if (u.role === 'admin') return;
     if (!confirm(t.admin.withdrawalApproveConfirm(u.name))) return;
     void run(u.id, () => approveAccountDeletion(u.id), t.admin.withdrawalApproveDone);
   };
@@ -105,6 +113,7 @@ export default function AdminUsersPage() {
 
   return (
     <div>
+      {loadError && <LoadError retry={() => void load()} />}
       <h1 className="font-display text-2xl font-bold text-zinc-900">{t.admin.usersTitle}</h1>
       <p className="mt-1 text-sm text-zinc-500">
         {t.admin.usersFiltered(visible.length, rows.length)}
@@ -216,7 +225,7 @@ export default function AdminUsersPage() {
                     <div className="flex flex-wrap gap-1">
                       {pending ? (
                         <button
-                          disabled={busy}
+                          disabled={busy || u.role === 'admin'}
                           onClick={() => onApproveWithdrawal(u)}
                           className="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200 disabled:opacity-50"
                         >
@@ -232,7 +241,7 @@ export default function AdminUsersPage() {
                             {u.status === 'active' ? t.admin.deactivate : t.admin.activate}
                           </button>
                           <button
-                            disabled={busy || u.status === 'deleted'}
+                            disabled={busy || u.status === 'deleted' || u.role === 'admin'}
                             onClick={() => onDelete(u)}
                             className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-600 transition hover:bg-rose-100 disabled:opacity-40"
                           >

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, MessageSquareWarning, ShieldOff, X } from 'lucide-react';
 import Loading from '@/components/common/Loading';
+import LoadError from '@/components/common/LoadError';
 import Badge from '@/components/common/Badge';
 import {
   SCHOOL_BADGE_COLOR,
@@ -32,14 +33,16 @@ const tone = (s: string) =>
 
 export default function AdminReportsPage() {
   const { t } = useI18n();
+  const [loadError, setLoadError] = useState(false);
   const [rows, setRows] = useState<ReportWithPeople[] | null>(null);
   const [filter, setFilter] = useState<Filter>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [memos, setMemos] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
+    setLoadError(false);
     setRows(null);
-    setRows(await listReportsAdmin(filter));
+    try { setRows(await listReportsAdmin(filter)); } catch { setLoadError(true); }
   }, [filter]);
 
   useEffect(() => { void load(); }, [load]);
@@ -99,7 +102,7 @@ export default function AdminReportsPage() {
         ))}
       </div>
 
-      {!rows ? (
+      {loadError ? <LoadError retry={() => void load()} /> : !rows ? (
         <Loading label={t.admin.reportsLoading} />
       ) : rows.length === 0 ? (
         <div className="card mt-5 flex flex-col items-center justify-center py-16 text-center">
