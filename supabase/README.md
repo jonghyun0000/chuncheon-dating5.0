@@ -5,8 +5,8 @@ The production project is `slddnhyvstfvobxxcazt` (display name `chuncheon-dating
 ## Files
 
 - `baseline.sql`: reproducible public schema snapshot as of 2026-09-25. It assumes Supabase auth/storage schemas already exist. It is for a fresh disposable test database only; **never apply it to an existing project**.
-- `migrations/20260924165302_harden_authorization_and_atomic_teams.sql`: expands API with atomic team save and private-data-safe home results, fixes privilege boundaries, restricts verification uploads, preserves old direct team write endpoints, adds indexes and bucket limits.
-- `migrations/20260924165736_redact_completed_deletion_snapshots.sql`: idempotently redacts already completed deletion notification text/payload only when the target profile is deleted. It preserves every notification row, timestamps and status. This intentionally cannot be undone without reintroducing deleted personal information.
+- `migrations/20260924171521_harden_authorization_and_atomic_teams.sql`: expands API with atomic team save and private-data-safe home results, fixes privilege boundaries, restricts verification uploads, preserves old direct team write endpoints, adds indexes and bucket limits.
+- `migrations/20260924172034_redact_completed_deletion_snapshots.sql`: idempotently redacts already completed deletion notification text/payload only when the target profile is deleted. It preserves every notification row, timestamps and status. This intentionally cannot be undone without reintroducing deleted personal information.
 - `tests/` and `../scripts/test-db.mjs`: isolated PostgreSQL 17 integration tests with Supabase auth/storage stubs.
 
 ## API contracts
@@ -59,3 +59,14 @@ For an unexpected policy incompatibility, keep the security boundaries and apply
 ## Remaining operational responsibilities
 
 The integration tests model Postgres authorization and transaction behavior; they do not replace a real-browser login/signup or Supabase Storage HTTP check. Leaked-password protection is an Auth dashboard setting and should be enabled independently if the account plan supports it. File deletion and database anonymization cross separate APIs: the DB prerequisite prevents a successful approval while known objects remain, and the frontend must surface any removal failure. Stale deleted accounts are blocked from further uploads.
+
+## Applied production history (2026-09-25 KST)
+
+The migration filenames match the versions recorded by the Supabase migration API. Both were applied transactionally after isolated tests and CI succeeded. The source SQL did not change when the files were aligned with the applied version numbers.
+
+- `20260924171521`: authorization and atomic-team hardening. SHA-256 `7172fcf6f7ebb468e14ad1c26646262eb5505282a4e495bf1a08ecaa1653d0c9`.
+- `20260924172034`: completed-deletion redaction. SHA-256 `a87cc0851a1d728f142db3b36f059b9fbbf4cb3dac7dd807c7beaf4a248272e9`.
+
+Read-only role checks confirmed anonymous isolation, active male/female home results, own-profile/storage access, accepted counterpart noncontact rosters, and administrator access. Counts remained 135 profiles, 138 Auth accounts, 28 teams, 47 members, 20 match requests, 59 notifications and 134 student-ID objects. The second migration redacted 7 completed deletion notifications and 7 copied Auth names; matching residue checks returned zero. Pending deletion cases and files were not removed.
+
+The production frontend passed public mobile/desktop and direct-route smoke checks, actual security-header checks, and anonymous HTTP isolation checks. These checks do not constitute a real-member signup/matching/deletion write test, a backup restoration test, or a load test.
