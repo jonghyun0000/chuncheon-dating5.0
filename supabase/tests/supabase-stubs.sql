@@ -8,6 +8,16 @@ $$;
 CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
   SELECT coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), current_user)
 $$;
+CREATE TABLE auth.mfa_factors (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id),
+  status text NOT NULL CHECK (status IN ('unverified','verified')),
+  factor_type text NOT NULL DEFAULT 'totp'
+);
+CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+  SELECT jsonb_build_object('sub',auth.uid(),'role',auth.role(),
+    'aal',coalesce(nullif(current_setting('request.jwt.claim.aal',true),''),'aal1'))
+$$;
 CREATE SCHEMA storage;
 CREATE TABLE storage.buckets (id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false, file_size_limit bigint, allowed_mime_types text[]);
 CREATE TABLE storage.objects (

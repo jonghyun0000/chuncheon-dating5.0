@@ -1,7 +1,7 @@
 name: Verify service
 on:
   push:
-    branches: [main, 'harden/**']
+    branches: [main, 'harden/**', 'improve/**']
   pull_request:
   workflow_dispatch:
 
@@ -40,5 +40,6 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/workspace:ro" -w /workspace postgres:17 bash -c '
             apt-get update -qq && apt-get install -y -qq nodejs >/dev/null &&
-            gosu postgres env PATH="/usr/lib/postgresql/17/bin:$PATH" node scripts/test-db.mjs
+            gosu postgres env PATH="/usr/lib/postgresql/17/bin:$PATH" node scripts/test-db.mjs &&
+            gosu postgres env PATH="/usr/lib/postgresql/17/bin:$PATH" CC_VALIDATION_REPORT_DIR=/tmp/cc-validation node scripts/test-db-resilience.mjs
           '

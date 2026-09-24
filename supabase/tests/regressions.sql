@@ -321,3 +321,166 @@ RESET ROLE;
 SELECT test_support.assert(NOT EXISTS((SELECT * FROM public.profiles EXCEPT SELECT * FROM preflight_profiles) UNION ALL (SELECT * FROM preflight_profiles EXCEPT SELECT * FROM public.profiles)),'preflight leaves profiles untouched');
 SELECT test_support.assert(NOT EXISTS((SELECT * FROM storage.objects EXCEPT SELECT * FROM preflight_storage) UNION ALL (SELECT * FROM preflight_storage EXCEPT SELECT * FROM storage.objects)),'preflight leaves student files untouched');
 SELECT test_support.assert(NOT EXISTS((SELECT * FROM auth.users EXCEPT SELECT * FROM preflight_auth) UNION ALL (SELECT * FROM preflight_auth EXCEPT SELECT * FROM auth.users)),'preflight leaves Auth untouched');
+
+-- TEST admin-home-male NORMAL Active male admin sees both genders with complete masked rosters
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=4 AND count(DISTINCT gender)=2
+ AND bool_and(status='active' AND owner_verified) FROM public.get_home_teams()),
+ 'male admin sees both genders and only active visible-owner teams');
+SELECT test_support.assert((SELECT bool_and(jsonb_array_length(members)=team_size) FROM public.get_home_teams()),
+ 'admin same-gender rosters remain complete');
+SELECT test_support.assert(NOT EXISTS(SELECT FROM public.get_home_teams() h
+ CROSS JOIN LATERAL jsonb_array_elements(h.members) m
+ WHERE m ? 'contact_id' OR m ? 'contact_type' OR length(m->>'student_number')>2),
+ 'admin home cards preserve masked response contract');
+SELECT test_support.assert((SELECT count(*)=6 FROM public.teams),
+ 'admin management table still includes both genders and hidden teams');
+
+-- TEST admin-home-female NORMAL Active female admin sees both genders independent of actor gender
+UPDATE public.profiles SET gender='female' WHERE id='00000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=4 AND count(DISTINCT gender)=2 FROM public.get_home_teams()),
+ 'female admin sees both genders');
+SELECT test_support.assert((SELECT bool_and(jsonb_array_length(members)=team_size) FROM public.get_home_teams()),
+ 'female admin same-gender rosters remain complete');
+
+-- TEST normal-home-gender NORMAL Both ordinary genders retain opposite-gender browsing restrictions
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=2 AND bool_and(gender='female') FROM public.get_home_teams()),
+ 'male user sees only opposite active teams');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+SELECT test_support.assert((SELECT count(*)=2 AND bool_and(gender='male') FROM public.get_home_teams()),
+ 'female user sees only opposite active teams');
+
+-- TEST inactive-admin-home NORMAL Inactive and deleted admin roles cannot use home or roster privilege
+UPDATE public.profiles SET status='inactive' WHERE id='00000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=0 FROM public.get_home_teams()),'inactive admin cannot browse home');
+SELECT test_support.assert((SELECT count(*)=0 FROM public.team_members_public),'inactive admin cannot browse roster');
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','',true);
+UPDATE public.profiles SET status='deleted' WHERE id='00000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=0 FROM public.get_home_teams()),'deleted admin cannot browse home');
+SELECT test_support.assert((SELECT count(*)=0 FROM public.team_members_public),'deleted admin cannot browse roster');
+
+-- TEST admin-mfa-opt-in NORMAL Unenrolled admin and unverified enrollment keep existing access
+INSERT INTO auth.mfa_factors(user_id,status,factor_type)
+VALUES ('00000000-0000-4000-8000-000000000001','unverified','totp');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claim.aal','aal1',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert(public.is_admin(auth.uid()),'unverified factor does not lock admin');
+SELECT test_support.assert((SELECT count(*)=8 FROM public.profiles),'unenrolled admin still manages all profiles');
+SELECT test_support.assert((SELECT count(*)=4 AND count(DISTINCT gender)=2 FROM public.get_home_teams()),
+ 'unenrolled admin sees both genders');
+SELECT public.validate_account_deletion('00000000-0000-4000-8000-000000000008');
+
+-- TEST admin-mfa-aal1 NORMAL Verified MFA enrollment denies admin privileges before second-factor challenge
+INSERT INTO auth.mfa_factors(user_id,status,factor_type)
+VALUES ('00000000-0000-4000-8000-000000000001','verified','totp');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claim.aal','aal1',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert(NOT public.is_admin(auth.uid()),'enrolled admin needs AAL2');
+SELECT test_support.assert((SELECT count(*)=1 FROM public.profiles),'AAL1 keeps only ordinary own-profile read');
+SELECT test_support.assert((SELECT count(*)=1 FROM storage.objects),'AAL1 cannot read other student IDs');
+SELECT test_support.expect_no_changes($q$UPDATE public.profiles SET is_verified=true WHERE id='00000000-0000-4000-8000-000000000006'$q$);
+SELECT test_support.expect_no_changes($q$DELETE FROM storage.objects WHERE owner='00000000-0000-4000-8000-000000000008'$q$);
+SELECT test_support.expect_denied($q$SELECT public.validate_account_deletion('00000000-0000-4000-8000-000000000008')$q$);
+SELECT test_support.expect_denied($q$SELECT public.admin_delete_user('00000000-0000-4000-8000-000000000008')$q$);
+SELECT test_support.assert((SELECT count(*)=2 AND bool_and(gender='female') FROM public.get_home_teams()),
+ 'AAL1 cannot use both-gender admin browse override');
+SELECT test_support.assert((SELECT count(*)=0 FROM public.notifications),'AAL1 cannot read admin notifications');
+
+-- TEST admin-mfa-aal2 NORMAL Verified admin AAL2 restores table Storage RPC and both-gender home access
+INSERT INTO auth.mfa_factors(user_id,status,factor_type)
+VALUES ('00000000-0000-4000-8000-000000000001','verified','totp');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claim.aal','aal2',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert(public.is_admin(auth.uid()),'AAL2 admits the enrolled admin');
+SELECT test_support.assert((SELECT count(*)=8 FROM public.profiles),'AAL2 can manage member profiles');
+SELECT test_support.assert((SELECT count(*)=8 FROM storage.objects),'AAL2 can inspect student IDs');
+SELECT test_support.assert((SELECT count(*)=4 AND count(DISTINCT gender)=2 FROM public.get_home_teams()),
+ 'AAL2 admin sees both genders');
+UPDATE public.profiles SET is_verified=true,verification_status='approved'
+WHERE id='00000000-0000-4000-8000-000000000006';
+SELECT test_support.assert((SELECT is_verified FROM public.profiles WHERE id='00000000-0000-4000-8000-000000000006'),
+ 'AAL2 can verify member');
+SELECT public.validate_account_deletion('00000000-0000-4000-8000-000000000008');
+DELETE FROM storage.objects WHERE owner='00000000-0000-4000-8000-000000000008';
+SELECT test_support.assert((SELECT count(*)=7 FROM storage.objects),'AAL2 retains valid non-admin cleanup');
+SELECT public.admin_delete_user('00000000-0000-4000-8000-000000000008');
+SELECT test_support.assert((SELECT status='deleted' FROM public.profiles WHERE id='00000000-0000-4000-8000-000000000008'),
+ 'AAL2 admin purge succeeds');
+
+-- TEST admin-mfa-other-identity NORMAL Another user's AAL2 cannot impersonate an enrolled admin
+INSERT INTO auth.mfa_factors(user_id,status,factor_type)
+VALUES ('00000000-0000-4000-8000-000000000001','verified','totp');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+SELECT set_config('request.jwt.claim.aal','aal2',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert(NOT public.is_admin(auth.uid()),'ordinary AAL2 user is not an admin');
+SELECT test_support.assert(NOT public.is_admin('00000000-0000-4000-8000-000000000001'),
+ 'different subject cannot supply AAL2 for enrolled admin');
+SELECT test_support.expect_denied($q$SELECT public.validate_account_deletion('00000000-0000-4000-8000-000000000008')$q$);
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','',true);
+UPDATE public.profiles SET status='inactive' WHERE id='00000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert(NOT public.is_admin(auth.uid()),'AAL2 cannot reactivate an inactive admin');
+
+-- TEST foreign-team-helper BASELINE_FAIL Relationship helpers do not enumerate another owner's private team IDs
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000009',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=0 FROM public.my_team_ids('00000000-0000-4000-8000-000000000004')),
+ 'unrelated caller cannot enumerate active or hidden teams through owner helper');
+
+-- TEST foreign-match-helper BASELINE_FAIL Relationship helpers do not disclose another pair's accepted match
+UPDATE public.match_requests SET status='accepted' WHERE id='30000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000009',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=0 FROM public.my_matched_partner_team_ids('00000000-0000-4000-8000-000000000002')),
+ 'unrelated caller cannot enumerate match partners');
+SELECT test_support.assert(NOT public.is_my_matched_counterpart('10000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002'),
+ 'foreign owner parameter cannot test a match relationship');
+SELECT test_support.assert(NOT public.is_matched_with('10000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000003'),
+ 'unrelated caller cannot test a pair relationship');
+
+-- TEST own-relationship-helpers NORMAL Both match participants retain own relationship queries and history policies
+UPDATE public.match_requests SET status='accepted' WHERE id='30000000-0000-4000-8000-000000000001';
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=1 FROM public.my_team_ids(auth.uid())),'owner can fetch own team IDs');
+SELECT test_support.assert((SELECT count(*)=1 FROM public.my_matched_partner_team_ids(auth.uid())),'sender can fetch own partner');
+SELECT test_support.assert(public.is_my_matched_counterpart('10000000-0000-4000-8000-000000000003',auth.uid()),'sender counterpart preserved');
+SELECT test_support.assert(public.is_matched_with('10000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000003'),'sender pair check preserved');
+SELECT test_support.assert((SELECT count(*)=1 FROM public.match_requests),'sender history RLS preserved');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+SELECT test_support.assert((SELECT count(*)=1 FROM public.my_matched_partner_team_ids(auth.uid())),'recipient can fetch own partner');
+SELECT test_support.assert(public.is_my_matched_counterpart('10000000-0000-4000-8000-000000000002',auth.uid()),'recipient counterpart preserved');
+SELECT test_support.assert(public.is_matched_with('10000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000002'),'reverse pair check preserved');
+SELECT test_support.assert((SELECT count(*)=2 FROM public.match_requests),'recipient history RLS preserved');
+
+-- TEST admin-relationship-mfa NORMAL Administrator relationship access respects enrolled MFA requirements
+UPDATE public.match_requests SET status='accepted' WHERE id='30000000-0000-4000-8000-000000000001';
+INSERT INTO auth.mfa_factors(user_id,status,factor_type)
+VALUES ('00000000-0000-4000-8000-000000000001','verified','totp');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claim.aal','aal1',true);
+SET LOCAL ROLE authenticated;
+SELECT test_support.assert((SELECT count(*)=0 FROM public.my_team_ids('00000000-0000-4000-8000-000000000004')),'AAL1 admin cannot enumerate foreign teams');
+SELECT test_support.assert((SELECT count(*)=0 FROM public.my_matched_partner_team_ids('00000000-0000-4000-8000-000000000002')),'AAL1 admin cannot enumerate foreign matches');
+SELECT test_support.assert(NOT public.is_matched_with('10000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000003'),'AAL1 admin cannot test foreign pair');
+SELECT set_config('request.jwt.claim.aal','aal2',true);
+SELECT test_support.assert((SELECT count(*)=2 FROM public.my_team_ids('00000000-0000-4000-8000-000000000004')),'AAL2 admin can manage foreign teams');
+SELECT test_support.assert((SELECT count(*)=1 FROM public.my_matched_partner_team_ids('00000000-0000-4000-8000-000000000002')),'AAL2 admin can manage match relations');
+SELECT test_support.assert(public.is_my_matched_counterpart('10000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002'),'AAL2 admin counterpart access');
+SELECT test_support.assert(public.is_matched_with('10000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000003'),'AAL2 admin pair access');

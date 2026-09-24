@@ -17,7 +17,7 @@ All five arguments are required. Pass null for p_team_id to create a team, the e
 
 `get_home_teams() -> setof { id, owner_id, gender, intro, status, matched_at, created_at, team_size, members_consent_confirmed, members_consent_at, members, owner_verified }`
 
-For active signed-in users, returns opposite-gender active teams with masked, contact-free member JSON and verification badges. It avoids granting access to other users' private profiles. Existing teams/member view queries remain available; the old profile join retains its original RLS behavior.
+For active signed-in members, returns opposite-gender active teams with masked, contact-free member JSON and verification badges. Active administrators receive both genders through the same endpoint. The administrator's own gender does not affect this view. Inactive/deleted administrators receive no home results. It avoids granting access to other users' private profiles. Existing teams/member view queries remain available; the old profile join retains its original RLS behavior.
 
 The public member view is deliberately **filtered and read-only with definer privileges**, instead of making private base contact rows broadly selectable. It denies anon and applies caller identity/active state plus ownership, opposite active-team, or prior-request relationship checks. Only SELECT is granted to authenticated.
 
@@ -58,6 +58,18 @@ For an unexpected policy incompatibility, keep the security boundaries and apply
 
 ## Remaining operational responsibilities
 
+### Administrator visibility and optional MFA
+
+`20260924175355_admin_home_visibility.sql` fixes the home RPC's administrator gender restriction without changing ordinary member matching rules. Active teams owned by active profiles remain the only home entries; hidden/inactive records stay in the dedicated administration views. Row-independent caller checks are scalar subqueries rather than per-row function calls.
+
+`20260924175401_enforce_opted_in_admin_mfa.sql` changes the existing `is_admin` helper. An active administrator with no **verified** MFA factor keeps existing access. Once the administrator explicitly enrolls and verifies a factor on their own device, privileged table, Storage, and admin RPC access require their own signed AAL2 session. An unverified enrollment does not lock the account, and another user's AAL2 token cannot satisfy the check. Enrollment is never automated by this migration. It only reads `auth.mfa_factors`; it neither changes the Auth schema nor reads factor secrets.
+
+Before applying the MFA migration, inspect only the aggregate count of active administrators with verified factors. The initial production preflight found one active administrator and zero with verified factors. If that remains zero, apply the three database migrations before releasing the enrollment UI: existing administrators keep access, and the database protects the first verified enrollment immediately. If a verified factor already exists, first provide the challenge UI without exposing new enrollment, then apply the MFA migration before enabling enrollment. An enrolled AAL1 administrator retains ordinary own-account rights, but loses administration and the both-gender override until completing the challenge. MFA does not override inactive/deleted status.
+
+`20260924175407_protect_relationship_helper_privacy.sql` limits relationship helper RPCs to the caller's own team/match information or an authorized administrator. A member cannot supply someone else's UUID to discover their hidden team IDs, accepted partner IDs, or unrelated pair status. Internal opponent-eligibility checks remain unchanged. Existing own-team and matching-history policies retain their return types and behavior. These helpers inherit the administrator's optional MFA check, so an enrolled AAL1 administrator cannot use them to inspect other accounts.
+
+The three follow-up migrations change functions only and preserve every data row. Apply each in order as its own transaction, after the full database regression suite and MFA UI tests pass. If a client compatibility issue appears, keep the privacy/MFA checks and use a focused forward fix. Do not undo the privacy restriction to restore a client path that queried another member's private relationship state.
+
 The integration tests model Postgres authorization and transaction behavior; they do not replace a real-browser login/signup or Supabase Storage HTTP check. Leaked-password protection is an Auth dashboard setting and should be enabled independently if the account plan supports it. File deletion and database anonymization cross separate APIs: the DB prerequisite prevents a successful approval while known objects remain, and the frontend must surface any removal failure. Stale deleted accounts are blocked from further uploads.
 
 ## Applied production history (2026-09-25 KST)
@@ -70,3 +82,13 @@ The migration filenames match the versions recorded by the Supabase migration AP
 Read-only role checks confirmed anonymous isolation, active male/female home results, own-profile/storage access, accepted counterpart noncontact rosters, and administrator access. Counts remained 135 profiles, 138 Auth accounts, 28 teams, 47 members, 20 match requests, 59 notifications and 134 student-ID objects. The second migration redacted 7 completed deletion notifications and 7 copied Auth names; matching residue checks returned zero. Pending deletion cases and files were not removed.
 
 The production frontend passed public mobile/desktop and direct-route smoke checks, actual security-header checks, and anonymous HTTP isolation checks. These checks do not constitute a real-member signup/matching/deletion write test, a backup restoration test, or a load test.
+
+### Follow-up quality release
+
+After the application/database CI jobs passed and a fresh check confirmed zero verified administrator MFA enrollments, three function-only migrations were applied in separate transactions:
+
+- `20260924175355`: administrator both-gender home visibility; SHA-256 `87177b20debe06c88e1b8a7ce136dc5bbce49fbd290deafe16802f6f3615ea3b`.
+- `20260924175401`: optional administrator MFA enforcement; SHA-256 `a1e33b0e2eaa3e6d6ce1cd16d17ccebae6b8ab3bf2ff19c8c702486e660d1728`.
+- `20260924175407`: private relationship helper authorization; SHA-256 `2daf5167cfd02b88399fc687d9a5f098a6bf710c98ef657fbf1aa8a67d6c8305`.
+
+All seven previously recorded table/object counts remained unchanged. Dated local validation reports retain the original pre-deployment filenames (`20260924173007`, `20260924173227`, `20260924173729`); only timestamps were aligned to the server-assigned migration versions. The SQL content and hashes are identical.

@@ -22,4 +22,19 @@ describe('home API failure and privacy boundaries', () => {
     api.rpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
     await expect(fetchHomeTeams({})).rejects.toMatchObject({ message: 'permission denied' });
   });
+  it('keeps both server-authorized genders by default and only narrows explicit filters', async () => {
+    api.getUser.mockResolvedValue({ data: { user: null } });
+    api.rpc.mockResolvedValue({ data: [
+      { id: 'male-team', gender: 'male', team_size: 1, members: [] },
+      { id: 'female-team', gender: 'female', team_size: 1, members: [] },
+    ], error: null });
+    expect((await fetchHomeTeams({})).map(t => t.id)).toEqual(['male-team', 'female-team']);
+    expect((await fetchHomeTeams({ genderFilter: 'male' })).map(t => t.id)).toEqual(['male-team']);
+    expect((await fetchHomeTeams({ genderFilter: 'female' })).map(t => t.id)).toEqual(['female-team']);
+  });
+  it('fails clearly when the current session cannot be checked', async () => {
+    api.getUser.mockResolvedValue({ data: { user: null }, error: { message: 'session unavailable' } });
+    await expect(fetchHomeTeams({})).rejects.toMatchObject({ message: 'session unavailable' });
+    expect(api.rpc).not.toHaveBeenCalled();
+  });
 });

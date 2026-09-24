@@ -1,0 +1,104 @@
+name: Verify production release
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    if: >-
+      github.repository == 'jonghyun0000/chuncheon-dating5.0' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success' &&
+        github.event.deployment.environment == 'Production' &&
+        github.event.deployment_status.environment == 'Production' &&
+        github.event.deployment.creator.login == 'vercel[bot]' &&
+        github.event.deployment_status.creator.login == 'vercel[bot]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: production-smoke-${{ github.event.deployment.sha || github.sha }}
+      cancel-in-progress: true
+    env:
+      CC_VALIDATION_REPORT_DIR: test-results/production-smoke
+    steps:
+      - name: Resolve trusted current main before checkout
+        id: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, {
+            headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+            signal: AbortSignal.timeout(15000), redirect: 'error',
+          });
+          if (!response.ok) throw new Error(`Cannot resolve trusted main: HTTP ${response.status}`);
+          const sha = (await response.json()).object?.sha;
+          if (!/^[a-f0-9]{40}$/.test(sha ?? '')) throw new Error('main did not resolve to a full SHA');
+          const manual = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch';
+          const expected = manual ? process.env.GITHUB_SHA : event.deployment?.sha;
+          const trusted = manual
+            ? process.env.GITHUB_REF === 'refs/heads/main'
+            : event.deployment?.environment === 'Production' && event.deployment_status?.environment === 'Production' &&
+              event.deployment_status?.state === 'success' && event.deployment?.creator?.login === 'vercel[bot]' &&
+              event.deployment_status?.creator?.login === 'vercel[bot]';
+          const run = trusted && expected === sha;
+          appendFileSync(process.env.GITHUB_OUTPUT, `run=${run}\nsha=${sha}\n`);
+          console.log(run ? `Trusted main release: ${sha}` : 'Skipped: this event does not represent current trusted main.');
+          NODE
+      - uses: actions/checkout@v4
+        if: steps.trusted.outputs.run == 'true'
+        with:
+          ref: ${{ steps.trusted.outputs.sha }}
+          persist-credentials: false
+      - name: Verify immutable checkout
+        if: steps.trusted.outputs.run == 'true'
+        env:
+          EXPECTED_COMMIT: ${{ steps.trusted.outputs.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+      - uses: actions/setup-node@v4
+        if: steps.trusted.outputs.run == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+      - if: steps.trusted.outputs.run == 'true'
+        run: npm ci
+      - if: steps.trusted.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Skip a release superseded during setup
+        id: current
+        if: steps.trusted.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_COMMIT: ${{ steps.trusted.outputs.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, {
+            headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+            signal: AbortSignal.timeout(15000), redirect: 'error',
+          });
+          if (!response.ok) throw new Error(`Cannot recheck main: HTTP ${response.status}`);
+          const current = (await response.json()).object?.sha === process.env.EXPECTED_COMMIT;
+          appendFileSync(process.env.GITHUB_OUTPUT, `run=${current}\n`);
+          if (!current) console.log('Skipped: main advanced while dependencies were installing.');
+          NODE
+      - name: Read-only verification of the exact production release
+        if: steps.current.outputs.run == 'true'
+        env:
+          EXPECTED_COMMIT: ${{ steps.trusted.outputs.sha }}
+        run: node scripts/smoke-production.mjs
+      - name: Save production verification evidence
+        if: always() && steps.current.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-${{ steps.trusted.outputs.sha }}
+          path: test-results/production-smoke/
+          if-no-files-found: warn
+          retention-days: 14

@@ -25,6 +25,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
           <button
             key={s}
             onClick={() => onSchool(s)}
+            aria-pressed={school === s}
             className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm ring-1 transition ${
               school === s
                 ? 'bg-sakura-500 text-white ring-sakura-500'
@@ -36,6 +37,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
         ))}
         <button
           onClick={() => onNoSmoke(!noSmoke)}
+          aria-pressed={noSmoke}
           className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm ring-1 transition ${
             noSmoke
               ? 'bg-emerald-500 text-white ring-emerald-500'
@@ -53,6 +55,7 @@ export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke,
           <button
             key={s}
             onClick={() => onSize(s)}
+            aria-pressed={size === s}
             className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm ring-1 transition ${
               size === s
                 ? 'bg-sakura-500 text-white ring-sakura-500'

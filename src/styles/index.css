@@ -17,6 +17,11 @@
   }
 }
 
+:focus-visible {
+  outline: 3px solid #9d174d;
+  outline-offset: 3px;
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
@@ -54,4 +59,15 @@
   filter: blur(0.2px);
   opacity: 0.65;
   pointer-events: none;
+}
+
+/* Respect motion preferences, including inline petal and utility animations. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .petal { display: none; }
 }

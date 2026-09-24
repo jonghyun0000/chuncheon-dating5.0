@@ -8,6 +8,8 @@ import { TERMS_VERSION } from '@/lib/terms';
 import { useI18n } from '@/i18n';
 import Loading from '@/components/common/Loading';
 import AuthRecovery from '@/features/auth/AuthRecovery';
+import { lazy, Suspense } from 'react';
+const AdminMfaGate = lazy(() => import('@/features/auth/AdminMfaGate'));
 
 /** 재동의 화면과 신고 화면은 게이트 대상에서 제외 (무한 리다이렉트 방지) */
 const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
@@ -83,5 +85,7 @@ export default function AccountGate({ children }: { children: ReactNode }) {
     return <Navigate to="/terms-consent" replace state={{ from: loc.pathname }} />;
   }
 
-  return <>{children}</>;
+  return profile.role === 'admin'
+    ? <Suspense fallback={<Loading />}><AdminMfaGate>{children}</AdminMfaGate></Suspense>
+    : <>{children}</>;
 }

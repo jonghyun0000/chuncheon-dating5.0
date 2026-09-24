@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
+import { useId } from 'react';
 import type { TermsDoc } from '@/lib/terms';
 import { useI18n } from '@/i18n';
+import Dialog from './Dialog';
 
 interface Props {
   doc: TermsDoc | null;
@@ -9,20 +11,16 @@ interface Props {
 
 export default function TermsModal({ doc, onClose }: Props) {
   const { t } = useI18n();
-  if (!doc) return null;
+  const titleId = useId();
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-0 sm:items-center sm:px-4"
-      onClick={onClose}
-    >
-      <div
+    <Dialog open={!!doc} onClose={onClose} labelledBy={titleId} className="px-0 sm:px-4">
+      {doc && <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl bg-white sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
           <div>
-            <h3 className="font-display text-lg font-bold text-zinc-900">{doc.title}</h3>
+            <h3 id={titleId} className="font-display text-lg font-bold text-zinc-900">{doc.title}</h3>
             <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{doc.summary}</p>
           </div>
           <button
@@ -55,7 +53,7 @@ export default function TermsModal({ doc, onClose }: Props) {
             {t.common.close}
           </button>
         </footer>
-      </div>
-    </div>
+      </div>}
+    </Dialog>
   );
 }

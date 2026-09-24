@@ -1,0 +1,132 @@
+{
+  "scope": "Fresh local Docker Supabase only, synthetic accounts and a one-pixel image; no hosted project access.",
+  "startedAt": "2026-09-24T17:42:59.476Z",
+  "cliVersion": "2.117.0",
+  "checks": [
+    {
+      "label": "fresh local schema is reachable through real PostgREST",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real signup request cannot self-assign admin or verified role",
+      "passed": true
+    },
+    {
+      "label": "approved verification image replacement is denied by real Storage",
+      "passed": true
+    },
+    {
+      "label": "real Storage denies another member image download",
+      "passed": true
+    },
+    {
+      "label": "ordinary signed session cannot validate admin deletion",
+      "passed": true
+    },
+    {
+      "label": "verified-factor admin old AAL1 JWT is blocked at the database",
+      "passed": true
+    },
+    {
+      "label": "real TOTP AAL2 JWT restores admin access",
+      "passed": true
+    },
+    {
+      "label": "real authenticated RPC creates complete teams",
+      "passed": true
+    },
+    {
+      "label": "real home response includes matching public roster without contacts",
+      "passed": true
+    },
+    {
+      "label": "real request acceptance marks both teams matched",
+      "passed": true
+    },
+    {
+      "label": "matched counterpart roster is readable and masked",
+      "passed": true
+    },
+    {
+      "label": "real RLS keeps matched counterpart private member records hidden",
+      "passed": true
+    },
+    {
+      "label": "anonymous real RPC purge is denied",
+      "passed": true
+    },
+    {
+      "label": "admin self-deletion preflight is denied before files are touched",
+      "passed": true
+    },
+    {
+      "label": "real admin deletion anonymizes profile after file removal",
+      "passed": true
+    },
+    {
+      "label": "student image is removed through actual Storage API",
+      "passed": true
+    },
+    {
+      "label": "Auth account remains while deleted member name is cleared",
+      "passed": true
+    },
+    {
+      "label": "still-signed-in withdrawn member cannot create another team",
+      "passed": true
+    }
+  ],
+  "productionValidated": false,
+  "projectId": "cc-quality-zpwohj",
+  "migrations": [
+    "20260924171521_harden_authorization_and_atomic_teams.sql",
+    "20260924172034_redact_completed_deletion_snapshots.sql",
+    "20260924173007_admin_home_visibility.sql",
+    "20260924173227_enforce_opted_in_admin_mfa.sql",
+    "20260924173729_protect_relationship_helper_privacy.sql"
+  ],
+  "passed": true,
+  "cleanedUp": true,
+  "finishedAt": "2026-09-24T17:43:04.956Z",
+  "localImageVersions": [
+    {
+      "tag": "public.ecr.aws/supabase/postgres:17.6.1.167",
+      "sizeBytes": 366883102
+    },
+    {
+      "tag": "public.ecr.aws/supabase/storage-api:v1.72.1",
+      "sizeBytes": 234731539
+    },
+    {
+      "tag": "public.ecr.aws/supabase/gotrue:v2.196.0",
+      "sizeBytes": 27789842
+    },
+    {
+      "tag": "public.ecr.aws/supabase/postgrest:v16.2",
+      "sizeBytes": 6459808
+    },
+    {
+      "tag": "public.ecr.aws/supabase/kong:2.8.1",
+      "sizeBytes": 48532440
+    }
+  ],
+  "initialPullWasRequired": true,
+  "initialStartupApproxMinutes": 5,
+  "cachedImagesRetained": true
+}

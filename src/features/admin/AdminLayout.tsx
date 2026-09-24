@@ -2,10 +2,11 @@ import { Outlet, Link } from 'react-router-dom';
 import AdminSidebar, { AdminMobileNav } from '@/components/admin/AdminSidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/i18n';
+import { adminMfaCopy } from '@/features/auth/adminMfaCopy';
 
 export default function AdminLayout() {
   const { profile, signOut } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <div className="min-h-screen bg-cream md:flex">
       <AdminSidebar />
@@ -16,6 +17,7 @@ export default function AdminLayout() {
             <p className="text-sm font-semibold text-zinc-800">{profile?.name}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/admin/security" className="rounded-full bg-sky-50 px-3 py-1.5 text-xs text-sky-800">{adminMfaCopy(lang).securityLink}</Link>
             <Link to="/" className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600">{t.admin.userView}</Link>
             <button onClick={signOut} className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600">{t.common.logout}</button>
           </div>

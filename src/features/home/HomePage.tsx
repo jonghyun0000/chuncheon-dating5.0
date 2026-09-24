@@ -14,10 +14,15 @@ import { ContactUpdateBanner, MatchedTeamBanner, VerificationBanner } from '@/co
 import InstallBanner from '@/components/common/InstallBanner';
 import { fetchMyMatchedTeam } from '@/features/teams/teams.api';
 import { useI18n } from '@/i18n';
+import { Link } from 'react-router-dom';
+import type { Gender } from '@/types/database.types';
+import { adminHomeCopy } from './adminHomeCopy';
 
 export default function HomePage() {
   const { profile } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const admin = profile?.role === 'admin';
+  const adminCopy = adminHomeCopy(lang);
   const requestId = useRef(0);
   const [loadError, setLoadError] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
@@ -26,6 +31,7 @@ export default function HomePage() {
   const [school, setSchool] = useState<FilterSchool>('전체');
   const [noSmoke, setNoSmoke] = useState(false);
   const [size, setSize] = useState<FilterTeamSize>('전체');
+  const [gender, setGender] = useState<Gender | 'all'>('all');
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [appliedTeamIds, setAppliedTeamIds] = useState<Set<string>>(new Set());
   const [hasMatchedTeam, setHasMatchedTeam] = useState(false);
@@ -37,7 +43,7 @@ export default function HomePage() {
     try {
       const [s, t, applied, matched] = await Promise.all([
         fetchHomeStats(),
-        fetchHomeTeams({ schoolFilter: school, noSmokeOnly: noSmoke, sizeFilter: size }),
+        fetchHomeTeams({ schoolFilter: school, noSmokeOnly: noSmoke, sizeFilter: size, genderFilter: admin ? gender : 'all' }),
         fetchMyOutgoingRequestTeamIds(),
         fetchMyMatchedTeam(),
       ]);
@@ -51,7 +57,7 @@ export default function HomePage() {
     } finally {
       if (request === requestId.current) setLoading(false);
     }
-  }, [school, noSmoke, size]);
+  }, [school, noSmoke, size, gender, admin]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -85,6 +91,23 @@ export default function HomePage() {
       </section>
 
       <section className="mb-4">
+        {admin && (
+          <div className="mb-3 rounded-2xl bg-sky-50 p-4 text-sm text-sky-900">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <strong>{adminCopy.title}</strong>
+              <Link to="/admin/teams" className="underline underline-offset-2">{adminCopy.manage}</Link>
+            </div>
+            <p className="mt-1 text-xs">{adminCopy.note}</p>
+            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={adminCopy.title}>
+              {(['all', 'male', 'female'] as const).map((value) => (
+                <button key={value} type="button" aria-pressed={gender === value} onClick={() => setGender(value)}
+                  className={`rounded-full px-3 py-2 ring-1 ${gender === value ? 'bg-sky-700 text-white ring-sky-700' : 'bg-white ring-sky-200'}`}>
+                  {adminCopy[value]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <TeamFilter
           school={school}
           noSmoke={noSmoke}
@@ -110,6 +133,7 @@ export default function HomePage() {
               applying={applyingId === t.id}
               alreadyApplied={appliedTeamIds.has(t.id)}
               isOwn={t.owner_id === profile?.id}
+              sameGender={t.gender === profile?.gender}
             />
           ))}
         </div>
