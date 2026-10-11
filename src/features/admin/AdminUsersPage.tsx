@@ -143,14 +143,14 @@ export default function AdminUsersPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t.admin.usersSearchPlaceholder}
-            className="w-full rounded-full bg-white py-2 pl-9 pr-4 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none transition focus:ring-2 focus:ring-sakura-200"
+            className="w-full rounded-full bg-white py-2 pl-9 pr-4 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden transition focus:ring-2 focus:ring-sakura-200"
           />
         </div>
 
         <select
           value={school}
           onChange={(e) => setSchool(e.target.value)}
-          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none"
+          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden"
         >
           <option value="all">{t.admin.filterSchoolAll}</option>
           {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
@@ -159,7 +159,7 @@ export default function AdminUsersPage() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as StatusFilter)}
-          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none"
+          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden"
         >
           <option value="all">{t.admin.filterStatusAll}</option>
           <option value="active">{t.labels.userStatus.active}</option>
@@ -170,7 +170,7 @@ export default function AdminUsersPage() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none"
+          className="rounded-full bg-white px-3 py-2 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden"
         >
           <option value="newest">{t.admin.sortNewest}</option>
           <option value="oldest">{t.admin.sortOldest}</option>

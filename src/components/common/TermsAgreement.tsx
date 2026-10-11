@@ -59,7 +59,7 @@ export default function TermsAgreement({ value, onChange }: Props) {
             </label>
             <button
               type="button"
-              onClick={() => setOpened(doc)}
+              onClick={(e) => { e.currentTarget.focus(); setOpened(doc); }}
               className="inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1 text-[12px] text-zinc-500 transition hover:bg-white hover:text-zinc-800"
             >
               {t.termsUi.viewFull}

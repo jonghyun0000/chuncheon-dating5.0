@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
 
 const uid = '00000000-0000-4000-8000-000000000001';
 const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@chuncheongating.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
@@ -19,8 +21,10 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   let currentDraft: any = options.draft ? { id: 'draft-fixture', owner_id: uid, gender: 'male', intro: '비공개 가상 팀', team_size: 1, members: [{ school: '강원대', department: '컴퓨터공학과', student_number: '20260001', nickname: '가상팀원', smoking: false, contact_type: 'phone', contact_id: '01000000000', taste_tags: ['cafe'], want_tags: [] }], members_consent_confirmed: true, members_consent_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' } : null;
   let published: any = null;
   const writes: string[] = [];
-  await page.route('https://test.invalid/**', async route => {
+  await page.route((process.env.CC_TEST_API_ORIGIN ?? 'https://test.invalid') + '/**', async route => {
+    if (!/\/(auth|rest|storage)\/v1\//.test(new URL(route.request().url()).pathname)) { await route.continue(); return; }
     const url = new URL(route.request().url());
+    if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': route.request().headers()['access-control-request-headers'] ?? 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' } }); return; }
     let body: unknown = [];
     let status = 200;
     if (url.pathname.endsWith('/auth/v1/token') || url.pathname.endsWith('/auth/v1/signup')) body = session;
@@ -49,7 +53,7 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
       if (failHome) { status = 503; body = { message: 'Fixture outage' }; }
       else body = options.admin ? [opponent, { ...opponent, id: '00000000-0000-4000-8000-000000000004', gender: 'male', intro: '가상 남자 팀', members: [{ ...opponent.members[0], id: 'm2', nickname: '남자팀원' }] }] : [opponent];
     }
-    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    await route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' }, body: JSON.stringify(body) });
   });
   return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; }, writes };
 }
@@ -247,4 +251,39 @@ test('deferred verification submits a photo and displays pending review', async 
   await page.getByRole('button', { name: '학생증 제출', exact: true }).click();
   await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('학생증이 제출되었어요.');
+});
+
+
+test('patched build compiler preserves mobile and desktop signup styles', async ({ page, browserName }) => {
+  await mockApi(page);
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/register');
+    await expect(page.getByRole('button', { name: '가입하기', exact: true })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const styles = () => page.evaluate(() => {
+      const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'borderRadius', 'paddingTop', 'paddingLeft', 'width'];
+      return ['.card', '.input', '.btn-primary', 'h1'].map(selector => {
+        const element = document.querySelector(selector)!;
+        const computed = getComputedStyle(element);
+        return Object.fromEntries(properties.map(property => [property, computed[property as keyof CSSStyleDeclaration]]));
+      });
+    });
+    const updated = await styles();
+    await page.locator('link[rel=stylesheet]').evaluateAll(links => links.forEach(link => (link as HTMLLinkElement).disabled = true));
+    await page.addStyleTag({ content: readFileSync('e2e/fixtures/legacy-ui.css', 'utf8') });
+    const previous = await styles();
+    for (let i = 0; i < previous.length; i++) {
+      // Fluid flex widths can differ by subpixel rounding across compilers.
+      expect(parseFloat(updated[i].width as string)).toBeCloseTo(parseFloat(previous[i].width as string), 0);
+      const { width: oldWidth, ...oldStyle } = previous[i];
+      const { width: newWidth, ...newStyle } = updated[i];
+      if (browserName === 'webkit' && i === 2) {
+        expect(newStyle).toMatchObject({ backgroundColor: 'rgb(233, 78, 133)', color: 'rgb(255, 255, 255)' });
+        const { color: oldColor, backgroundColor: oldBg, ...oldControl } = oldStyle;
+        const { color: newColor, backgroundColor: newBg, ...newControl } = newStyle;
+        expect(newControl).toEqual(oldControl);
+      } else expect(newStyle).toEqual(oldStyle);
+    }
+  }
 });

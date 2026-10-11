@@ -1,8 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@import "./legacy-theme.css";
+@config "../../tailwind.config.ts";
+@source "../";
 
 @layer base {
+  *, ::before, ::after { border-color: var(--color-gray-200); }
+  input::placeholder, textarea::placeholder { color: var(--color-gray-400); opacity: 1; }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+  dialog { margin: auto; }
   html, body, #root {
     height: 100%;
   }
@@ -22,10 +27,11 @@
   outline-offset: 3px;
 }
 
-@layer components {
-  .btn {
-    @apply inline-flex items-center justify-center rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+@utility btn {
+    @apply inline-flex items-center justify-center rounded-[9999px] px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
+@layer components {
   .btn-primary {
     @apply btn bg-sakura-500 text-white shadow-soft hover:bg-sakura-600;
   }
@@ -36,7 +42,7 @@
     @apply btn bg-rose-500 text-white hover:bg-rose-600;
   }
   .input {
-    @apply w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-[15px] outline-none focus:border-sakura-300 focus:ring-2 focus:ring-sakura-100;
+    @apply w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-[15px] outline-hidden focus:border-sakura-300 focus:ring-2 focus:ring-sakura-100;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-zinc-600;
@@ -45,7 +51,7 @@
     @apply rounded-3xl bg-white shadow-card ring-1 ring-zinc-100;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1;
+    @apply inline-flex items-center gap-1 rounded-[9999px] px-2.5 py-1 text-xs font-medium ring-1;
   }
 }
 
@@ -71,3 +77,6 @@
   }
   .petal { display: none; }
 }
+
+/* Preserve v3 pill radii, including existing template utilities. */
+@layer utilities { .rounded-full { border-radius: 9999px; } }

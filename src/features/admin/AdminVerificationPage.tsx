@@ -78,7 +78,7 @@ export default function AdminVerificationPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t.admin.verifySearchPlaceholder}
-            className="w-full rounded-full bg-white py-2 pl-9 pr-9 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none transition focus:ring-2 focus:ring-sakura-200"
+            className="w-full rounded-full bg-white py-2 pl-9 pr-9 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden transition focus:ring-2 focus:ring-sakura-200"
           />
           {q && (
             <button
