@@ -4,6 +4,8 @@ import MemberTags from '@/components/team/MemberTags';
 import { admissionLabel } from '@/utils/format';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
+import { useAuth } from '@/hooks/useAuth';
+import { verificationCopy } from '@/features/auth/verificationCopy';
 import type { TeamWithMembers } from '@/features/home/home.api';
 import { adminHomeCopy } from '@/features/home/adminHomeCopy';
 
@@ -18,6 +20,8 @@ interface Props {
 
 export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn, sameGender }: Props) {
   const { t, lang } = useI18n();
+  const { profile } = useAuth();
+  const approved = profile?.is_verified && profile.verification_status === 'approved';
   /**
    * 인원수가 정확히 같은 팀에만 신청할 수 있습니다.
    * (내 팀이 없으면 my_team_size 가 null 이라 판정하지 않습니다.)
@@ -93,7 +97,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
         ) : (
           <button className="btn-primary gap-1.5" disabled={applying} onClick={() => onApply(team.id)}>
             {!applying && <Send size={16} strokeWidth={2} />}
-            {applying ? t.teamCard.applying : t.teamCard.apply}
+            {applying ? t.teamCard.applying : approved ? t.teamCard.apply : verificationCopy(lang).approvedOnly}
           </button>
         )}
       </div>

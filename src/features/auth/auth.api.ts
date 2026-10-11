@@ -42,7 +42,7 @@ export async function signUp(input: RegisterInput) {
     throw new Error(tr().register.errTermsRequired);
   }
 
-  const { extension, contentType } = await validateStudentIdFile(input.studentIdFile);
+  const fileInfo = input.studentIdFile ? await validateStudentIdFile(input.studentIdFile) : null;
   const email = usernameToFakeEmail(input.username.trim());
 
   // 1) Auth 계정 생성
@@ -79,11 +79,12 @@ export async function signUp(input: RegisterInput) {
   if (existing) throw new Error(authMessages().existing);
 
   // 2) 학생증 업로드 (private)
-  const path = `${uid}/student_${crypto.randomUUID()}.${extension}`;
-  const { error: upErr } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(path, input.studentIdFile, { contentType, upsert: false });
-  if (upErr) throw upErr;
+  const path = fileInfo ? `${uid}/student_${crypto.randomUUID()}.${fileInfo.extension}` : null;
+  if (path && input.studentIdFile && fileInfo) {
+    const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET)
+      .upload(path, input.studentIdFile, { contentType: fileInfo.contentType, upsert: false });
+    if (upErr) throw upErr;
+  }
 
   // 3) profiles row 생성
   const { error: profErr } = await supabase.from('profiles').insert({
@@ -107,8 +108,8 @@ export async function signUp(input: RegisterInput) {
     // already referenced, or when the follow-up read also fails.
     const { data: saved, error: readError } = await supabase.from('profiles')
       .select('student_id_image_path').eq('id', uid).maybeSingle();
-    if (!readError && saved?.student_id_image_path === path) return { uid };
-    if (!readError) {
+    if (!readError && saved && saved.student_id_image_path === path) return { uid };
+    if (!readError && path) {
       try { await supabase.storage.from(STORAGE_BUCKET).remove([path]); } catch { /* Retried signup can recover safely. */ }
     }
     throw profErr;

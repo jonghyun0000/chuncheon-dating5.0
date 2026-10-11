@@ -1,7 +1,35 @@
 import { supabase } from '@/lib/supabaseClient';
 import { tr } from '@/i18n';
 import type { Team, TeamMember } from '@/types/database.types';
-import type { TeamRegisterInput } from './teams.types';
+import type { TeamRegisterInput, EditableTeam, TeamDraftRow } from './teams.types';
+
+function draftResult(draft: TeamDraftRow): { team: EditableTeam; members: TeamMember[] } {
+  const { members, ...row } = draft;
+  return {
+    team: { ...row, status: 'draft', matched_at: null },
+    members: members.map((m, i) => ({
+      ...m, id: `${row.id}-${i}`, team_id: row.id,
+      member_order: (i + 1) as TeamMember['member_order'], created_at: row.created_at,
+    })),
+  };
+}
+
+/** Published teams retain their existing API; drafts stay in an owner-only table. */
+export async function fetchMyEditableTeam(): Promise<{ team: EditableTeam | null; members: TeamMember[] }> {
+  const active = await fetchMyActiveTeam();
+  if (active.team) return active;
+  const { data: u, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!u.user) return { team: null, members: [] };
+  const { data, error } = await supabase.from('team_drafts').select('*').eq('owner_id', u.user.id).maybeSingle();
+  if (error) throw error;
+  return data ? draftResult(data as TeamDraftRow) : { team: null, members: [] };
+}
+
+export async function publishTeamDraft(id: string): Promise<void> {
+  const { error } = await supabase.rpc('publish_my_team_draft', { p_draft_id: id });
+  if (error) throw error;
+}
 
 /** 본인의 가장 최근 팀 + 팀원 조회 (status 무관) */
 export async function fetchMyTeam(): Promise<{ team: Team | null; members: TeamMember[] }> {
@@ -90,12 +118,12 @@ export async function fetchMyMatchedTeam(): Promise<{ team: Team | null; members
 }
 
 /** A single database transaction validates ownership and saves both team and roster. */
-async function saveTeam(teamId: string | null, input: TeamRegisterInput): Promise<Team> {
+async function saveTeam(teamId: string | null, input: TeamRegisterInput, draft = false): Promise<EditableTeam> {
   if (input.members.length !== input.team_size) {
     throw new Error(tr().team.errMemberCountMismatch(input.team_size));
   }
   if (!input.members_consent_confirmed) throw new Error(tr().team.errConsent);
-  const { data, error } = await supabase.rpc('save_my_team', {
+  const { data, error } = await supabase.rpc(draft ? 'save_my_team_draft' : 'save_my_team', {
     p_team_id: teamId,
     p_intro: input.intro.trim(),
     p_team_size: input.team_size,
@@ -116,19 +144,19 @@ async function saveTeam(teamId: string | null, input: TeamRegisterInput): Promis
   if (error) throw error;
   const team = Array.isArray(data) ? data[0] : data;
   if (!team?.id) throw new Error('팀 저장 결과를 확인하지 못했습니다. 새로고침 후 확인해주세요.');
-  return team as Team;
+  return draft ? draftResult(team as TeamDraftRow).team : team as Team;
 }
 
-export async function createTeam(input: TeamRegisterInput) {
-  return saveTeam(null, input);
+export async function createTeam(input: TeamRegisterInput, draft = false) {
+  return saveTeam(null, input, draft);
 }
 
-export async function updateTeam(teamId: string, input: TeamRegisterInput) {
-  return saveTeam(teamId, input);
+export async function updateTeam(teamId: string, input: TeamRegisterInput, draft = false) {
+  return saveTeam(teamId, input, draft);
 }
 
-export async function deleteMyTeam(teamId: string) {
-  const { error } = await supabase.from('teams').delete().eq('id', teamId);
+export async function deleteMyTeam(teamId: string, draft = false) {
+  const { error } = await supabase.from(draft ? 'team_drafts' : 'teams').delete().eq('id', teamId);
   if (error) throw error;
 }
 

@@ -49,6 +49,7 @@ export default function AdminVerificationPage() {
 
     return list.filter((p) => {
       if (filter !== 'all' && p.verification_status !== filter) return false;
+      if (filter === 'pending' && (!p.student_id_image_path || p.status !== 'active')) return false;
       if (!needle) return true;
       return (
         (p.name ?? '').toLowerCase().includes(needle) ||
@@ -166,6 +167,7 @@ export default function AdminVerificationPage() {
                 </Button>
                 <Button
                   className="gap-1.5"
+                  disabled={!p.student_id_image_path || p.status !== 'active'}
                   onClick={async () => { try { await approveVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
                   <Check size={16} strokeWidth={2.4} />

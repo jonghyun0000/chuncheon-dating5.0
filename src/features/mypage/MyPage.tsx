@@ -28,10 +28,12 @@ import { koMessage } from '@/utils/errors';
 import { admissionLabel } from '@/utils/format';
 import { ContactUpdateBanner, MatchedTeamBanner, ReportLink, VerificationBanner } from '@/components/common/StatusBanner';
 import { useI18n } from '@/i18n';
+import { verificationCopy } from '@/features/auth/verificationCopy';
 
 export default function MyPage() {
   const { profile, signOut, refreshProfile, loading } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const v = verificationCopy(lang);
   const nav = useNavigate();
   const [studentUrl, setStudentUrl] = useState<string | null>(null);
   const [myTeam, setMyTeam] = useState<Team | null>(null);
@@ -85,7 +87,7 @@ export default function MyPage() {
   const verifyLabel =
     profile.verification_status === 'approved' ? t.mypage.verifyApproved :
     profile.verification_status === 'rejected' ? t.mypage.verifyRejected :
-    t.mypage.verifyPending;
+    profile.student_id_image_path ? v.pending : v.notSubmitted;
 
   const onDelete = async () => {
     if (deleteConfirm !== t.mypage.deleteConfirmWord) {

@@ -19,12 +19,13 @@ import { koMessage } from '@/utils/errors';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { authMessages } from './auth.messages';
-import { STUDENT_ID_ACCEPT, studentIdFileMetadata } from './studentIdFile';
+import { verificationCopy } from './verificationCopy';
 
 export default function RegisterPage() {
   const nav = useNavigate();
   const { t, lang } = useI18n();
   const m = authMessages(lang);
+  const v = verificationCopy(lang);
   const { refreshProfile } = useAuth();
   const [params] = useSearchParams();
   const [resume, setResume] = useState(params.get('resume') === '1');
@@ -40,7 +41,6 @@ export default function RegisterPage() {
     contact_id: '',
   });
   const [agree, setAgree] = useState<TermsAgreementState>(EMPTY_TERMS_AGREEMENT);
-  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -107,9 +107,7 @@ export default function RegisterPage() {
     if (!isValidStudentNumber(form.student_number)) return setErr(t.validators.studentNumberError);
     const contactErr = validateContact(form.contact_type, form.contact_id);
     if (contactErr) return setErr(contactErr);
-    if (!file) return setErr(t.register.errStudentIdPhoto);
     if (!isAllAgreed(agree)) return setErr(t.register.errTermsRequired);
-    try { studentIdFileMetadata(file); } catch (error) { return setErr(koMessage(error)); }
 
     setLoading(true);
     try {
@@ -122,13 +120,12 @@ export default function RegisterPage() {
         student_number: normalizeStudentNumber(form.student_number),
         contact_type: form.contact_type,
         contact_id: normalizeContactId(form.contact_type, form.contact_id),
-        studentIdFile: file,
         agreed_privacy: true,
         agreed_terms: true,
         agreed_disclaimer: true,
       });
       await refreshProfile();
-      alert(t.register.successAlert);
+      alert(v.signupDone);
       nav('/', { replace: true });
     } catch (e) {
       setErr(koMessage(e));
@@ -247,27 +244,7 @@ export default function RegisterPage() {
             {t.register.contactPrivacyNote}
           </p>
 
-          <div>
-            <label className="label" htmlFor="register-student-id">{t.register.studentIdPhoto}</label>
-            <input
-              id="register-student-id"
-              type="file"
-              accept={STUDENT_ID_ACCEPT}
-              onChange={(e) => {
-                const selected = e.target.files?.[0] ?? null;
-                setFile(null);
-                setErr(null);
-                if (!selected) return;
-                try { studentIdFileMetadata(selected); setFile(selected); }
-                catch (error) { setErr(koMessage(error)); e.target.value = ''; }
-              }}
-              className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-sakura-100 file:px-4 file:py-2 file:text-sakura-700"
-            />
-            <p className="mt-1 text-xs text-zinc-400">
-              {t.register.studentIdNote}
-              <br />{m.formats}
-            </p>
-          </div>
+          <p className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">{v.signupNote}</p>
 
           <TermsAgreement value={agree} onChange={setAgree} />
 

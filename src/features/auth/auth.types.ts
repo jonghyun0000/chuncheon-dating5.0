@@ -12,7 +12,7 @@ export interface RegisterInput {
   contact_type: 'kakao' | 'phone';
   contact_id: string;
   /** 학생증 이미지 파일 */
-  studentIdFile: File;
+  studentIdFile?: File;
   agreed_privacy: boolean;
   agreed_terms: boolean;
   /** 면책조항(제3약관) 동의 */

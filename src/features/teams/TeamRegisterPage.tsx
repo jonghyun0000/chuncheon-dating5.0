@@ -10,12 +10,13 @@ import MemberForm from '@/components/team/MemberForm';
 import {
   createTeam,
   deleteMyTeam,
-  fetchMyActiveTeam,
+  fetchMyEditableTeam,
+  publishTeamDraft,
   fetchMyMatchedTeam,
   finishMyTeam,
   updateTeam,
 } from './teams.api';
-import type { MemberInput, TeamRegisterInput } from './teams.types';
+import type { MemberInput, TeamRegisterInput, EditableTeam } from './teams.types';
 import type { Team, TeamMember, TeamSize } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { admissionLabel } from '@/utils/format';
@@ -26,6 +27,8 @@ import {
 import Badge from '@/components/common/Badge';
 import { VerificationBanner } from '@/components/common/StatusBanner';
 import { useI18n } from '@/i18n';
+import { useAuth } from '@/hooks/useAuth';
+import { verificationCopy } from '@/features/auth/verificationCopy';
 
 const empty: MemberInput = {
   school: '강원대',
@@ -44,13 +47,16 @@ type Mode = 'view' | 'create' | 'edit';
 
 export default function TeamRegisterPage() {
   const nav = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { profile, refreshProfile } = useAuth();
+  const v = verificationCopy(lang);
+  const approved = !!profile?.is_verified && profile.verification_status === 'approved';
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  const [activeTeam, setActiveTeam] = useState<Team | null>(null);
+  const [activeTeam, setActiveTeam] = useState<EditableTeam | null>(null);
   const [activeMembers, setActiveMembers] = useState<TeamMember[]>([]);
   const [matchedTeam, setMatchedTeam] = useState<Team | null>(null);
   const [matchedMembers, setMatchedMembers] = useState<TeamMember[]>([]);
@@ -68,7 +74,7 @@ export default function TeamRegisterPage() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [active, matched] = await Promise.all([fetchMyActiveTeam(), fetchMyMatchedTeam()]);
+      const [active, matched] = await Promise.all([fetchMyEditableTeam(), fetchMyMatchedTeam()]);
       setActiveTeam(active.team);
       setActiveMembers(active.members);
       setMatchedTeam(matched.team);
@@ -177,13 +183,13 @@ export default function TeamRegisterPage() {
     setSubmitting(true);
     try {
       if (mode === 'edit' && activeTeam) {
-        await updateTeam(activeTeam.id, input);
-        alert(t.team.updatedAlert);
+        await updateTeam(activeTeam.id, input, activeTeam.status === 'draft');
+        alert(activeTeam.status === 'draft' ? v.saved : t.team.updatedAlert);
         await reload();
       } else {
-        await createTeam(input);
-        alert(t.team.createdAlert);
-        nav('/');
+        await createTeam(input, !approved);
+        alert(approved ? t.team.createdAlert : v.saved);
+        if (approved) nav('/'); else await reload();
       }
     } catch (e) {
       setErr(koMessage(e));
@@ -258,9 +264,10 @@ export default function TeamRegisterPage() {
   if (mode === 'view' && activeTeam) {
     return (
       <PageLayout subtitle={t.team.mySubtitle}>
+        <VerificationBanner />
         <div className="card p-5 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="green">{t.team.activeBadge}</Badge>
+            <Badge tone={activeTeam.status === 'draft' ? 'amber' : 'green'}>{activeTeam.status === 'draft' ? v.draft : t.team.activeBadge}</Badge>
             <Badge tone={activeTeam.gender === 'male' ? 'sky' : 'pink'}>
               {labelTeamGender(activeTeam.gender)}
             </Badge>
@@ -291,7 +298,7 @@ export default function TeamRegisterPage() {
               onClick={async () => {
                 if (!confirm(t.team.deleteConfirm)) return;
                 try {
-                  await deleteMyTeam(activeTeam.id);
+                  await deleteMyTeam(activeTeam.id, activeTeam.status === 'draft');
                   alert(t.team.deletedAlert);
                   await reload();
                 } catch (e) {
@@ -304,6 +311,14 @@ export default function TeamRegisterPage() {
               {t.team.deleteTeam}
             </Button>
           </div>
+          {activeTeam.status === 'draft' && (
+            <Button className="w-full" disabled={!approved} loading={submitting} onClick={async () => {
+              setSubmitting(true);
+              try { await publishTeamDraft(activeTeam.id); await refreshProfile(); await reload(); alert(v.published); }
+              catch (e) { alert(koMessage(e)); }
+              finally { setSubmitting(false); }
+            }}>{approved ? v.publish : v.approvedOnly}</Button>
+          )}
           <Button variant="ghost" className="w-full" onClick={() => nav('/')}>{t.common.goHome}</Button>
         </div>
       </PageLayout>
@@ -395,7 +410,7 @@ export default function TeamRegisterPage() {
             </Button>
           )}
           <Button onClick={submit} loading={submitting} className={isEdit ? '' : 'col-span-2 w-full'}>
-            {isEdit ? t.team.editDone : t.team.registerButton(teamSize)}
+            {activeTeam?.status === 'draft' || !approved ? v.saveDraft : isEdit ? t.team.editDone : t.team.registerButton(teamSize)}
           </Button>
         </div>
       </div>

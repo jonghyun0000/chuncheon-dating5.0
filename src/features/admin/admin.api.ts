@@ -50,7 +50,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     supabase.from('teams').select('gender, status'),
     supabase.from('match_requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending').not('student_id_image_path', 'is', null).eq('status', 'active'),
     supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('is_handled', false),
     supabase
       .from('notifications')

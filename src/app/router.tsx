@@ -12,6 +12,7 @@ const PublicDocPage = lazy(() => import('@/features/legal/PublicDocPage'));
 const AccountDeletionPage = lazy(() => import('@/features/legal/AccountDeletionPage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
+const VerificationPage = lazy(() => import('@/features/auth/VerificationPage'));
 const FindUsernamePage = lazy(() => import('@/features/auth/FindUsernamePage'));
 const ResetPasswordRequestPage = lazy(() => import('@/features/auth/ResetPasswordRequestPage'));
 const ReconsentPage = lazy(() => import('@/features/auth/ReconsentPage'));
@@ -67,6 +68,7 @@ export default function AppRouter() {
       <Route path="/matches/:id" element={<ProtectedRoute><MatchDetailPage /></ProtectedRoute>} />
       <Route path="/reviews" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
       <Route path="/me" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+      <Route path="/me/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
       <Route path="/me/edit" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
       <Route path="/me/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
       <Route path="/terms-consent" element={<ProtectedRoute><ReconsentPage /></ProtectedRoute>} />
