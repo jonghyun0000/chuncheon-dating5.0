@@ -1,3 +1,4 @@
+import DepartmentPrivacy from '@/features/teams/DepartmentPrivacy';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -109,6 +110,7 @@ export default function MyPage() {
     <PageLayout subtitle={t.mypage.subtitle}>
       {loadError && <LoadError retry={() => void load()} />}
       <MatchedTeamBanner show={myTeam?.status === 'matched'} />
+      <DepartmentPrivacy />
       <VerificationBanner />
       <ContactUpdateBanner />
 

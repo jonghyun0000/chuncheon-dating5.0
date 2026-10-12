@@ -15,7 +15,7 @@ const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fix
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
 const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', member_order: 1, nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
 
-async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean; matching?: boolean } = {}) {
+async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean; matching?: boolean; privacyReadFails?: boolean; privacySaveFails?: boolean; } = {}) {
   // No request can reach a real Supabase project, even if the build accidentally points to one.
   await page.route('**/*.supabase.co/**', route => route.abort());
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -23,6 +23,8 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   const fixtureUser = { ...user, factors: options.mfa ? [{ id: 'fixture-factor', friendly_name: 'Test authenticator', factor_type: 'totp', status: 'verified', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }] : [] };
   const session = { access_token: token, refresh_token: 'fixture-refresh', token_type: 'bearer', expires_in: 3600, expires_at: exp, user: fixtureUser };
   if (options.signedIn) await page.addInitScript(value => localStorage.setItem('cc-gating-auth', JSON.stringify(value)), session);
+  let privacy = false;
+  let privacyReadFails = options.privacyReadFails ?? false;
   let failHome = options.homeFails ?? false;
   let currentProfile = { ...profile, role: options.admin ? 'admin' : 'user', is_verified: !options.unverified, verification_status: options.unverified ? 'pending' : 'approved', student_id_image_path: null as string | null };
   let registered = !options.signup;
@@ -48,6 +50,14 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
     else if (url.pathname.endsWith('/profiles')) {
       if (route.request().method() === 'POST') { registered = true; currentProfile = { ...currentProfile, ...route.request().postDataJSON() }; body = null; }
       else body = options.missingProfile || !registered ? [] : [currentProfile];
+    }
+    else if(url.pathname.endsWith('/department_privacy_preferences')) {
+      if(privacyReadFails){status=400;body={message:'Synthetic failure'};privacyReadFails=false;}
+      else body={enabled:privacy};
+    }
+    else if(url.pathname.endsWith('/rpc/set_department_privacy')) {
+      if(options.privacySaveFails){status=400;body={message:'Synthetic save failure'};}
+      else {privacy=route.request().postDataJSON().p_enabled;body=privacy;writes.push('privacy:'+privacy);}
     }
     else if (url.pathname.endsWith('/team_drafts')) body = currentDraft ? [currentDraft] : [];
     else if (url.pathname.endsWith('/teams')) body = options.matching && url.searchParams.get('id') === `eq.${opponent.id}` ? [opponent] : published && url.searchParams.get('status') !== 'eq.matched' ? [published] : [];
@@ -530,4 +540,32 @@ test('browser back keeps unsaved team after staying and continues after discard'
   await page.evaluate(()=>history.back());
   await page.getByRole('button',{name:'저장하지 않고 나가기',exact:true}).click();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test('department privacy is optional, persists and is available on team registration',async({page})=>{
+ const api=await mockApi(page,{signedIn:true});await page.goto('/me');
+ const option=page.getByRole('checkbox',{name:/같은 학교·학과 지인 피하기/});
+ await expect(option).toBeEnabled();await expect(option).not.toBeChecked();
+ await option.click();await expect(page.getByRole('status')).toContainText('지인 피하기를 켰어요');
+ await page.reload();await expect(option).toBeChecked();
+ if(process.env.CC_PRIVACY_SCREENSHOT){mkdirSync('docs/validation/department-privacy',{recursive:true});await page.getByRole('region',{name:/같은 학교·학과 지인 피하기/}).screenshot({path:'docs/validation/department-privacy/setting.png'});}
+ await page.goto('/team');
+ await expect(option).toBeChecked();await option.click();
+ await expect(page.getByRole('status')).toContainText('지인 피하기를 껐어요');
+ expect(api.writes).toEqual(['privacy:true','privacy:false']);
+});
+
+test('department privacy load failure disables edits until retry',async({page})=>{
+ await mockApi(page,{signedIn:true,privacyReadFails:true});await page.goto('/me');
+ const option=page.getByRole('checkbox',{name:/같은 학교·학과 지인 피하기/});
+ await expect(page.getByRole('alert')).toContainText('설정을 확인하지 못했어요');await expect(option).toBeDisabled();
+ await page.getByRole('button',{name:'다시 불러오기',exact:true}).click();await expect(option).toBeEnabled();
+});
+
+test('department privacy failed save never claims protection enabled',async({page})=>{
+ const api=await mockApi(page,{signedIn:true,privacySaveFails:true});await page.goto('/me');
+ const option=page.getByRole('checkbox',{name:/같은 학교·학과 지인 피하기/});
+ await expect(option).toBeEnabled();await option.click();
+ await expect(page.getByRole('alert')).toContainText('설정을 확인하지 못했어요');await expect(option).not.toBeChecked();
+ await expect(option).toBeDisabled();expect(api.writes).toEqual([]);
 });

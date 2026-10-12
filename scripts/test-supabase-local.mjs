@@ -60,6 +60,15 @@ try{
  async function makeTeam(user,intro){return result(await user.c.rpc('save_my_team',{p_team_id:null,p_intro:intro,p_team_size:2,p_members:members,p_members_consent_confirmed:true}),'atomic real API team creation');}
  const a=await makeTeam(male,'Synthetic male team');const b=await makeTeam(female,'Synthetic female team');check(Boolean(a.id&&b.id),'real authenticated RPC creates complete teams');
  const homes=result(await male.c.rpc('get_home_teams'),'home RPC');check(homes.length===1&&homes[0].id===b.id&&homes[0].members.length===2&&!('contact_id'in homes[0].members[0]),'real home response includes matching public roster without contacts');
+ // Real PostgREST round trip for optional symmetric department privacy.
+ result(await female.c.rpc('set_department_privacy',{p_enabled:true}),'enable department privacy');
+ check(result(await male.c.rpc('get_home_teams'),'hidden home response').length===0,'one-sided preference hides opposite team');
+ check(result(await female.c.rpc('get_home_teams'),'reverse hidden home response').length===0,'preference hides both directions');
+ check(result(await male.c.from('teams').select('id').eq('id',b.id),'hidden direct team').length===0,'direct REST cannot bypass privacy');
+ check(result(await male.c.from('team_members_public').select('*').eq('team_id',b.id),'hidden direct roster').length===0,'public roster cannot bypass privacy');
+ check(Boolean((await male.c.from('match_requests').insert({from_team_id:a.id,to_team_id:b.id})).error),'hidden team cannot receive matching request');
+ result(await female.c.rpc('set_department_privacy',{p_enabled:false}),'disable department privacy');
+ check(result(await male.c.rpc('get_home_teams'),'restored home').length===1,'disable restores existing flow');
  const request=result(await male.c.from('match_requests').insert({from_team_id:a.id,to_team_id:b.id}).select('id').single(),'send actual matching request');
  result(await female.c.rpc('accept_match_request',{req_id:request.id}),'accept actual matching request');
  const teams=result(await female.c.from('teams').select('id,status').in('id',[a.id,b.id]),'read accepted teams');check(teams.length===2&&teams.every(t=>t.status==='matched'),'real request acceptance marks both teams matched');
@@ -102,6 +111,12 @@ try{
  check(result(await male.c.from('member_photos').select('*'),'private archive isolation').length===0,'public viewer cannot read photo student-number snapshots');
  for (const photo of visiblePhotos) result(await male.c.storage.from('member-photos').download(photo.path),'authorized real photo download');
  check(true,'all three photos downloadable through authenticated Storage');
+ result(await deferred.rpc('set_department_privacy',{p_enabled:true}),'photo owner enables department privacy');
+ check(result(await male.c.rpc('get_member_photos',{p_team_id:published.id}),'hidden photo references').length===0,'privacy removes photo references through real RPC');
+ for(const photo of visiblePhotos) check(Boolean((await male.c.storage.from('member-photos').download(photo.path)).error),'privacy denies known real Storage photo path');
+ result(await admin.c.storage.from('member-photos').download(visiblePhotos[0].path),'admin retains real photo moderation');
+ result(await deferred.rpc('set_department_privacy',{p_enabled:false}),'photo owner disables privacy');
+ result(await male.c.storage.from('member-photos').download(visiblePhotos[0].path),'privacy opt-out restores authorized photo download');
  check(result(await low.from('member_photos').select('*'),'archive MFA isolation').length===0,'AAL1 administrator cannot inspect photo archive');
  check(result(await admin.c.from('member_photos').select('*'),'admin archive').length===3,'AAL2 administrator can inspect all photo snapshots');
  result(await admin.c.from('profiles').update({is_verified:false,verification_status:'rejected'}).eq('id',deferredId),'revoke deferred verification');
