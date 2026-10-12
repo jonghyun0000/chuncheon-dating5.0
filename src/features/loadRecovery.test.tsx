@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, createMemoryRouter, RouterProvider } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import AdminUsersPage from './admin/AdminUsersPage';
 import AdminTeamsPage from './admin/AdminTeamsPage';
@@ -39,7 +39,7 @@ describe('page read failures', () => {
     ['my page', MyPage, api.myTeam],
   ] as const)('%s provides a working retry instead of a permanent spinner', async (_, Page, read) => {
     read.mockRejectedValueOnce(new Error('offline'));
-    render(<MemoryRouter><Page /></MemoryRouter>);
+    render(<RouterProvider router={createMemoryRouter([{ path: '*', element: <Page /> }])} />);
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());

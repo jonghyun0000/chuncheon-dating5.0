@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useBlocker } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
+import Modal from '@/components/common/Modal';
+import { journeyCopy } from './journeyCopy';
 import PageLayout from '@/components/layout/PageLayout';
 import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
@@ -54,6 +56,7 @@ export default function TeamRegisterPage() {
   const { profile, refreshProfile } = useAuth();
   const v = verificationCopy(lang);
   const photos = photoCopy(lang);
+  const journey = journeyCopy(lang);
   const approved = !!profile?.is_verified && profile.verification_status === 'approved';
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -77,6 +80,30 @@ export default function TeamRegisterPage() {
   const [consent, setConsent] = useState(false);
   const [photoConsent, setPhotoConsent] = useState(false);
   const hasPhotos = members.some(m => m.photo_pending || m.photo_id);
+  const dirty = useRef(false);
+  const [changed, setChanged] = useState(false);
+  const [cancelEdit, setCancelEdit] = useState(false);
+  const [fieldError, setFieldError] = useState<{ id: string; message: string } | null>(null);
+  const markChanged = () => { dirty.current = true; setChanged(true); setFieldError(null); };
+  const markSaved = () => { dirty.current = false; setChanged(false); };
+  const blocker = useBlocker(() => dirty.current && !!profile && profile.status === 'active');
+  useEffect(() => {
+    if (!changed && blocker.state === 'blocked') blocker.reset();
+  }, [changed, blocker]);
+  useEffect(() => {
+    if (!changed) return;
+    const warn = (event: BeforeUnloadEvent) => { if (dirty.current) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [changed]);
+  const invalid = (id: string, message: string) => {
+    setErr(message); setFieldError({ id, message });
+    requestAnimationFrame(() => {
+      const input = document.getElementById(id);
+      input?.focus(); input?.scrollIntoView({ block: 'center', behavior: 'instant' });
+    });
+  };
+
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -125,6 +152,7 @@ export default function TeamRegisterPage() {
         want_tags: m.want_tags ?? [],
       }))
     );
+    markSaved(); setFieldError(null);
     setPhotoConsent(false);
     setMode('edit');
     setConsent(activeTeam?.members_consent_confirmed ?? false);
@@ -162,28 +190,28 @@ export default function TeamRegisterPage() {
 
   const submit = async () => {
     if (uploading || submitting) return;
-    setErr(null);
-    if (intro.trim().length < 4) return setErr(t.team.errIntro);
+    setErr(null); setFieldError(null);
+    if (intro.trim().length < 4) return invalid('team-intro', t.team.errIntro);
     for (const [i, m] of members.entries()) {
-      if (!m.department.trim() || !m.student_number.trim() || !m.nickname.trim() || !m.contact_id.trim()) {
-        return setErr(t.team.errMemberIncomplete(i + 1));
+      for (const field of ['department', 'student_number', 'nickname', 'contact_id'] as const) {
+        if (!m[field].trim()) return invalid(`member-${i + 1}-${field}`, journey.required);
       }
       if (!isValidStudentNumber(m.student_number)) {
-        return setErr(t.team.errMemberPrefix(i + 1) + t.validators.studentNumberError);
+        return invalid(`member-${i + 1}-student_number`, t.validators.studentNumberError);
       }
       const contactErr = validateContact(m.contact_type, m.contact_id);
       if (contactErr) {
-        return setErr(t.team.errMemberContact(i + 1, contactErr));
+        return invalid(`member-${i + 1}-contact_id`, contactErr);
       }
       // 카드가 비어 보이지 않도록 취향은 최소 1개를 받습니다. (만나고 싶은 사람은 선택)
       if (m.taste_tags.length === 0) {
-        return setErr(t.team.errMemberTaste(i + 1));
+        return invalid(`member-${i + 1}-taste_tags`, t.team.errMemberTaste(i + 1));
       }
     }
     if (!consent) {
-      return setErr(t.team.errConsent);
+      return invalid('member-consent', t.team.errConsent);
     }
-    if (hasPhotos && !photoConsent) return setErr(photos.consentError);
+    if (hasPhotos && !photoConsent) return invalid('photo-consent', photos.consentError);
     setSubmitting(true);
     try {
       const readyMembers = [...members];
@@ -204,10 +232,12 @@ export default function TeamRegisterPage() {
       };
       if (mode === 'edit' && activeTeam) {
         await updateTeam(activeTeam.id, input, activeTeam.status === 'draft');
+        markSaved();
         alert(activeTeam.status === 'draft' ? v.saved : t.team.updatedAlert);
         await reload();
       } else {
         await createTeam(input, !approved);
+        markSaved();
         alert(approved ? t.team.createdAlert : v.saved);
         if (approved) nav('/'); else await reload();
       }
@@ -296,6 +326,9 @@ export default function TeamRegisterPage() {
               {activeTeam.team_size} : {activeTeam.team_size}
             </Badge>
           </div>
+          {(activeTeam.status !== 'draft' || approved) && <section aria-label={journey.status} className="rounded-xl bg-sakura-50 p-3 text-sm text-zinc-700">
+            {activeTeam.status === 'draft' ? journey.ready : journey.published}
+          </section>}
           <p className="font-display text-lg text-zinc-900">"{activeTeam.intro}"</p>
           <ul className="divide-y divide-zinc-100 rounded-2xl bg-zinc-50/60 ring-1 ring-zinc-100">
             {activeMembers.map((m) => (
@@ -341,7 +374,7 @@ export default function TeamRegisterPage() {
               finally { setSubmitting(false); }
             }}>{approved ? v.publish : v.approvedOnly}</Button>
           )}
-          <Button variant="ghost" className="w-full" onClick={() => nav('/')}>{t.common.goHome}</Button>
+          <Button variant="ghost" className="w-full" onClick={() => nav('/')}>{activeTeam.status === 'draft' ? t.common.goHome : journey.browse}</Button>
         </div>
       </PageLayout>
     );
@@ -353,6 +386,14 @@ export default function TeamRegisterPage() {
   return (
     <PageLayout subtitle={isEdit ? t.team.editSubtitle : t.team.createSubtitle}>
       <VerificationBanner />
+      <Modal open={cancelEdit || blocker.state === 'blocked'} onClose={() => { if (!submitting && !uploading) { setCancelEdit(false); if (blocker.state === 'blocked') blocker.reset(); } }} title={journey.leave}>
+        <p className="mb-4 text-sm text-zinc-600">{journey.leaveBody}</p>
+        <div className="space-y-2">
+          <Button className="w-full" disabled={submitting || uploading} onClick={() => { setCancelEdit(false); if (blocker.state === 'blocked') blocker.reset(); }}>{journey.stay}</Button>
+          <Button variant="ghost" className="w-full" disabled={submitting || uploading} onClick={() => { markSaved(); if (blocker.state === 'blocked') blocker.proceed(); else { setCancelEdit(false); setMode('view'); } }}>{journey.discard}</Button>
+        </div>
+      </Modal>
+      {changed && <p className="mb-3 text-xs text-amber-700">{journey.unsaved}</p>}
       <div className="space-y-4">
         <div className="card p-4">
           <p className="label">{t.team.sizeLabel}</p>
@@ -362,7 +403,7 @@ export default function TeamRegisterPage() {
                 key={n}
                 type="button"
                 disabled={uploading || submitting}
-                onClick={() => setTeamSize(n)}
+                onClick={() => { markChanged(); setTeamSize(n); }}
                 className={`rounded-2xl py-3 font-bold transition active:scale-[0.98] ${
                   teamSize === n
                     ? 'bg-sakura-500 text-white shadow-soft'
@@ -380,11 +421,13 @@ export default function TeamRegisterPage() {
 
         <div className="card p-4">
           <Input
+            id="team-intro" error={fieldError?.id === 'team-intro' ? fieldError.message : undefined}
+            disabled={uploading || submitting}
             label={t.team.introLabel}
             placeholder={t.team.introPlaceholder}
             maxLength={50}
             value={intro}
-            onChange={(e) => setIntro(e.target.value)}
+            onChange={(e) => { markChanged(); setIntro(e.target.value); }}
           />
         </div>
 
@@ -393,9 +436,11 @@ export default function TeamRegisterPage() {
           <MemberForm
             key={i}
             index={i + 1}
+            fieldError={fieldError}
             onPhotoBusy={busy => setPhotoBusy(prev => ({ ...prev, [i]: busy }))}
             value={m}
             onChange={(v) => {
+              markChanged();
               if (v.photo_pending !== m.photo_pending) setPhotoConsent(false);
               setMembers((arr) => {
                 const next = [...arr];
@@ -412,8 +457,9 @@ export default function TeamRegisterPage() {
             <input
               type="checkbox"
               className="mt-0.5 h-4 w-4 accent-sakura-500"
+              id="member-consent"
               checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
+              onChange={(e) => { markChanged(); setConsent(e.target.checked); }}
             />
             <span className="text-sm leading-relaxed text-zinc-700">
               <span className="font-semibold text-sakura-600">{t.termsUi.required}</span>{' '}
@@ -427,7 +473,7 @@ export default function TeamRegisterPage() {
           {hasPhotos && <div className="mt-4 border-t border-zinc-100 pt-4">
             <p className="mb-2 text-xs leading-relaxed text-zinc-600">{photos.notice}</p>
             <label className="flex cursor-pointer items-start gap-2.5">
-              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-sakura-500" checked={photoConsent} onChange={e => setPhotoConsent(e.target.checked)} />
+              <input id="photo-consent" type="checkbox" className="mt-0.5 h-4 w-4 accent-sakura-500" checked={photoConsent} onChange={e => { markChanged(); setPhotoConsent(e.target.checked); }} />
               <span className="text-sm leading-relaxed text-zinc-700"><span className="font-semibold text-sakura-600">{t.termsUi.required}</span>{' '}{photos.consent}</span>
             </label>
           </div>}
@@ -439,7 +485,7 @@ export default function TeamRegisterPage() {
 
         <div className="grid grid-cols-2 gap-2">
           {isEdit && (
-            <Button variant="ghost" disabled={uploading || submitting} onClick={() => setMode('view')}>
+            <Button variant="ghost" disabled={uploading || submitting} onClick={() => { if (dirty.current) setCancelEdit(true); else setMode('view'); }}>
               {t.common.cancel}
             </Button>
           )}

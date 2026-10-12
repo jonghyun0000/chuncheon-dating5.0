@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, Clock, MessageCircleWarning, PartyPopper, ShieldAlert, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/i18n';
+import { journeyCopy } from '@/features/teams/journeyCopy';
 import { verificationCopy } from '@/features/auth/verificationCopy';
 
 /** Approval gates publication/matching; browsing and draft creation stay available. */
@@ -10,14 +11,16 @@ export function VerificationBanner() {
   const { lang } = useI18n();
   const v = verificationCopy(lang);
   if (!profile || (profile.is_verified && profile.verification_status === 'approved')) return null;
+  const j = journeyCopy(lang);
+  const pending = !!profile.student_id_image_path && profile.verification_status === 'pending';
   const rejected = profile.verification_status === 'rejected';
   return (
     <Link to="/me/verification" className={`mb-4 flex items-start gap-2.5 rounded-2xl px-4 py-3.5 ring-1 ${rejected ? 'bg-rose-50 ring-rose-100' : 'bg-amber-50 ring-amber-100'}`}>
       {rejected ? <XCircle size={17} className="mt-0.5 shrink-0" /> : <Clock size={17} className="mt-0.5 shrink-0" />}
       <div className="text-xs leading-relaxed text-zinc-700">
         <strong>{rejected ? v.rejected : profile.student_id_image_path ? v.pending : v.notSubmitted}</strong>
-        <p className="mt-1">{v.note}</p>
-        <span className="mt-1 inline-block font-semibold text-sakura-700">{profile.student_id_image_path ? v.retry : v.submit} →</span>
+        <p className="mt-1">{pending ? j.waiting : v.note}</p>
+        <span className="mt-1 inline-block font-semibold text-sakura-700">{pending ? j.review : rejected ? v.retry : v.submit} →</span>
       </div>
     </Link>
   );

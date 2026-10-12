@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-12",
+  "productionBase": "e4d87607dbbf281f8ef62459cd6eef10ca5a1048",
+  "productionChanged": false,
+  "unitTests": {"passed":102,"files":20},
+  "database": {"regressionsPassed":73,"concurrencyCasesPassed":4,"environment":"local synthetic PostgreSQL 17"},
+  "chrome": {"passed":27,"viewport":"390x844","api":"synthetic"},
+  "webkit": {"passed":27,"viewport":"390x844","api":"synthetic"},
+  "nativeReloadDialog": "not certified: automation stalled; listener cancellation and SPA guards passed",
+  "databaseMigrations": [],
+  "newAnalyticsEvents": [],
+  "releaseGate":"awaiting explicit user approval"
+}
