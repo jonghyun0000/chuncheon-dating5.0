@@ -22,7 +22,7 @@ export default function AdminLayout() {
             <button onClick={signOut} className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-600">{t.common.logout}</button>
           </div>
         </header>
-        <main className="mx-auto max-w-5xl px-5 py-6 pb-24 md:pb-6">
+        <main className="mx-auto max-w-5xl px-5 py-6 pb-36 md:pb-6">
           <Outlet />
         </main>
         <AdminMobileNav />
