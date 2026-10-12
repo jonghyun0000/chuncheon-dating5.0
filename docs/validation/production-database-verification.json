@@ -1,0 +1,56 @@
+{
+  "project_ref": "slddnhyvstfvobxxcazt",
+  "migration_version": "20261012000030",
+  "existing_data_unchanged": true,
+  "verification": {
+    "rls": true,
+    "counts": {
+      "teams": 30,
+      "drafts": 0,
+      "members": 51,
+      "objects": 139,
+      "profiles": 141,
+      "requests": 22,
+      "auth_users": 144
+    },
+    "anon_select": false,
+    "new_function_acl": [
+      {
+        "name": "publish_my_team_draft",
+        "anon_execute": false,
+        "authenticated_execute": true
+      },
+      {
+        "name": "save_my_team_draft",
+        "anon_execute": false,
+        "authenticated_execute": true
+      },
+      {
+        "name": "submit_student_id",
+        "anon_execute": false,
+        "authenticated_execute": true
+      }
+    ],
+    "authenticated_insert": false,
+    "authenticated_select": true,
+    "authenticated_update": false,
+    "student_bucket_private": true
+  },
+  "read_only_role_checks": {
+    "male": {
+      "male": 0,
+      "female": 1,
+      "total": 1
+    },
+    "female": {
+      "male": 11,
+      "female": 0,
+      "total": 11
+    },
+    "admin": {
+      "male": 11,
+      "female": 1,
+      "total": 12
+    }
+  }
+}

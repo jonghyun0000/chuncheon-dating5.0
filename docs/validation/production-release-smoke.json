@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-12T00:05:56.711Z",
+  "url": "https://chuncheon-dating5-0.vercel.app",
+  "expectedCommit": "44fdb396384b49f5b2f5957f6afabcd4fce2301a",
+  "checks": {
+    "securityHeaders": true,
+    "publicConfiguration": {
+      "project": "https://slddnhyvstfvobxxcazt.supabase.co",
+      "initialAssetCount": 1
+    },
+    "anonymous": {
+      "stats": {
+        "total_teams": 18,
+        "matched_count": 10,
+        "total_users": 126
+      },
+      "profiles": "zero rows",
+      "rosterStatus": 401,
+      "homeStatus": 401
+    },
+    "browser": {
+      "blockedRequests": [],
+      "pageErrors": [],
+      "cspErrors": []
+    },
+    "mobile": {
+      "ctaAboveFold": true,
+      "horizontalOverflow": false,
+      "zoomEnabled": true
+    },
+    "languages": [
+      "en",
+      "zh-CN",
+      "ja",
+      "ko"
+    ],
+    "publicRoutes": [
+      "/tour",
+      "/login",
+      "/register",
+      "/find-username",
+      "/reset-password-request",
+      "/privacy",
+      "/terms-of-service",
+      "/disclaimer",
+      "/account-deletion",
+      "/install"
+    ],
+    "adminRedirect": "/login"
+  },
+  "build": {
+    "commit": "44fdb396384b49f5b2f5957f6afabcd4fce2301a",
+    "builtAt": "2026-10-12T00:06:18.352Z"
+  },
+  "finishedAt": "2026-10-12T00:06:53.359Z"
+}
