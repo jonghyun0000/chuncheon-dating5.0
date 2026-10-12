@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Camera, ImagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PageLayout from '@/components/layout/PageLayout';
 import Button from '@/components/common/Button';
@@ -16,6 +17,7 @@ export default function VerificationPage() {
   const { t, lang } = useI18n();
   const v = verificationCopy(lang);
   const j = journeyCopy(lang);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +40,23 @@ export default function VerificationPage() {
           finally { setBusy(false); }
         }}>
           <label className="label" htmlFor="student-id-file">{t.register.studentIdPhoto}</label>
-          <input id="student-id-file" type="file" accept={STUDENT_ID_ACCEPT} disabled={busy}
+          <button type="button" disabled={busy} onClick={() => inputRef.current?.click()}
+            className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sakura-400 bg-sakura-50 p-5 text-sakura-800 hover:bg-sakura-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
+            <Camera size={32} aria-hidden="true" />
+            <span className="flex items-center gap-2 text-base font-bold"><ImagePlus size={20} aria-hidden="true" />{file ? v.change : v.choose}</span>
+            <span className="text-sm">{v.selectHint}</span>
+          </button>
+          {file && <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+            <p className="break-all font-semibold">{file.name}</p><p>{v.selected}</p>
+          </div>}
+          <input ref={inputRef} id="student-id-file" type="file" accept={STUDENT_ID_ACCEPT} disabled={busy}
             onChange={(e) => {
-              const selected = e.target.files?.[0]; setFile(null); setError(null); setSent(false);
+              const selected = e.target.files?.[0]; e.target.value = '';
               if (!selected) return;
+              setFile(null); setError(null); setSent(false);
               try { studentIdFileMetadata(selected); setFile(selected); }
               catch (e) { setError(koMessage(e)); }
-            }} className="block w-full text-sm" />
+            }} className="sr-only" tabIndex={-1} />
           <p className="text-xs text-zinc-500">{authMessages(lang).formats}</p>
           <p className="text-xs text-zinc-500">{v.privateNote}</p>
           <Button type="submit" loading={busy} disabled={!file} className="w-full">
