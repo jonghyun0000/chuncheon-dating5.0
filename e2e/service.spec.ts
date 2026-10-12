@@ -314,20 +314,29 @@ test('three optional member photos survive draft save and reload', async ({ page
   await page.getByRole('button', { name: '팀 수정', exact: true }).click();
   const files=page.locator('input[type=file]');
   await expect(files).toHaveCount(3);
-  await expect(files.first()).toBeDisabled();
-  const consents=page.getByRole('checkbox', {name:/사진 속 당사자/});
+  await expect(files.first()).toBeEnabled();
+  await expect(page.getByRole('button', {name:'사진 추가',exact:true})).toHaveCount(3);
+  let reservations = 0;
+  page.on('request', request => { if (request.url().includes('/rpc/reserve_member_photo')) reservations++; });
   for(let i=0;i<3;i++) {
-    await consents.nth(i).check();
     await files.nth(i).setInputFiles('e2e/fixtures/member-photo.jpg');
-    await expect(page.getByRole('button', {name:`사진팀원${i+1} 사진 확대`,exact:true})).toBeVisible();
+    await expect(page.getByRole('img', {name:`사진팀원${i+1} 사진 선택`,exact:true})).toBeVisible();
   }
+  if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/photo-upload-ux',{recursive:true}); await page.screenshot({path:'docs/validation/photo-upload-ux/selection.png',fullPage:true}); }
+  expect(reservations).toBe(0);
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByText('사진을 등록하려면 아래 사진 공개·보관 동의를 확인해주세요.')).toBeVisible();
+  expect(reservations).toBe(0);
+  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
+  expect(reservations).toBe(3);
   await page.reload();
   await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
   if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/member-photos',{recursive:true}); await page.screenshot({path:'docs/validation/member-photos/draft-three-photos.png',fullPage:true}); }
   await page.getByRole('button', {name:'팀 수정',exact:true}).click();
   await page.getByRole('button',{name:'사진 빼기 (팀 저장 시 반영)'}).nth(1).click();
+  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(2);
 });
@@ -337,11 +346,42 @@ test('photo failure does not block saving a team without a photo', async ({ page
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/team');
   await page.getByRole('button', {name:'팀 수정',exact:true}).click();
-  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
   await page.locator('input[type=file]').setInputFiles('e2e/fixtures/member-photo.jpg');
+  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('사진 없이 저장');
+  await page.getByRole('button',{name:'사진 빼기 (팀 저장 시 반영)'}).click();
+  await expect(page.getByRole('checkbox', {name:/사진 속 당사자/})).toHaveCount(0);
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByText('비공개 초안', {exact:true})).toBeVisible();
+});
+
+test('partial photo upload retries keep completed photos without duplicate reservations', async ({ page }) => {
+  await mockApi(page, { signedIn:true, unverified:true, draft:true, photos:true });
+  page.on('dialog', dialog => dialog.accept());
+  let uploads = 0;
+  let reservations = 0;
+  page.on('request', request => { if (request.url().includes('/rpc/reserve_member_photo')) reservations++; });
+  await page.route('**/storage/v1/object/member-photos/**', async route => {
+    if (route.request().method() === 'POST' && ++uploads === 2) {
+      return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'temporary upload failure'})});
+    }
+    await route.fallback();
+  });
+  await page.goto('/team');
+  await page.getByRole('button', {name:'팀 수정',exact:true}).click();
+  for(let i=0;i<3;i++) {
+    await page.locator('input[type=file]').nth(i).setInputFiles('e2e/fixtures/member-photo.jpg');
+    await expect(page.getByRole('img', {name:`사진팀원${i+1} 사진 선택`,exact:true})).toBeVisible();
+  }
+  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('사진 없이 저장');
+  expect(reservations).toBe(2);
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
+  await expect(page.getByRole('button', {name:'팀 수정',exact:true})).toBeVisible();
+  expect(reservations).toBe(4);
 });
 
 test('browsing photo opens accessible preview and returns focus', async ({ page }) => {

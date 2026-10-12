@@ -7,6 +7,8 @@ import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
 import LoadError from '@/components/common/LoadError';
 import MemberPhoto from '@/features/photos/MemberPhoto';
+import { photoCopy } from '@/features/photos/photoCopy';
+import { uploadMemberPhoto } from '@/features/photos/photos.api';
 import MemberForm from '@/components/team/MemberForm';
 import {
   createTeam,
@@ -51,6 +53,7 @@ export default function TeamRegisterPage() {
   const { t, lang } = useI18n();
   const { profile, refreshProfile } = useAuth();
   const v = verificationCopy(lang);
+  const photos = photoCopy(lang);
   const approved = !!profile?.is_verified && profile.verification_status === 'approved';
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -72,6 +75,8 @@ export default function TeamRegisterPage() {
   ]);
   const [err, setErr] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
+  const [photoConsent, setPhotoConsent] = useState(false);
+  const hasPhotos = members.some(m => m.photo_pending || m.photo_id);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -120,6 +125,7 @@ export default function TeamRegisterPage() {
         want_tags: m.want_tags ?? [],
       }))
     );
+    setPhotoConsent(false);
     setMode('edit');
     setConsent(activeTeam?.members_consent_confirmed ?? false);
     setErr(null);
@@ -142,6 +148,7 @@ export default function TeamRegisterPage() {
       setMembers([{ ...empty }, { ...empty }, { ...empty }]);
       setTeamSize(3);
       setConsent(false);
+      setPhotoConsent(false);
       setMode('create');
       setErr(null);
 
@@ -176,18 +183,25 @@ export default function TeamRegisterPage() {
     if (!consent) {
       return setErr(t.team.errConsent);
     }
-    const input: TeamRegisterInput = {
-      intro: intro.trim(),
-      team_size: teamSize,
-      members: members.map((m) => ({
-        ...m,
-        student_number: normalizeStudentNumber(m.student_number),
-        contact_id: normalizeContactId(m.contact_type, m.contact_id),
-      })),
-      members_consent_confirmed: consent,
-    };
+    if (hasPhotos && !photoConsent) return setErr(photos.consentError);
     setSubmitting(true);
     try {
+      const readyMembers = [...members];
+      for (const [i, member] of readyMembers.entries()) {
+        if (!member.photo_pending) continue;
+        const photo = await uploadMemberPhoto(member.photo_pending, photoConsent);
+        readyMembers[i] = { ...member, photo_pending: undefined, photo_id: photo.id, photo_path: photo.path };
+        // Keep successful uploads on retry if a later photo or the team save fails.
+        setMembers([...readyMembers]);
+      }
+      const input: TeamRegisterInput = {
+        intro: intro.trim(), team_size: teamSize,
+        members: readyMembers.map((m) => ({
+          ...m, student_number: normalizeStudentNumber(m.student_number),
+          contact_id: normalizeContactId(m.contact_type, m.contact_id),
+        })),
+        members_consent_confirmed: consent,
+      };
       if (mode === 'edit' && activeTeam) {
         await updateTeam(activeTeam.id, input, activeTeam.status === 'draft');
         alert(activeTeam.status === 'draft' ? v.saved : t.team.updatedAlert);
@@ -382,6 +396,7 @@ export default function TeamRegisterPage() {
             onPhotoBusy={busy => setPhotoBusy(prev => ({ ...prev, [i]: busy }))}
             value={m}
             onChange={(v) => {
+              if (v.photo_pending !== m.photo_pending) setPhotoConsent(false);
               setMembers((arr) => {
                 const next = [...arr];
                 next[i] = v;
@@ -392,7 +407,7 @@ export default function TeamRegisterPage() {
         ))}
         </fieldset>
 
-        <div className="card p-4">
+        <fieldset disabled={submitting || uploading} className="card p-4">
           <label className="flex cursor-pointer items-start gap-2.5">
             <input
               type="checkbox"
@@ -409,10 +424,17 @@ export default function TeamRegisterPage() {
           <p className="mt-2 text-xs leading-relaxed text-zinc-400">
             {t.team.consentWarn}
           </p>
-        </div>
+          {hasPhotos && <div className="mt-4 border-t border-zinc-100 pt-4">
+            <p className="mb-2 text-xs leading-relaxed text-zinc-600">{photos.notice}</p>
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-sakura-500" checked={photoConsent} onChange={e => setPhotoConsent(e.target.checked)} />
+              <span className="text-sm leading-relaxed text-zinc-700"><span className="font-semibold text-sakura-600">{t.termsUi.required}</span>{' '}{photos.consent}</span>
+            </label>
+          </div>}
+        </fieldset>
 
         {err && (
-          <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600 ring-1 ring-rose-100">{err}</div>
+          <div role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600 ring-1 ring-rose-100">{err}</div>
         )}
 
         <div className="grid grid-cols-2 gap-2">

@@ -35,8 +35,8 @@ export async function prepareMemberPhoto(file: File): Promise<Blob> {
     return blob;
   } finally { URL.revokeObjectURL(url); }
 }
-export async function uploadMemberPhoto(file: File): Promise<MemberPhoto> {
-  const blob = await prepareMemberPhoto(file);
+export async function uploadMemberPhoto(blob: Blob, consent: boolean): Promise<MemberPhoto> {
+  if (!consent) throw new Error('사진 공개·보관 동의가 필요합니다.');
   const { data, error } = await supabase.rpc('reserve_member_photo', { p_consent: true });
   if (error) throw error;
   const photo = (Array.isArray(data) ? data[0] : data) as MemberPhoto;
