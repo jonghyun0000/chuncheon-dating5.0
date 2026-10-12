@@ -2,6 +2,7 @@ import { getLang, type Lang } from '@/i18n';
 
 const copy = {
   ko: {
+    choose: '학생증 사진 등록하기', change: '학생증 사진 변경하기', selectHint: '이 칸을 누르면 사진을 선택할 수 있어요.', selected: '선택 완료 · 아래 제출 버튼을 눌러주세요.',
     signupNote: '학생증 없이 가입하고 바로 둘러보거나 팀 초안을 작성할 수 있어요. 팀 공개와 매칭 신청은 학생증 제출 후 관리자 승인이 필요해요.',
     signupDone: '가입이 완료되었어요. 지금 바로 둘러보고 팀을 작성할 수 있어요.',
     title: '학생증 인증', submit: '학생증 제출', retry: '학생증 다시 제출',
@@ -14,6 +15,7 @@ const copy = {
     published: '팀을 공개했어요.', needPhoto: '학생증 사진을 선택해주세요.',
   },
   en: {
+    choose: 'Add student ID photo', change: 'Change student ID photo', selectHint: 'Tap here to choose a photo.', selected: 'Photo selected · Submit below to finish.',
     signupNote: 'Join without a student ID photo and browse or draft your team immediately. Publishing and match requests require a photo and admin approval.',
     signupDone: 'You are registered. Browse and draft your team now.',
     title: 'Student verification', submit: 'Submit student ID', retry: 'Resubmit student ID',
@@ -25,6 +27,7 @@ const copy = {
     publish: 'Publish team', approvedOnly: 'Admin approval required', published: 'Team published.', needPhoto: 'Choose a student ID photo.',
   },
   ja: {
+    choose: '学生証の写真を追加', change: '学生証の写真を変更', selectHint: 'ここを押して写真を選択してください。', selected: '選択完了・下の提出ボタンを押してください。',
     signupNote: '学生証なしで登録し、すぐに閲覧・チームの下書きができます。公開とマッチング申請には学生証提出と管理者の承認が必要です。',
     signupDone: '登録完了。閲覧とチーム作成ができます。',
     title: '学生証認証', submit: '学生証を提出', retry: '学生証を再提出',
@@ -36,6 +39,7 @@ const copy = {
     publish: 'チームを公開', approvedOnly: '管理者の承認が必要', published: '公開しました。', needPhoto: '学生証の写真を選択してください。',
   },
   zh: {
+    choose: '添加学生证照片', change: '更换学生证照片', selectHint: '点击此处选择照片。', selected: '已选择 · 请点击下方提交按钮。',
     signupNote: '无需学生证即可注册，立即浏览或创建队伍草稿。发布和配对申请需要提交学生证并经管理员批准。',
     signupDone: '注册成功，可以浏览和创建队伍了。',
     title: '学生认证', submit: '提交学生证', retry: '重新提交学生证',

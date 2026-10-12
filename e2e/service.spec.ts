@@ -284,7 +284,12 @@ test('deferred verification submits a photo and displays pending review', async 
   await mockApi(page, { signedIn: true, unverified: true });
   await page.goto('/me/verification');
   await expect(page.getByText('학생증 미제출', { exact: true })).toBeVisible();
-  await page.getByLabel('학생증 사진').setInputFiles({ name: 'student.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: /학생증 사진 등록하기/ }).click();
+  await (await chooser).setFiles({ name: 'student.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  await expect(page.getByRole('button', { name: /학생증 사진 변경하기/ })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('student.jpg');
+  await page.screenshot({path:'/tmp/cc-student-upload.png',fullPage:true});
   await page.getByRole('button', { name: '학생증 제출', exact: true }).click();
   await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('학생증이 제출되었어요.');
@@ -342,6 +347,13 @@ test('three optional member photos survive draft save and reload', async ({ page
     await expect(page.getByRole('img', {name:`사진팀원${i+1} 사진 선택`,exact:true})).toBeVisible();
   }
   if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/photo-upload-ux',{recursive:true}); await page.screenshot({path:'docs/validation/photo-upload-ux/selection.png',fullPage:true}); }
+  await expect(page.getByRole('button', {name:'사진 변경하기',exact:true})).toHaveCount(3);
+  await expect(page.getByRole('button', {name:'사진 삭제하기',exact:true})).toHaveCount(3);
+  const replacement = page.waitForEvent('filechooser');
+  await page.getByRole('button', {name:'사진 변경하기',exact:true}).first().click();
+  await (await replacement).setFiles('e2e/fixtures/member-photo.jpg');
+  await expect(page.getByRole('button', {name:'사진 변경하기',exact:true}).first()).toBeEnabled();
+  await page.screenshot({path:'/tmp/cc-member-upload.png',fullPage:true});
   expect(reservations).toBe(0);
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByText('사진을 등록하려면 아래 사진 공개·보관 동의를 확인해주세요.')).toBeVisible();
@@ -354,7 +366,7 @@ test('three optional member photos survive draft save and reload', async ({ page
   await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
   if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/member-photos',{recursive:true}); await page.screenshot({path:'docs/validation/member-photos/draft-three-photos.png',fullPage:true}); }
   await page.getByRole('button', {name:'팀 수정',exact:true}).click();
-  await page.getByRole('button',{name:'사진 빼기 (팀 저장 시 반영)'}).nth(1).click();
+  await page.getByRole('button',{name:'사진 삭제하기'}).nth(1).click();
   await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(2);
@@ -369,7 +381,7 @@ test('photo failure does not block saving a team without a photo', async ({ page
   await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('사진 없이 저장');
-  await page.getByRole('button',{name:'사진 빼기 (팀 저장 시 반영)'}).click();
+  await page.getByRole('button',{name:'사진 삭제하기'}).click();
   await expect(page.getByRole('checkbox', {name:/사진 속 당사자/})).toHaveCount(0);
   await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
   await expect(page.getByText('비공개 초안', {exact:true})).toBeVisible();
