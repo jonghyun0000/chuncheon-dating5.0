@@ -13,9 +13,9 @@ const supplied=process.argv[2];
 const workdir=supplied?resolve(supplied):mkdtempSync(join(tmpdir(),'cc-supa-quality-'));
 if(!/^cc-supa-quality[.-]/.test(basename(workdir)))throw new Error('Only a dedicated cc-supa-quality temporary directory is allowed');
 const reportPath=join(resolve(root,process.env.CC_VALIDATION_REPORT_DIR||'supabase/.temp/validation'),'supabase-local.json');
-const cli=['--yes','supabase@2.117.0'];
+const cli=['--yes','supabase@2.120.0'];
 const env=Object.fromEntries(Object.entries(process.env).filter(([key])=>!key.startsWith('PG')&&!key.startsWith('SUPABASE_')));
-const report={scope:'Fresh local Docker Supabase only, synthetic accounts and a one-pixel image; no hosted project access.',startedAt:new Date().toISOString(),cliVersion:'2.117.0',checks:[],productionValidated:false};
+const report={scope:'Fresh local Docker Supabase only, synthetic accounts and a one-pixel image; no hosted project access.',startedAt:new Date().toISOString(),cliVersion:'2.120.0',checks:[],productionValidated:false};
 let projectId;let db;let cleanupRequired=false;
 function run(bin,args,input,timeout=120000){const r=spawnSync(bin,args,{cwd:root,env,input,encoding:'utf8',timeout,maxBuffer:16*1024*1024});if(r.error||r.status!==0)throw new Error(`${bin} failed: ${r.error?.message||r.stderr.slice(-3000)||'nonzero exit'}`);return r.stdout;}
 function command(args,timeout){return run('npx',[...cli,...args,'--workdir',workdir],undefined,timeout);}
@@ -61,6 +61,31 @@ try{
  const teams=result(await female.c.from('teams').select('id,status').in('id',[a.id,b.id]),'read accepted teams');check(teams.length===2&&teams.every(t=>t.status==='matched'),'real request acceptance marks both teams matched');
  const roster=result(await female.c.from('team_members_public').select('*').eq('team_id',a.id),'read matched roster');check(roster.length===2&&roster.every(m=>!('contact_id'in m)&&m.student_number.length<=2),'matched counterpart roster is readable and masked');
  const privateRows=result(await female.c.from('team_members').select('id').eq('team_id',a.id),'private counterpart check');check(privateRows.length===0,'real RLS keeps matched counterpart private member records hidden');
+ // Deferred verification runs through actual local Auth, Storage and PostgREST.
+ const deferred=client();
+ const deferredAuth=result(await deferred.auth.signUp({email:'qa_deferred@example.test',password:'Synthetic!'+randomBytes(16).toString('hex')}),'photo-free Auth signup');
+ check(Boolean(deferredAuth.session),'photo-free signup immediately issues a real signed session');
+ const deferredId=deferredAuth.user.id;
+ result(await deferred.from('profiles').insert({id:deferredId,username:'qa_deferred',name:'Synthetic deferred',gender:'female',school:'한림대',student_number:'20260001',contact_type:'kakao',contact_id:'synthetic-deferred',student_id_image_path:null,agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()}),'profile without photo');
+ const args={p_team_id:null,p_intro:'Synthetic private draft',p_team_size:2,p_members:members,p_members_consent_confirmed:true};
+ const draft=result(await deferred.rpc('save_my_team_draft',args),'real private draft save');
+ check(Boolean(draft.id)&&draft.members.length===2,'pending account saves draft through real authenticated API');
+ const owned=result(await deferred.from('team_drafts').select('*'),'reload private draft');check(owned.length===1,'real RLS lets owner reload private draft');
+ check(result(await male.c.from('team_drafts').select('*'),'foreign draft isolation').length===0,'real RLS hides draft contacts from other members');
+ check(Boolean((await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id})).error),'real API blocks pending publication');
+ check(Boolean((await deferred.rpc('save_my_team',args)).error),'old public save endpoint still denies pending users');
+ check(Boolean((await admin.c.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId)).error),'real admin approval refuses missing student photo');
+ const deferredPath=deferredId+'/deferred.png';result(await deferred.storage.from('student-ids').upload(deferredPath,png,{contentType:'image/png'}),'later real Storage upload');
+ result(await deferred.rpc('submit_student_id',{p_path:deferredPath}),'attach later photo through real RPC');
+ check(Boolean((await deferred.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId)).error),'real API denies self-approval');
+ result(await admin.c.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId),'approve deferred profile');
+ check(result(await male.c.rpc('get_home_teams'),'pre-publish browsing').every(t=>t.owner_id!==deferredId),'admin approval alone does not expose private draft');
+ const published=result(await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id}),'publish approved draft');
+ check(Boolean(published.id)&&result(await deferred.from('team_drafts').select('*'),'draft after publish').length===0,'approved real API publishes atomically and removes draft');
+ const deferredHome=result(await male.c.rpc('get_home_teams'),'post-publish browsing');check(deferredHome.some(t=>t.id===published.id&&t.members.length===2&&!('contact_id' in t.members[0])),'approved published team appears with contact-free roster');
+ check(result(await male.c.from('team_members').select('*').eq('team_id',published.id),'private published roster').length===0,'approval does not expose member contacts to another user');
+ result(await admin.c.from('profiles').update({is_verified:false,verification_status:'rejected'}).eq('id',deferredId),'revoke deferred verification');
+ check(result(await male.c.rpc('get_home_teams'),'revoked team browsing').every(t=>t.id!==published.id),'rejected team disappears from real home API');
  check(Boolean((await client().rpc('purge_user_content',{p_uid:male.id})).error),'anonymous real RPC purge is denied');
  check(Boolean((await admin.c.rpc('validate_account_deletion',{p_user_id:admin.id})).error),'admin self-deletion preflight is denied before files are touched');
  result(await admin.c.storage.from('student-ids').remove([male.path]),'delete synthetic student image through actual Storage service');

@@ -49,6 +49,7 @@ export default function AdminVerificationPage() {
 
     return list.filter((p) => {
       if (filter !== 'all' && p.verification_status !== filter) return false;
+      if (filter === 'pending' && (!p.student_id_image_path || p.status !== 'active')) return false;
       if (!needle) return true;
       return (
         (p.name ?? '').toLowerCase().includes(needle) ||
@@ -77,7 +78,7 @@ export default function AdminVerificationPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t.admin.verifySearchPlaceholder}
-            className="w-full rounded-full bg-white py-2 pl-9 pr-9 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-none transition focus:ring-2 focus:ring-sakura-200"
+            className="w-full rounded-full bg-white py-2 pl-9 pr-9 text-sm text-zinc-700 ring-1 ring-zinc-200 outline-hidden transition focus:ring-2 focus:ring-sakura-200"
           />
           {q && (
             <button
@@ -166,6 +167,7 @@ export default function AdminVerificationPage() {
                 </Button>
                 <Button
                   className="gap-1.5"
+                  disabled={!p.student_id_image_path || p.status !== 'active'}
                   onClick={async () => { try { await approveVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
                   <Check size={16} strokeWidth={2.4} />

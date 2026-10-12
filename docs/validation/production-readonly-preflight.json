@@ -1,0 +1,25 @@
+{
+  "date_kst": "2026-10-12",
+  "project_ref": "slddnhyvstfvobxxcazt",
+  "read_only": true,
+  "counts": {
+    "profiles": 141,
+    "auth_users": 144,
+    "teams": 30,
+    "team_members": 51,
+    "match_requests": 22,
+    "student_id_objects": 139
+  },
+  "existing_team_drafts": false,
+  "duplicate_open_owners": 0,
+  "inconsistent_verifications": 0,
+  "unverified_active_teams": 0,
+  "function_hashes": {
+    "save_my_team": "84af91ed764646269213ab473c78b778",
+    "get_home_teams": "bc6646299a4cdfc06f23dda40af3197a",
+    "can_participate": "5d55ac07c5847279852744676d4a6380",
+    "can_request_match": "5c42b201be5098c9fc38ec80efe98c7d",
+    "can_view_team_roster": "915fb893d6420e7818e22eea42e37957",
+    "guard_profile_immutable_fields": "da7e754ed21a144cea6707a42366482f"
+  }
+}

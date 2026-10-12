@@ -17,7 +17,7 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ profile: { id: 'member', n
 vi.mock('./admin/admin.api', () => ({ listUsers: api.users, listTeamsAdmin: api.teams, listAllReviews: api.reviews, listVerificationQueue: api.verification, getStudentSignedUrl: vi.fn(), approveAccountDeletion: vi.fn(), deleteUser: vi.fn(), setUserStatus: vi.fn(), deleteTeamAdmin: vi.fn(), setTeamStatus: vi.fn(), deleteReviewAdmin: vi.fn(), setReviewStatus: vi.fn(), approveVerification: vi.fn(), rejectVerification: vi.fn() }));
 vi.mock('./reviews/reviews.api', () => ({ fetchApprovedReviews: api.approved, fetchMyReviews: api.mine, createReview: vi.fn() }));
 vi.mock('./reports/reports.api', () => ({ fetchMyReports: api.reports, createReport: vi.fn() }));
-vi.mock('./teams/teams.api', () => ({ fetchMyTeam: api.myTeam, fetchMyActiveTeam: api.active, fetchMyMatchedTeam: api.matched, createTeam: vi.fn(), deleteMyTeam: vi.fn(), finishMyTeam: vi.fn(), updateTeam: vi.fn() }));
+vi.mock('./teams/teams.api', () => ({ fetchMyTeam: api.myTeam, fetchMyActiveTeam: api.active, fetchMyEditableTeam: api.active, publishTeamDraft: vi.fn(), fetchMyMatchedTeam: api.matched, createTeam: vi.fn(), deleteMyTeam: vi.fn(), finishMyTeam: vi.fn(), updateTeam: vi.fn() }));
 vi.mock('./mypage/mypage.api', () => ({ getMyStudentIdSignedUrl: vi.fn(), deleteMyAccount: vi.fn() }));
 beforeEach(() => {
   vi.resetAllMocks();

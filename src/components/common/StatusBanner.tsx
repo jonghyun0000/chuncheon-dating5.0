@@ -2,45 +2,24 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, Clock, MessageCircleWarning, PartyPopper, ShieldAlert, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/i18n';
+import { verificationCopy } from '@/features/auth/verificationCopy';
 
-/**
- * 계정 상태에 따른 상단 안내 배너.
- *   - 인증 대기 : 팀 등록·매칭 신청이 막혀 있다는 사실을 분명히 알립니다.
- *   - 인증 거절 : 재제출 안내.
- * 학생증 인증은 DB 정책(can_participate)에서 실제로 막고 있으므로,
- * 화면에서 이유를 설명해주지 않으면 사용자는 이유 없이 실패만 겪게 됩니다.
- */
+/** Approval gates publication/matching; browsing and draft creation stay available. */
 export function VerificationBanner() {
   const { profile } = useAuth();
-  const { t } = useI18n();
-  if (!profile) return null;
-  if (profile.is_verified && profile.verification_status === 'approved') return null;
-
+  const { lang } = useI18n();
+  const v = verificationCopy(lang);
+  if (!profile || (profile.is_verified && profile.verification_status === 'approved')) return null;
   const rejected = profile.verification_status === 'rejected';
-
   return (
-    <div
-      className={`mb-4 flex items-start gap-2.5 rounded-2xl px-4 py-3.5 ring-1 ${
-        rejected ? 'bg-rose-50 ring-rose-100' : 'bg-amber-50 ring-amber-100'
-      }`}
-    >
-      {rejected ? (
-        <XCircle size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-rose-600" />
-      ) : (
-        <Clock size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-amber-600" />
-      )}
-      <div className={`text-xs leading-relaxed ${rejected ? 'text-rose-800' : 'text-amber-800'}`}>
-        {rejected ? (
-          <>
-            <strong>{t.banners.verifyRejectedTitle}</strong> {t.banners.verifyRejectedDesc}
-          </>
-        ) : (
-          <>
-            <strong>{t.banners.verifyPendingTitle}</strong> {t.banners.verifyPendingDesc}
-          </>
-        )}
+    <Link to="/me/verification" className={`mb-4 flex items-start gap-2.5 rounded-2xl px-4 py-3.5 ring-1 ${rejected ? 'bg-rose-50 ring-rose-100' : 'bg-amber-50 ring-amber-100'}`}>
+      {rejected ? <XCircle size={17} className="mt-0.5 shrink-0" /> : <Clock size={17} className="mt-0.5 shrink-0" />}
+      <div className="text-xs leading-relaxed text-zinc-700">
+        <strong>{rejected ? v.rejected : profile.student_id_image_path ? v.pending : v.notSubmitted}</strong>
+        <p className="mt-1">{v.note}</p>
+        <span className="mt-1 inline-block font-semibold text-sakura-700">{profile.student_id_image_path ? v.retry : v.submit} →</span>
       </div>
-    </div>
+    </Link>
   );
 }
 

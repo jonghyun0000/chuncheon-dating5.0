@@ -1,4 +1,17 @@
-import type { ContactType, School, TeamSize } from '@/types/database.types';
+import type { ContactType, School, TeamSize, Team } from '@/types/database.types';
+
+export interface TeamDraftRow {
+  id: string;
+  owner_id: string;
+  gender: Team['gender'];
+  intro: string;
+  team_size: TeamSize;
+  members: MemberInput[];
+  members_consent_confirmed: boolean;
+  members_consent_at: string;
+  created_at: string;
+}
+export type EditableTeam = Omit<Team, 'status'> & { status: Team['status'] | 'draft' };
 
 export interface MemberInput {
   school: School;

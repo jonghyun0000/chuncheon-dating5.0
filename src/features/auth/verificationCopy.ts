@@ -1,0 +1,50 @@
+import { getLang, type Lang } from '@/i18n';
+
+const copy = {
+  ko: {
+    signupNote: '학생증 없이 가입하고 바로 둘러보거나 팀 초안을 작성할 수 있어요. 팀 공개와 매칭 신청은 학생증 제출 후 관리자 승인이 필요해요.',
+    signupDone: '가입이 완료되었어요. 지금 바로 둘러보고 팀을 작성할 수 있어요.',
+    title: '학생증 인증', submit: '학생증 제출', retry: '학생증 다시 제출',
+    notSubmitted: '학생증 미제출', pending: '관리자 심사 중', rejected: '인증이 거절되었어요',
+    note: '둘러보기와 팀 초안 작성은 지금 가능해요. 팀 공개와 매칭 신청은 관리자 승인 후 가능해요.',
+    privateNote: '학생증 사진은 본인과 관리자만 확인합니다. 다른 회원에게는 공개되지 않아요.',
+    sent: '학생증이 제출되었어요. 관리자 승인 후 작성한 팀을 공개할 수 있어요.',
+    saveDraft: '팀 초안 저장', saved: '팀 초안을 저장했어요. 다른 회원에게 공개되지 않아요.',
+    draft: '비공개 초안', publish: '팀 공개하기', approvedOnly: '관리자 승인 후 가능',
+    published: '팀을 공개했어요.', needPhoto: '학생증 사진을 선택해주세요.',
+  },
+  en: {
+    signupNote: 'Join without a student ID photo and browse or draft your team immediately. Publishing and match requests require a photo and admin approval.',
+    signupDone: 'You are registered. Browse and draft your team now.',
+    title: 'Student verification', submit: 'Submit student ID', retry: 'Resubmit student ID',
+    notSubmitted: 'Student ID not submitted', pending: 'Awaiting admin review', rejected: 'Verification rejected',
+    note: 'Browse and draft your team now. Publishing and match requests require admin approval.',
+    privateNote: 'Only you and the admin can view your student ID photo.',
+    sent: 'Student ID submitted. Publish your draft after admin approval.',
+    saveDraft: 'Save team draft', saved: 'Draft saved privately.', draft: 'Private draft',
+    publish: 'Publish team', approvedOnly: 'Admin approval required', published: 'Team published.', needPhoto: 'Choose a student ID photo.',
+  },
+  ja: {
+    signupNote: '学生証なしで登録し、すぐに閲覧・チームの下書きができます。公開とマッチング申請には学生証提出と管理者の承認が必要です。',
+    signupDone: '登録完了。閲覧とチーム作成ができます。',
+    title: '学生証認証', submit: '学生証を提出', retry: '学生証を再提出',
+    notSubmitted: '学生証未提出', pending: '管理者の審査中', rejected: '認証が拒否されました',
+    note: '閲覧と下書きは今できます。公開と申請には管理者の承認が必要です。',
+    privateNote: '学生証の写真は本人と管理者のみ閲覧できます。',
+    sent: '学生証を提出しました。承認後に下書きを公開できます。',
+    saveDraft: '下書きを保存', saved: '非公開で保存しました。', draft: '非公開の下書き',
+    publish: 'チームを公開', approvedOnly: '管理者の承認が必要', published: '公開しました。', needPhoto: '学生証の写真を選択してください。',
+  },
+  zh: {
+    signupNote: '无需学生证即可注册，立即浏览或创建队伍草稿。发布和配对申请需要提交学生证并经管理员批准。',
+    signupDone: '注册成功，可以浏览和创建队伍了。',
+    title: '学生认证', submit: '提交学生证', retry: '重新提交学生证',
+    notSubmitted: '尚未提交学生证', pending: '等待管理员审核', rejected: '认证未通过',
+    note: '现在可浏览和保存草稿。发布和配对申请需要管理员批准。',
+    privateNote: '学生证照片仅本人和管理员可查看。',
+    sent: '学生证已提交，审核通过后可发布队伍。',
+    saveDraft: '保存队伍草稿', saved: '草稿已私密保存。', draft: '私密草稿',
+    publish: '发布队伍', approvedOnly: '需要管理员批准', published: '队伍已发布。', needPhoto: '请选择学生证照片。',
+  },
+};
+export const verificationCopy = (lang: Lang = getLang()) => copy[lang];

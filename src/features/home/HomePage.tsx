@@ -17,9 +17,11 @@ import { useI18n } from '@/i18n';
 import { Link } from 'react-router-dom';
 import type { Gender } from '@/types/database.types';
 import { adminHomeCopy } from './adminHomeCopy';
+import { useNavigate } from 'react-router-dom';
 
 export default function HomePage() {
   const { profile } = useAuth();
+  const nav = useNavigate();
   const { t, lang } = useI18n();
   const admin = profile?.role === 'admin';
   const adminCopy = adminHomeCopy(lang);
@@ -62,6 +64,7 @@ export default function HomePage() {
   useEffect(() => { void load(); }, [load]);
 
   const handleApply = async (toTeamId: string) => {
+    if (!profile?.is_verified || profile.verification_status !== 'approved') { nav('/me/verification'); return; }
     setApplyingId(toTeamId);
     try {
       await applyToTeam(toTeamId);

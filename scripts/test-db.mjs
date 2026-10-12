@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = join(root, 'supabase/tests');
 const baseline = join(root, 'supabase/baseline.sql');
 const migrationDir = join(root, 'supabase/migrations');
-const cases = readFileSync(join(testDir, 'regressions.sql'), 'utf8').split(/^-- TEST /m).slice(1).map(part => {
+const cases = ['regressions.sql', 'deferred-verification.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
   const [header, ...lines] = part.split('\n');
   const [id, mode, ...label] = header.trim().split(' ');
   return { id, mode, label: label.join(' '), sql: lines.join('\n') };
@@ -134,6 +134,16 @@ try {
       second: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000002');",
       error: '이미 처리된 신청',
       check: "SELECT test_support.assert((SELECT count(*)=1 FROM public.match_requests WHERE status='accepted'),'one accepted match'); SELECT test_support.assert((SELECT count(*)=2 FROM public.teams WHERE status='matched'),'exactly two matched teams');" },
+    { name: 'draft_save', uid: '00000000-0000-4000-8000-000000000006', successSecond: true,
+      first: "SELECT public.save_my_team_draft(NULL,'First draft tab',2,test_support.members(),true);",
+      second: "SELECT public.save_my_team_draft(NULL,'Second draft tab',1,test_support.members(1),true);",
+      check: "SELECT test_support.assert((SELECT count(*)=1 FROM public.team_drafts WHERE owner_id='00000000-0000-4000-8000-000000000006' AND intro='Second draft tab' AND team_size=1 AND jsonb_array_length(members)=1),'one coherent private draft');" },
+    { name: 'draft_publish', uid: '00000000-0000-4000-8000-000000000009',
+      setup: "BEGIN; SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000009',true); SET LOCAL ROLE authenticated; SELECT public.save_my_team_draft(NULL,'Ready to publish',2,test_support.members(),true); COMMIT;",
+      first: "SELECT public.publish_my_team_draft((SELECT id FROM public.team_drafts WHERE owner_id=auth.uid()));",
+      second: "SELECT public.publish_my_team_draft((SELECT id FROM public.team_drafts WHERE owner_id=auth.uid()));",
+      error: '본인의 초안을 확인',
+      check: "SELECT test_support.assert((SELECT count(*)=1 FROM public.teams WHERE owner_id='00000000-0000-4000-8000-000000000009'),'one published team'); SELECT test_support.assert(NOT EXISTS(SELECT 1 FROM public.team_drafts WHERE owner_id='00000000-0000-4000-8000-000000000009'),'published draft consumed once');" },
     { name: 'creation', uid: '00000000-0000-4000-8000-000000000009',
       first: "SELECT public.save_my_team(NULL,'First browser tab',2,test_support.members(),true);",
       second: "SELECT public.save_my_team(NULL,'Second browser tab',2,test_support.members(),true);",
@@ -142,9 +152,10 @@ try {
   ]) {
     const database = `race_${race.name}`;
     sql(`CREATE DATABASE ${database} TEMPLATE hardened;`);
+    if (race.setup) sql(race.setup, database);
     const login = `SELECT set_config('request.jwt.claim.sub','${race.uid}',true); SET LOCAL ROLE authenticated;`;
     const [first, second] = await concurrent(`${login}\n${race.first}\n\\echo LOCKS_HELD\nSELECT pg_sleep(0.4);`, `${login}\n${race.second}`, database);
-    if (first.status !== 0 || second.status === 0 || !second.stderr.includes(race.error)) {
+    if (first.status !== 0 || (race.successSecond ? second.status !== 0 : second.status === 0 || !second.stderr.includes(race.error))) {
       failed++;
       console.error(`FAIL concurrent ${race.name}: unexpected transaction outcomes\n${first.stderr}\n${second.stderr}`);
     } else {
@@ -152,7 +163,7 @@ try {
       console.log(`PASS concurrent ${race.name}: competing transactions preserve one valid outcome`);
     }
   }
-  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 2 concurrency cases.`);
+  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 4 concurrency cases.`);
   if (failed) process.exitCode = 1;
 } catch (error) {
   console.error(error.message);

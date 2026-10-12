@@ -1,11 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+
 
 const uid = '00000000-0000-4000-8000-000000000001';
-const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@test.invalid', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
+const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@chuncheongating.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
 const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
 
-async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean } = {}) {
+async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean } = {}) {
   // No request can reach a real Supabase project, even if the build accidentally points to one.
   await page.route('**/*.supabase.co/**', route => route.abort());
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -14,21 +17,46 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   const session = { access_token: token, refresh_token: 'fixture-refresh', token_type: 'bearer', expires_in: 3600, expires_at: exp, user: fixtureUser };
   if (options.signedIn) await page.addInitScript(value => localStorage.setItem('cc-gating-auth', JSON.stringify(value)), session);
   let failHome = options.homeFails ?? false;
-  await page.route('https://test.invalid/**', async route => {
+  let currentProfile = { ...profile, role: options.admin ? 'admin' : 'user', is_verified: !options.unverified, verification_status: options.unverified ? 'pending' : 'approved', student_id_image_path: null as string | null };
+  let registered = !options.signup;
+  let currentDraft: any = options.draft ? { id: 'draft-fixture', owner_id: uid, gender: 'male', intro: '비공개 가상 팀', team_size: 1, members: [{ school: '강원대', department: '컴퓨터공학과', student_number: '20260001', nickname: '가상팀원', smoking: false, contact_type: 'phone', contact_id: '01000000000', taste_tags: ['cafe'], want_tags: [] }], members_consent_confirmed: true, members_consent_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' } : null;
+  let published: any = null;
+  const writes: string[] = [];
+  await page.route((process.env.CC_TEST_API_ORIGIN ?? 'https://test.invalid') + '/**', async route => {
+    if (!/\/(auth|rest|storage)\/v1\//.test(new URL(route.request().url()).pathname)) { await route.continue(); return; }
     const url = new URL(route.request().url());
+    if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': route.request().headers()['access-control-request-headers'] ?? 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' } }); return; }
     let body: unknown = [];
     let status = 200;
-    if (url.pathname.endsWith('/auth/v1/token')) body = session;
+    if (url.pathname.endsWith('/auth/v1/token') || url.pathname.endsWith('/auth/v1/signup')) body = session;
     else if (url.pathname.endsWith('/auth/v1/user')) body = fixtureUser;
-    else if (url.pathname.endsWith('/profiles')) body = options.missingProfile ? [] : [{ ...profile, role: options.admin ? 'admin' : 'user' }];
+    else if (url.pathname.endsWith('/profiles')) {
+      if (route.request().method() === 'POST') { registered = true; currentProfile = { ...currentProfile, ...route.request().postDataJSON() }; body = null; }
+      else body = options.missingProfile || !registered ? [] : [currentProfile];
+    }
+    else if (url.pathname.endsWith('/team_drafts')) body = currentDraft ? [currentDraft] : [];
+    else if (url.pathname.endsWith('/teams')) body = published && url.searchParams.get('status') !== 'eq.matched' ? [published] : [];
+    else if (url.pathname.endsWith('/team_members')) body = published ? published.members ?? [] : [];
+    else if (url.pathname.endsWith('/rpc/is_username_available')) body = true;
+    else if (url.pathname.endsWith('/rpc/save_my_team_draft')) {
+      writes.push('draft');
+      const input = route.request().postDataJSON();
+      currentDraft = { id: 'draft-fixture', owner_id: uid, gender: 'male', intro: input.p_intro, team_size: input.p_team_size, members: input.p_members, members_consent_confirmed: true, members_consent_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' }; body = currentDraft;
+    }
+    else if (url.pathname.endsWith('/rpc/publish_my_team_draft')) {
+      writes.push('publish');
+      published = { ...currentDraft, status: 'active', matched_at: null }; currentDraft = null; body = published;
+    }
+    else if (url.pathname.endsWith('/rpc/submit_student_id')) { currentProfile.student_id_image_path = route.request().postDataJSON().p_path; body = null; }
+    else if (url.pathname.includes('/storage/v1/object/')) body = { Key: 'synthetic-upload' };
     else if (url.pathname.endsWith('/rpc/get_home_stats')) body = { total_teams: 1, matched_count: 0, total_users: 2 };
     else if (url.pathname.endsWith('/rpc/get_home_teams')) {
       if (failHome) { status = 503; body = { message: 'Fixture outage' }; }
       else body = options.admin ? [opponent, { ...opponent, id: '00000000-0000-4000-8000-000000000004', gender: 'male', intro: '가상 남자 팀', members: [{ ...opponent.members[0], id: 'm2', nickname: '남자팀원' }] }] : [opponent];
     }
-    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    await route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' }, body: JSON.stringify(body) });
   });
-  return { restoreHome: () => { failHome = false; } };
+  return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; }, writes };
 }
 
 test('mobile landing exposes its first action and navigation works', async ({ page }) => {
@@ -165,4 +193,94 @@ test('mobile zoom is enabled and reduced-motion preference is respected', async 
   expect(viewport).not.toContain('maximum-scale=1');
   const duration = await page.locator('.petal').first().evaluate(el => getComputedStyle(el).animationDuration);
   expect(parseFloat(duration)).toBeLessThanOrEqual(0.001);
+});
+
+
+test('photo-free signup enters browsing with unverified matching guidance', async ({ page }) => {
+  await mockApi(page, { signup: true, unverified: true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/register');
+  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await page.getByLabel('아이디', { exact: true }).fill('fixture');
+  await page.getByRole('button', { name: '중복확인', exact: true }).click();
+  await expect(page.getByText('사용할 수 있는 아이디예요.', { exact: true })).toBeVisible();
+  await page.getByLabel('비밀번호', { exact: true }).fill('Fixture123!');
+  await page.getByLabel('비밀번호 확인', { exact: true }).fill('Fixture123!');
+  await page.getByLabel('이름', { exact: true }).fill('가상회원');
+  await page.getByLabel('학번', { exact: true }).fill('20260001');
+  await page.getByLabel('전화번호', { exact: true }).fill('01000000000');
+  await page.getByRole('checkbox', { name: '약관에 모두 동의합니다' }).check();
+  await page.getByRole('button', { name: '가입하기', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText('학생증 미제출', { exact: true })).toBeVisible();
+  await expect(page.getByText('가상 상대 팀', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: '관리자 승인 후 가능', exact: true }).click();
+  await expect(page).toHaveURL(/\/me\/verification$/);
+});
+
+test('pending member can edit and reload a private draft but cannot publish', async ({ page }) => {
+  const api = await mockApi(page, { signedIn: true, unverified: true, draft: true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/team');
+  await expect(page.getByText('비공개 초안', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '관리자 승인 후 가능', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '팀 수정', exact: true }).click();
+  await page.getByLabel('팀 한줄소개', { exact: true }).fill('수정된 비공개 가상 팀');
+  await page.getByRole('button', { name: '팀 초안 저장', exact: true }).click();
+  await expect(page.getByText('수정된 비공개 가상 팀', { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('수정된 비공개 가상 팀', { exact: false })).toBeVisible();
+  expect(api.writes).toEqual(['draft']);
+});
+
+test('admin-approved owner explicitly publishes the saved draft', async ({ page }) => {
+  const api = await mockApi(page, { signedIn: true, unverified: true, draft: true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/team');
+  await expect(page.getByRole('button', { name: '관리자 승인 후 가능', exact: true })).toBeDisabled();
+  api.approve(); await page.reload();
+  await page.getByRole('button', { name: '팀 공개하기', exact: true }).click();
+  await expect(page.getByText('활성', { exact: true })).toBeVisible();
+  expect(api.writes).toEqual(['publish']);
+});
+
+test('deferred verification submits a photo and displays pending review', async ({ page }) => {
+  await mockApi(page, { signedIn: true, unverified: true });
+  await page.goto('/me/verification');
+  await expect(page.getByText('학생증 미제출', { exact: true })).toBeVisible();
+  await page.getByLabel('학생증 사진').setInputFiles({ name: 'student.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  await page.getByRole('button', { name: '학생증 제출', exact: true }).click();
+  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('학생증이 제출되었어요.');
+});
+
+
+test('patched build compiler preserves mobile and desktop signup styles', async ({ page }) => {
+  await mockApi(page);
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/register');
+    await expect(page.getByRole('button', { name: '가입하기', exact: true })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
+    const styles = () => page.evaluate(() => {
+      const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'borderRadius', 'paddingTop', 'paddingLeft', 'width'];
+      return ['.card', '.input', '.btn-primary', 'h1'].map(selector => {
+        const element = document.querySelector(selector)!;
+        const computed = getComputedStyle(element);
+        return Object.fromEntries(properties.map(property => [property, computed[property as keyof CSSStyleDeclaration]]));
+      });
+    });
+    const updated = await styles();
+    await page.locator('link[rel=stylesheet][href*="/assets/"]').evaluateAll(links => links.forEach(link => (link as HTMLLinkElement).disabled = true));
+    await page.addStyleTag({ content: readFileSync('e2e/fixtures/legacy-ui.css', 'utf8') });
+    const previous = await styles();
+    for (let i = 0; i < previous.length; i++) {
+      // Font and flex calculations can differ by less than one CSS pixel across engines.
+      expect(Math.abs(parseFloat(updated[i].width as string) - parseFloat(previous[i].width as string))).toBeLessThan(1);
+      const { width: oldWidth, ...oldStyle } = previous[i];
+      const { width: newWidth, ...newStyle } = updated[i];
+      expect(newStyle).toEqual(oldStyle);
+    }
+  }
 });

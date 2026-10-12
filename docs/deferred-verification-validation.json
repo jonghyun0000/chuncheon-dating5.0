@@ -1,0 +1,48 @@
+{
+  "date_kst": "2026-10-12",
+  "status": "prepared_not_deployed",
+  "scope": "Synthetic local data and read-only production schema/aggregate checks",
+  "production_written": false,
+  "github_pushed": false,
+  "typecheck": "passed",
+  "build": "passed",
+  "app_tests": {
+    "passed": 92,
+    "failed": 0
+  },
+  "database_tests": {
+    "passed": 62,
+    "failed": 0,
+    "concurrency_cases": 4,
+    "historical_redaction": "passed",
+    "migration_retry": "passed"
+  },
+  "local_supabase_api_tests": {
+    "passed": 35,
+    "failed": 0,
+    "cleanup": true,
+    "real_auth_storage_postgrest_mfa": true
+  },
+  "browser_tests": {
+    "passed": 16,
+    "failed": 0,
+    "real_browser": true,
+    "api": "mocked synthetic",
+    "trace": "disabled on final run"
+  },
+  "live_preflight": "passed, read-only",
+  "dependency_audit": {
+    "unchanged_lockfile": true,
+    "alerts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 6,
+      "critical": 0,
+      "total": 8
+    }
+  },
+  "migration_file": "supabase/migrations/20261012000030_deferred_student_verification.sql",
+  "migration_sha256": "995cecb94d08e38f90d52db964f8c21b0a2e2f2d5aba04dc2c1205a99f4ec20c",
+  "remaining": "User approval, backup/deployment verification, production rollout and post-rollout smoke tests"
+}

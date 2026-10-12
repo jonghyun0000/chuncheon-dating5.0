@@ -1,0 +1,84 @@
+
+> chuncheon-gating@1.0.0 test:db
+> node scripts/test-db.mjs
+
+REPRODUCED baseline anon-purge: Anonymous callers cannot invoke account purge
+REPRODUCED baseline signup-admin: New accounts cannot choose admin role
+REPRODUCED baseline signup-verification: New accounts cannot self-approve student verification
+REPRODUCED baseline anon-roster: Anonymous callers cannot read student rosters
+REPRODUCED baseline foreign-view-update: Public roster view cannot modify another team's members
+REPRODUCED baseline foreign-view-delete: Public roster view cannot delete another team's members
+REPRODUCED baseline match-status-insert: Match requests cannot be inserted as already accepted
+REPRODUCED baseline review-self-approval: Users cannot publish their own unmoderated reviews
+REPRODUCED baseline verified-image-replace: Approved verification image cannot be replaced by its owner
+REPRODUCED baseline foreign-team-helper: Relationship helpers do not enumerate another owner's private team IDs
+REPRODUCED baseline foreign-match-helper: Relationship helpers do not disclose another pair's accepted match
+PASS anon-purge: Anonymous callers cannot invoke account purge
+PASS signup-admin: New accounts cannot choose admin role
+PASS signup-verification: New accounts cannot self-approve student verification
+PASS anon-roster: Anonymous callers cannot read student rosters
+PASS foreign-view-update: Public roster view cannot modify another team's members
+PASS foreign-view-delete: Public roster view cannot delete another team's members
+PASS match-status-insert: Match requests cannot be inserted as already accepted
+PASS review-self-approval: Users cannot publish their own unmoderated reviews
+PASS signup-normal: Normal signup retains safe defaults
+PASS profile-protection: Users can edit contact details but cannot escalate privileges
+PASS roster-visibility: Opponent roster stays readable without contact details or unrelated history
+PASS inactive-roster: Suspended accounts cannot browse other rosters
+PASS admin-verification: Admin verification and private student image access still work
+PASS storage-isolation: Members only read and delete their own student images
+PASS nonadmin-deletion: Ordinary users cannot invoke admin deletion
+PASS deletion-storage-prerequisite: Admin purge preserves profile if the storage removal has not completed
+PASS admin-deletion: Admin deletion works after storage removal and clears related personal data
+PASS self-deletion-approval: Self withdrawal queues one request and admin approval completes purge
+PASS team-create: Verified user creates team and exact roster in one transaction
+PASS team-edit: Owner edits team and replaces roster atomically
+PASS team-validation: Missing consent wrong roster size and foreign ownership are rejected
+PASS team-ineligible: Inactive and unverified accounts cannot create teams
+PASS team-rollback: A late roster insert failure rolls back team update and original roster deletion
+PASS match-send: Eligible user sends a pending matching request
+PASS match-accept: Recipient accepts once and competing requests cancel
+PASS match-permissions: Sender and unrelated user cannot accept or reject another recipient's request
+PASS match-reject: Recipient rejection does not match either team
+PASS match-stale-sender: Request cannot be accepted after sender has been suspended
+PASS report-moderation: Reporter cannot set resolved state or admin memo
+PASS terms-reconsent: Existing member can accept a newer terms version
+PASS generic-report: Generic report page accepts reports without a linked member or team
+PASS signup-storage: New user uploads student image before creating profile and can clean failed uploads
+PASS verified-image-replace: Approved verification image cannot be replaced by its owner
+PASS inactive-storage: Suspended and withdrawn accounts cannot add or replace verification files
+PASS home-cards: Home RPC exposes opposite active teams with masked roster and truthful verification badge
+PASS legacy-team-write: Previous client can still create and populate a valid team
+PASS legacy-team-edit: Previous client can still update team then replace its roster
+PASS deletion-preflight-authorization: Photo-deletion preflight rejects anonymous nonadmin self and admin targets
+PASS deletion-preflight-valid: Admin preflight validates ordinary active or withdrawn targets without removing anything
+PASS admin-home-male: Active male admin sees both genders with complete masked rosters
+PASS admin-home-female: Active female admin sees both genders independent of actor gender
+PASS normal-home-gender: Both ordinary genders retain opposite-gender browsing restrictions
+PASS inactive-admin-home: Inactive and deleted admin roles cannot use home or roster privilege
+PASS admin-mfa-opt-in: Unenrolled admin and unverified enrollment keep existing access
+PASS admin-mfa-aal1: Verified MFA enrollment denies admin privileges before second-factor challenge
+PASS admin-mfa-aal2: Verified admin AAL2 restores table Storage RPC and both-gender home access
+PASS admin-mfa-other-identity: Another user's AAL2 cannot impersonate an enrolled admin
+PASS foreign-team-helper: Relationship helpers do not enumerate another owner's private team IDs
+PASS foreign-match-helper: Relationship helpers do not disclose another pair's accepted match
+PASS own-relationship-helpers: Both match participants retain own relationship queries and history policies
+PASS admin-relationship-mfa: Administrator relationship access respects enrolled MFA requirements
+PASS signup-without-photo: Signup without a photo retains safe defaults
+PASS draft-private: Unverified users can persist and edit only their private draft
+PASS draft-approval-required: UI bypass cannot publish before admin approval
+PASS draft-publish-approved: Approval retains private draft until owner explicitly publishes
+PASS draft-cross-owner: Draft RPC rejects another owner and direct table writes
+PASS draft-invalid-atomic: Invalid roster never replaces a valid draft
+PASS student-id-submit: Later upload and rejected resubmission cannot self-approve
+PASS approval-needs-photo: Administrator cannot accidentally approve a missing submission
+PASS draft-inactive-anon: Inactive and anonymous sessions cannot save publish or upload
+PASS draft-withdrawal: Withdrawal deletes draft contacts and blocks stale sessions
+PASS revoked-team-hidden: Revoked owners disappear from recruitment and matching APIs
+PASS historical redaction: idempotent, preserves all rows and unrelated content
+PASS concurrent matching: competing transactions preserve one valid outcome
+PASS concurrent draft_save: competing transactions preserve one valid outcome
+PASS concurrent draft_publish: competing transactions preserve one valid outcome
+PASS concurrent creation: competing transactions preserve one valid outcome
+
+11 baseline vulnerabilities reproduced; 62/62 hardened regressions checked, plus historical redaction and 4 concurrency cases.
