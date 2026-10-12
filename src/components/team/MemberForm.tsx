@@ -24,9 +24,6 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
   return (
     <div className="card p-4 space-y-3">
       <h3 className="font-display text-lg text-sakura-600">{t.memberForm.title(index)}</h3>
-      <PhotoInput pending={value.photo_pending} nickname={value.nickname} onBusy={onPhotoBusy}
-        photo={value.photo_id && value.photo_path ? { id: value.photo_id, path: value.photo_path, member_order: index } : undefined}
-        onChange={pending => onChange({ ...value, photo_pending: pending, photo_id: null, photo_path: undefined })} />
       <Select label={t.memberForm.school} value={value.school} onChange={(e) => set('school', e.target.value as MemberInput['school'])}>
         {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
       </Select>
@@ -43,6 +40,9 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
       </div>
       <p className="-mt-1 text-xs text-zinc-400">{t.validators.studentNumberHint} {t.memberForm.publicNote}</p>
       <Input label={t.memberForm.nickname} maxLength={30} value={value.nickname} onChange={(e) => set('nickname', e.target.value)} />
+      <PhotoInput pending={value.photo_pending} nickname={value.nickname} onBusy={onPhotoBusy}
+        photo={value.photo_id && value.photo_path ? { id: value.photo_id, path: value.photo_path, member_order: index } : undefined}
+        onChange={pending => onChange({ ...value, photo_pending: pending, photo_id: null, photo_path: undefined })} />
       <Select label={t.memberForm.smoking} value={value.smoking ? '1' : '0'} onChange={(e) => set('smoking', e.target.value === '1')}>
         <option value="0">{t.memberForm.smokingNo}</option>
         <option value="1">{t.memberForm.smokingYes}</option>
