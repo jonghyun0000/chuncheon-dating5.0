@@ -24,9 +24,9 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
   return (
     <div className="card p-4 space-y-3">
       <h3 className="font-display text-lg text-sakura-600">{t.memberForm.title(index)}</h3>
-      <PhotoInput nickname={value.nickname} onBusy={onPhotoBusy}
+      <PhotoInput pending={value.photo_pending} nickname={value.nickname} onBusy={onPhotoBusy}
         photo={value.photo_id && value.photo_path ? { id: value.photo_id, path: value.photo_path, member_order: index } : undefined}
-        onChange={photo => onChange({ ...value, photo_id: photo?.id ?? null, photo_path: photo?.path })} />
+        onChange={pending => onChange({ ...value, photo_pending: pending, photo_id: null, photo_path: undefined })} />
       <Select label={t.memberForm.school} value={value.school} onChange={(e) => set('school', e.target.value as MemberInput['school'])}>
         {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
       </Select>

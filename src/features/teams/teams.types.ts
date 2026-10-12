@@ -14,6 +14,8 @@ export interface TeamDraftRow {
 export type EditableTeam = Omit<Team, 'status'> & { status: Team['status'] | 'draft' };
 
 export interface MemberInput {
+  /** Client-only prepared image; never included in the database payload. */
+  photo_pending?: Blob;
   photo_id?: string | null;
   photo_path?: string;
   school: School;

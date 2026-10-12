@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { prepareMemberPhoto, searchPhotoArchive } from './photos.api';
+import { prepareMemberPhoto, searchPhotoArchive, uploadMemberPhoto } from './photos.api';
 const mock=vi.hoisted(()=>({ from:vi.fn(), query:{select:vi.fn(),not:vi.fn(),order:vi.fn(),range:vi.fn(),eq:vi.fn(),or:vi.fn(),data:[],error:null} }));
 vi.mock('@/lib/supabaseClient',()=>({supabase:{from:mock.from}}));
 describe('photo validation and archive filters',()=>{
@@ -16,6 +16,9 @@ describe('photo validation and archive filters',()=>{
  it('removes PostgREST expression characters from search text',async()=>{
   await searchPhotoArchive('x),owner_id.eq.secret',0);
   for(const [expression] of mock.query.or.mock.calls) expect(expression).not.toMatch(/[()]/);
+ });
+ it('rejects uploading without explicit final consent before any backend call',async()=>{
+  await expect(uploadMemberPhoto(new Blob(['photo'],{type:'image/jpeg'}),false)).rejects.toThrow('동의');
  });
  it('rejects SVG and empty image input before requesting a reservation',async()=>{
   await expect(prepareMemberPhoto(new File(['<svg/>'],'x.svg',{type:'image/svg+xml'}))).rejects.toThrow();

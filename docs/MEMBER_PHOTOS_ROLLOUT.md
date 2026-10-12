@@ -65,4 +65,13 @@
 - Edge Function `cleanup-member-photos` v1 ACTIVE. Vault 인증을 사용하는 예약 작업 활성화. 실제 예약 경로 호출 HTTP 200, 빈 큐 `removed=0, complete=true` 확인.
 - 인증 없는 호출과 잘못된 토큰은 HTTP 401.
 - 기존 profiles 141 / teams 30 / team_members 51 / match_requests 22 / 학생증 파일 139개 유지. 새 사진 0개.
-- 앱 운영 배포는 GitHub 최종 검사 완료 후 진행.
+- 앱 운영 배포 완료: 커밋 `8dac565b068396e3c8a591d33eb54af18dd4dbff`, Vercel `dpl_8xBN2Nmix9EBGvNC3eqcgJDiaRP1` (2026-10-12 10:04 KST, READY).
+- [PR #5](https://github.com/jonghyun0000/chuncheon-dating5.0/pull/5) 병합 완료. main Verify service `38190468063` 및 Verify production release `38190487304` 모두 성공.
+- 실제 운영 smoke가 위 커밋 일치, 보안 헤더, 공개 API 범위, 4개 언어, 주요 공개 페이지 및 익명 관리자 접근 차단을 확인했다. 실제 회원으로 사진 업로드·팀 등록을 수행하지 않았다.
+- 운영 반영 후 기존 데이터 개수와 예약 작업 활성 상태를 다시 확인했다. 사진 0개로 실제 회원 데이터에 테스트 사진을 추가하지 않았다.
+
+## 보안 검사 해석
+
+Supabase Advisor 실행 후 새 사진 테이블의 RLS와 익명 권한 차단을 확인했다. 삭제 큐의 `RLS enabled/no policy` INFO는 일반 회원의 접근을 전부 막고 service role만 사용하도록 한 의도된 구성이다. 새 authenticated SECURITY DEFINER 함수 경고는 소유권·활성 상태·관리자/MFA를 함수 내부에서 검사하는 RPC에 해당하며, 익명 실행이나 내부 sync/cleanup 함수의 일반 회원 실행은 허용되지 않는다.
+
+기존 `team_members_public` definer view, 공개 계정 찾기/통계 함수, leaked-password protection 경고는 이번 사진 기능과 별개의 기존 항목이다. 전체 Supabase 보안 경고가 0건이라는 의미가 아니다. [Advisor 설명](https://supabase.com/docs/guides/database/database-linter), [비밀번호 보호 설정](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
