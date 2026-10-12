@@ -1,0 +1,45 @@
+{
+  "productionCommit": "8dac565b068396e3c8a591d33eb54af18dd4dbff",
+  "deploymentId": "dpl_8xBN2Nmix9EBGvNC3eqcgJDiaRP1",
+  "productionUrl": "https://chuncheon-dating5-0.vercel.app",
+  "migrations": [
+    "20261012010137_member_photos",
+    "20261012010153_member_photo_cleanup_runtime"
+  ],
+  "countsBeforeAndAfter": {
+    "profiles": 141,
+    "teams": 30,
+    "team_members": 51,
+    "match_requests": 22,
+    "student_id_objects": 139
+  },
+  "newPhotoRows": 0,
+  "privatePhotoBucket": true,
+  "maxPhotoBytes": 2097152,
+  "rlsEnabled": true,
+  "anonymousTableAccess": false,
+  "ordinaryDirectTableWrites": false,
+  "ordinaryCleanupAccess": false,
+  "ordinarySyncAccess": false,
+  "ordinaryQueueRead": false,
+  "cleanup": {
+    "edgeVersion": 1,
+    "schedule": "17 * * * *",
+    "active": true,
+    "manualScheduledPathHttp": 200,
+    "missingTokenHttp": 401,
+    "invalidTokenHttp": 401,
+    "removed": 0,
+    "complete": true
+  },
+  "validation": {
+    "unitTests": 101,
+    "postgresCases": 73,
+    "concurrencyCases": 4,
+    "realLocalSupabaseChecks": 52,
+    "chrome": 21,
+    "webkit": 21,
+    "productionSmoke": true,
+    "npmVulnerabilities": 0
+  }
+}
