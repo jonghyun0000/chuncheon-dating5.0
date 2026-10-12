@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-12",
+  "deployed": false,
+  "unit_tests": 104,
+  "postgresql_regressions": 83,
+  "concurrency_tests": 6,
+  "chromium": {
+    "existing_and_load_failure_passed": 32,
+    "new_privacy_final_passed": 3,
+    "note": "Initial check() assertion assumed immediate checkbox change. Changed new tests to click and wait for server-confirmed state; no optimistic enabled state."
+  },
+  "webkit": {
+    "passed": 34
+  },
+  "actual_local_supabase": {
+    "passed": true,
+    "checks": 67
+  },
+  "screenshot": "setting.png",
+  "production_writes": false
+}

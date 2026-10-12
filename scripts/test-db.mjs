@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = join(root, 'supabase/tests');
 const baseline = join(root, 'supabase/baseline.sql');
 const migrationDir = join(root, 'supabase/migrations');
-const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
+const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql', 'department-privacy.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
   const [header, ...lines] = part.split('\n');
   const [id, mode, ...label] = header.trim().split(' ');
   return { id, mode, label: label.join(' '), sql: lines.join('\n') };
@@ -129,6 +129,12 @@ try {
   }
   // Two separate connections overlap while the first transaction holds its locks.
   for (const race of [
+    { name: 'privacy_accept', uid: '00000000-0000-4000-8000-000000000003',
+      first: 'SELECT public.set_department_privacy(true);',
+      second: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000001');",
+      error: '두 팀의 상태',
+      check: "SELECT test_support.assert((SELECT count(*)=0 FROM public.match_requests WHERE status='accepted'),'privacy commit blocks concurrent acceptance');" },
+
     { name: 'matching', uid: '00000000-0000-4000-8000-000000000003',
       first: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000001');",
       second: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000002');",
@@ -163,7 +169,7 @@ try {
       console.log(`PASS concurrent ${race.name}: competing transactions preserve one valid outcome`);
     }
   }
-  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 4 concurrency cases.`);
+  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 5 concurrency cases.`);
   if (failed) process.exitCode = 1;
 } catch (error) {
   console.error(error.message);

@@ -1,3 +1,4 @@
+import DepartmentPrivacy from '@/features/teams/DepartmentPrivacy';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -259,6 +260,7 @@ export default function TeamRegisterPage() {
   if (matchedTeam && !activeTeam) {
     return (
       <PageLayout subtitle={t.team.matchedSubtitle}>
+        <DepartmentPrivacy />
         <section className="card relative overflow-hidden bg-gradient-to-br from-sakura-50 via-white to-amber-50 p-5">
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <Badge tone="pink">{t.team.matchedBadge}</Badge>
@@ -315,6 +317,7 @@ export default function TeamRegisterPage() {
   if (mode === 'view' && activeTeam) {
     return (
       <PageLayout subtitle={t.team.mySubtitle}>
+        <DepartmentPrivacy />
         <VerificationBanner />
         <div className="card p-5 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -385,6 +388,7 @@ export default function TeamRegisterPage() {
 
   return (
     <PageLayout subtitle={isEdit ? t.team.editSubtitle : t.team.createSubtitle}>
+      <DepartmentPrivacy />
       <VerificationBanner />
       <Modal open={cancelEdit || blocker.state === 'blocked'} onClose={() => { if (!submitting && !uploading) { setCancelEdit(false); if (blocker.state === 'blocked') blocker.reset(); } }} title={journey.leave}>
         <p className="mb-4 text-sm text-zinc-600">{journey.leaveBody}</p>
