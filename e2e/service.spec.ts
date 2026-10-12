@@ -319,7 +319,11 @@ test('three optional member photos survive draft save and reload', async ({ page
   let reservations = 0;
   page.on('request', request => { if (request.url().includes('/rpc/reserve_member_photo')) reservations++; });
   for(let i=0;i<3;i++) {
-    await files.nth(i).setInputFiles('e2e/fixtures/member-photo.jpg');
+    if (i === 0) {
+      const chooserPromise = page.waitForEvent('filechooser');
+      await page.getByRole('button', {name:'사진 추가',exact:true}).first().click();
+      await (await chooserPromise).setFiles('e2e/fixtures/member-photo.jpg');
+    } else await files.nth(i).setInputFiles('e2e/fixtures/member-photo.jpg');
     await expect(page.getByRole('img', {name:`사진팀원${i+1} 사진 선택`,exact:true})).toBeVisible();
   }
   if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/photo-upload-ux',{recursive:true}); await page.screenshot({path:'docs/validation/photo-upload-ux/selection.png',fullPage:true}); }
