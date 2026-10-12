@@ -6,6 +6,7 @@ import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
 import LoadError from '@/components/common/LoadError';
+import MemberPhoto from '@/features/photos/MemberPhoto';
 import MemberForm from '@/components/team/MemberForm';
 import {
   createTeam,
@@ -53,6 +54,8 @@ export default function TeamRegisterPage() {
   const approved = !!profile?.is_verified && profile.verification_status === 'approved';
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState<Record<number, boolean>>({});
+  const uploading = Object.values(photoBusy).some(Boolean);
   const [submitting, setSubmitting] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
@@ -103,6 +106,8 @@ export default function TeamRegisterPage() {
     setTeamSize(activeTeam.team_size);
     setMembers(
       activeMembers.map((m) => ({
+        photo_id: m.photo_id,
+        photo_path: m.photo_path,
         school: m.school,
         department: m.department,
         student_number: m.student_number,
@@ -149,6 +154,7 @@ export default function TeamRegisterPage() {
   };
 
   const submit = async () => {
+    if (uploading || submitting) return;
     setErr(null);
     if (intro.trim().length < 4) return setErr(t.team.errIntro);
     for (const [i, m] of members.entries()) {
@@ -226,6 +232,7 @@ export default function TeamRegisterPage() {
               <li key={m.id} className="px-4 py-3 text-sm">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold">{m.nickname}</p>
+                  {m.photo_path && <MemberPhoto path={m.photo_path} nickname={m.nickname} />}
                   <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
                 </div>
                 <p className="text-xs text-zinc-500">{schoolLabel(m.school)} · {m.department} · {admissionLabel(m.student_number)}</p>
@@ -281,6 +288,7 @@ export default function TeamRegisterPage() {
               <li key={m.id} className="px-4 py-3 text-sm">
                 <div className="flex items-center justify-between">
                   <p className="font-semibold">{m.nickname}</p>
+                  {m.photo_path && <MemberPhoto path={m.photo_path} nickname={m.nickname} />}
                   <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
                 </div>
                 <p className="text-xs text-zinc-500">{schoolLabel(m.school)} · {m.department} · {admissionLabel(m.student_number)}</p>
@@ -339,6 +347,7 @@ export default function TeamRegisterPage() {
               <button
                 key={n}
                 type="button"
+                disabled={uploading || submitting}
                 onClick={() => setTeamSize(n)}
                 className={`rounded-2xl py-3 font-bold transition active:scale-[0.98] ${
                   teamSize === n
@@ -365,10 +374,12 @@ export default function TeamRegisterPage() {
           />
         </div>
 
+        <fieldset disabled={uploading || submitting} className="space-y-4">
         {members.map((m, i) => (
           <MemberForm
             key={i}
             index={i + 1}
+            onPhotoBusy={busy => setPhotoBusy(prev => ({ ...prev, [i]: busy }))}
             value={m}
             onChange={(v) => {
               setMembers((arr) => {
@@ -379,6 +390,7 @@ export default function TeamRegisterPage() {
             }}
           />
         ))}
+        </fieldset>
 
         <div className="card p-4">
           <label className="flex cursor-pointer items-start gap-2.5">
@@ -405,11 +417,11 @@ export default function TeamRegisterPage() {
 
         <div className="grid grid-cols-2 gap-2">
           {isEdit && (
-            <Button variant="ghost" onClick={() => setMode('view')}>
+            <Button variant="ghost" disabled={uploading || submitting} onClick={() => setMode('view')}>
               {t.common.cancel}
             </Button>
           )}
-          <Button onClick={submit} loading={submitting} className={isEdit ? '' : 'col-span-2 w-full'}>
+          <Button onClick={submit} disabled={uploading} loading={submitting} className={isEdit ? '' : 'col-span-2 w-full'}>
             {activeTeam?.status === 'draft' || !approved ? v.saveDraft : isEdit ? t.team.editDone : t.team.registerButton(teamSize)}
           </Button>
         </div>

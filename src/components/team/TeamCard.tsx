@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import MemberPhoto from '@/features/photos/MemberPhoto';
+import { getMemberPhotos, type MemberPhoto as Photo } from '@/features/photos/photos.api';
 import { BadgeCheck, Check, Send } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import MemberTags from '@/components/team/MemberTags';
@@ -20,6 +23,13 @@ interface Props {
 
 export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn, sameGender }: Props) {
   const { t, lang } = useI18n();
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setPhotos([]);
+    getMemberPhotos(team.id).then(rows => { if (!cancelled) setPhotos(rows); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [team.id, team.members]);
   const { profile } = useAuth();
   const approved = profile?.is_verified && profile.verification_status === 'approved';
   /**
@@ -74,6 +84,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
                 {labelSmoking(m.smoking)}
               </Badge>
             </div>
+            {photos.filter(photo => photo.member_order === m.member_order).map(photo => <MemberPhoto key={photo.id} path={photo.path} nickname={m.nickname} />)}
             <MemberTags taste={m.taste_tags} want={m.want_tags} compact />
           </li>
         ))}

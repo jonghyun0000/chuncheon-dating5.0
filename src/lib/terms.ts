@@ -8,7 +8,8 @@
  *       실제 분쟁 시 효력은 개별 사안과 관련 법령에 따라 달라질 수 있으므로,
  *       공개 운영 전에 법률 전문가의 검토를 받는 것을 권장합니다.
  */
-import { tr } from '@/i18n';
+import { tr, getLang } from '@/i18n';
+import { photoCopy } from '@/features/photos/photoCopy';
 
 export const TERMS_VERSION = 'v5.1';
 export const TERMS_EFFECTIVE_DATE = '2026-08-08';
@@ -29,7 +30,12 @@ export interface TermsDoc {
 }
 
 /** 현재 언어의 약관 3종 */
-export const getTermsDocs = (): TermsDoc[] => tr().terms.docs;
+export const getTermsDocs = (): TermsDoc[] => {
+  const copy = photoCopy(getLang());
+  return tr().terms.docs.map(doc => doc.key === 'privacy' ? {
+    ...doc, sections: [...doc.sections, { heading: copy.privacy, body: [copy.details, copy.notice, copy.consent] }],
+  } : doc);
+};
 
 export const getTermsDoc = (key: TermsDoc['key']): TermsDoc =>
   getTermsDocs().find((d) => d.key === key) ?? getTermsDocs()[0];

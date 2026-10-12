@@ -6,6 +6,8 @@ import { resolve,join,dirname,basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { randomBytes,createHmac } from 'node:crypto';
+import { createCleanupHandler } from '../supabase/functions/cleanup-member-photos/handler.mjs';
+import { cleanupMemberPhotos } from './cleanup-member-photos.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -37,6 +39,8 @@ try{
  result(await service.storage.createBucket('student-ids',{public:false,fileSizeLimit:5242880,allowedMimeTypes:['image/png','image/jpeg','image/webp','image/heic','image/heif']}),'create synthetic student ID bucket');
  const migrations=readdirSync(join(root,'supabase/migrations')).filter(n=>n.endsWith('.sql')).sort();
  for(const migration of migrations)sql('BEGIN;\n'+readFileSync(join(root,'supabase/migrations',migration),'utf8')+'\nCOMMIT;');report.migrations=migrations;
+ const runtimeSql=readFileSync(join(root,'supabase/operations/20261012005336_member_photo_cleanup_runtime.sql'),'utf8').replace('https://slddnhyvstfvobxxcazt.supabase.co/functions/v1/cleanup-member-photos','http://127.0.0.1:1/never-contact-hosted-projects');
+ sql('BEGIN;'+runtimeSql+"SELECT cron.unschedule('member-photo-retention-hourly'); COMMIT;");
  let ready=false;for(let i=0;i<10;i++){const ping=await client().rpc('get_home_stats');if(!ping.error){ready=true;break;}await new Promise(r=>setTimeout(r,300));}check(ready,'fresh local schema is reachable through real PostgREST');
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD0QAAAAASUVORK5CYII=','base64');
  async function signup(name,gender,makeProfile=true){const c=client();const password='Synthetic!'+randomBytes(16).toString('hex');const signup=result(await c.auth.signUp({email:name+'@example.test',password,options:{data:{username:name,name:'Synthetic '+name}}}),'real Auth signup');check(Boolean(signup.session&&signup.user),'real Auth issues a signed session');const id=signup.user.id;const path=id+'/synthetic.png';result(await c.storage.from('student-ids').upload(path,png,{contentType:'image/png'}),'real student image upload');const profile={id,username:name,name:'Synthetic '+name,gender,school:'강원대',contact_type:'kakao',contact_id:'synthetic-'+name,student_id_image_path:path,student_number:'20260001',agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()};if(makeProfile)result(await c.from('profiles').insert(profile),'profile creation after actual upload');return{c,id,path,profile,initialToken:signup.session.access_token};}
@@ -67,9 +71,18 @@ try{
  check(Boolean(deferredAuth.session),'photo-free signup immediately issues a real signed session');
  const deferredId=deferredAuth.user.id;
  result(await deferred.from('profiles').insert({id:deferredId,username:'qa_deferred',name:'Synthetic deferred',gender:'female',school:'한림대',student_number:'20260001',contact_type:'kakao',contact_id:'synthetic-deferred',student_id_image_path:null,agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()}),'profile without photo');
- const args={p_team_id:null,p_intro:'Synthetic private draft',p_team_size:2,p_members:members,p_members_consent_confirmed:true};
+ const photoMembers = [...members, { ...members[0], nickname:'Third optional photo' }];
+ const photoPaths=[];
+ for (const member of photoMembers) {
+   const photo=result(await deferred.rpc('reserve_member_photo',{p_consent:true}),'reserve real member photo');
+   result(await deferred.storage.from('member-photos').upload(photo.path,readFileSync(join(root,'e2e/fixtures/member-photo.jpg')),{contentType:'image/jpeg',cacheControl:'0'}),'upload actual member photo');
+   member.photo_id=photo.id; photoPaths.push(photo.path);
+ }
+ check(Boolean((await male.c.storage.from('member-photos').download(photoPaths[0])).error),'other user cannot download unattached photos');
+ check(Boolean((await deferred.storage.from('member-photos').upload(deferredId+'/unreserved.jpg',png,{contentType:'image/jpeg'})).error),'unreserved path upload denied by real Storage');
+ const args={p_team_id:null,p_intro:'Synthetic private draft',p_team_size:3,p_members:photoMembers,p_members_consent_confirmed:true};
  const draft=result(await deferred.rpc('save_my_team_draft',args),'real private draft save');
- check(Boolean(draft.id)&&draft.members.length===2,'pending account saves draft through real authenticated API');
+ check(Boolean(draft.id)&&draft.members.length===3,'pending account saves draft through real authenticated API');
  const owned=result(await deferred.from('team_drafts').select('*'),'reload private draft');check(owned.length===1,'real RLS lets owner reload private draft');
  check(result(await male.c.from('team_drafts').select('*'),'foreign draft isolation').length===0,'real RLS hides draft contacts from other members');
  check(Boolean((await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id})).error),'real API blocks pending publication');
@@ -82,9 +95,35 @@ try{
  check(result(await male.c.rpc('get_home_teams'),'pre-publish browsing').every(t=>t.owner_id!==deferredId),'admin approval alone does not expose private draft');
  const published=result(await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id}),'publish approved draft');
  check(Boolean(published.id)&&result(await deferred.from('team_drafts').select('*'),'draft after publish').length===0,'approved real API publishes atomically and removes draft');
- const deferredHome=result(await male.c.rpc('get_home_teams'),'post-publish browsing');check(deferredHome.some(t=>t.id===published.id&&t.members.length===2&&!('contact_id' in t.members[0])),'approved published team appears with contact-free roster');
+ const deferredHome=result(await male.c.rpc('get_home_teams'),'post-publish browsing');check(deferredHome.some(t=>t.id===published.id&&t.members.length===3&&!('contact_id' in t.members[0])),'approved published team appears with contact-free roster');
  check(result(await male.c.from('team_members').select('*').eq('team_id',published.id),'private published roster').length===0,'approval does not expose member contacts to another user');
+ const visiblePhotos=result(await male.c.rpc('get_member_photos',{p_team_id:published.id}),'public photo references');
+ check(visiblePhotos.length===3,'published team exposes exactly one optional photo per member');
+ check(result(await male.c.from('member_photos').select('*'),'private archive isolation').length===0,'public viewer cannot read photo student-number snapshots');
+ for (const photo of visiblePhotos) result(await male.c.storage.from('member-photos').download(photo.path),'authorized real photo download');
+ check(true,'all three photos downloadable through authenticated Storage');
+ check(result(await low.from('member_photos').select('*'),'archive MFA isolation').length===0,'AAL1 administrator cannot inspect photo archive');
+ check(result(await admin.c.from('member_photos').select('*'),'admin archive').length===3,'AAL2 administrator can inspect all photo snapshots');
  result(await admin.c.from('profiles').update({is_verified:false,verification_status:'rejected'}).eq('id',deferredId),'revoke deferred verification');
+ check(Boolean((await male.c.storage.from('member-photos').download(photoPaths[0])).error),'revocation immediately denies new photo downloads');
+ result(await deferred.from('teams').delete().eq('id',published.id),'delete synthetic photo team');
+ const archived=result(await admin.c.from('member_photos').select('*'),'archive survives team deletion');
+ check(archived.length===3&&archived.every(p=>p.archived_at&&p.expires_at),'team deletion retains three administrator-only archive records');
+ check(Boolean((await deferred.storage.from('member-photos').download(photoPaths[0])).error),'deleted team photos hidden even from original owner');
+ result(await admin.c.storage.from('member-photos').download(photoPaths[0]),'admin reads deleted-team archive');
+ result(await admin.c.rpc('request_member_photo_deletion',{p_id:archived[0].id}),'admin photo deletion request');
+ check(Boolean((await admin.c.storage.from('member-photos').download(photoPaths[0])).error),'deletion request immediately blocks new archive downloads');
+ sql("UPDATE public.member_photos SET expires_at=now()-interval '1 second';");
+ const scheduler=createCleanupHandler(service);
+ check((await scheduler(new Request('http://local.test',{method:'POST',headers:{authorization:'Bearer '+'0'.repeat(64)}}))).status===401,'real Vault rejects invalid scheduler token');
+ check(Boolean((await deferred.rpc('authorize_member_photo_cleanup',{p_token:'0'.repeat(64)})).error),'ordinary user cannot call scheduler authentication RPC');
+ const schedulerToken=sql("SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name='member_photo_cleanup_token';");
+ const cleanupResponse=await scheduler(new Request('http://local.test',{method:'POST',headers:{authorization:'Bearer '+schedulerToken}}));
+ check(cleanupResponse.status===200,'real Vault authorizes scheduler and worker completes');
+ const cleanup=await cleanupResponse.json();
+ check(cleanup.complete&&cleanup.removed===3,'real hourly cleanup removes all expired Storage bytes and metadata');
+ check(result(await service.storage.from('member-photos').list(deferredId),'remaining expired files').length===0,'expired photos physically removed from real Storage');
+ check(result(await service.from('member_photos').select('id'),'remaining expired records').length===0,'expired photo metadata removed after Storage succeeds');
  check(result(await male.c.rpc('get_home_teams'),'revoked team browsing').every(t=>t.id!==published.id),'rejected team disappears from real home API');
  check(Boolean((await client().rpc('purge_user_content',{p_uid:male.id})).error),'anonymous real RPC purge is denied');
  check(Boolean((await admin.c.rpc('validate_account_deletion',{p_user_id:admin.id})).error),'admin self-deletion preflight is denied before files are touched');

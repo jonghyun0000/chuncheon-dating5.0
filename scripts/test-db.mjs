@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = join(root, 'supabase/tests');
 const baseline = join(root, 'supabase/baseline.sql');
 const migrationDir = join(root, 'supabase/migrations');
-const cases = ['regressions.sql', 'deferred-verification.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
+const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
   const [header, ...lines] = part.split('\n');
   const [id, mode, ...label] = header.trim().split(' ');
   return { id, mode, label: label.join(' '), sql: lines.join('\n') };

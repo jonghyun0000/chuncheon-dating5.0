@@ -62,6 +62,8 @@ export interface Team {
 }
 
 export interface TeamMember {
+  photo_id?: string | null;
+  photo_path?: string;
   id: string;
   team_id: string;
   member_order: 1 | 2 | 3 | 4;
