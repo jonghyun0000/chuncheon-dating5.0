@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n';
 import { koMessage } from '@/utils/errors';
 import { STUDENT_ID_ACCEPT, studentIdFileMetadata } from './studentIdFile';
 import { authMessages } from './auth.messages';
+import { journeyCopy } from '@/features/teams/journeyCopy';
 import { verificationCopy } from './verificationCopy';
 import { submitStudentId } from './verification.api';
 
@@ -14,6 +15,7 @@ export default function VerificationPage() {
   const { profile, refreshProfile } = useAuth();
   const { t, lang } = useI18n();
   const v = verificationCopy(lang);
+  const j = journeyCopy(lang);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function VerificationPage() {
       <section className="card space-y-4 p-5">
         <h1 className="font-display text-xl">{v.title}</h1>
         <p className="text-sm font-semibold">{label}</p>
-        <p className="text-sm leading-relaxed text-zinc-600">{v.note}</p>
+        <p className="text-sm leading-relaxed text-zinc-600">{profile?.student_id_image_path && profile.verification_status === 'pending' ? j.waiting : v.note}</p>
         {!approved && <form className="space-y-4" onSubmit={async (e) => {
           e.preventDefault();
           if (!file) { setError(v.needPhoto); return; }

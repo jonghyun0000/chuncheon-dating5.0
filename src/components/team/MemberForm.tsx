@@ -11,13 +11,15 @@ import type { MemberInput } from '@/features/teams/teams.types';
 
 interface Props {
   index: number;
+  fieldError?: { id: string; message: string } | null;
   onPhotoBusy: (busy: boolean) => void;
   value: MemberInput;
   onChange: (v: MemberInput) => void;
 }
 
-export default function MemberForm({ index, value, onChange, onPhotoBusy }: Props) {
+export default function MemberForm({ index, value, onChange, onPhotoBusy, fieldError }: Props) {
   const { t } = useI18n();
+  const field = (name: string) => ({ id: `member-${index}-${name}`, error: fieldError?.id === `member-${index}-${name}` ? fieldError.message : undefined });
   const set = <K extends keyof MemberInput>(k: K, v: MemberInput[K]) =>
     onChange({ ...value, [k]: v });
 
@@ -28,8 +30,9 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
         {SCHOOLS.map((s) => <option key={s} value={s}>{schoolLabel(s)}</option>)}
       </Select>
       <div className="grid grid-cols-2 gap-3">
-        <Input label={t.memberForm.department} maxLength={60} value={value.department} onChange={(e) => set('department', e.target.value)} />
+        <Input {...field('department')} label={t.memberForm.department} maxLength={60} value={value.department} onChange={(e) => set('department', e.target.value)} />
         <Input
+          {...field('student_number')}
           label={t.memberForm.studentNumber}
           placeholder={t.validators.studentNumberPlaceholder}
           inputMode="numeric"
@@ -39,7 +42,7 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
         />
       </div>
       <p className="-mt-1 text-xs text-zinc-400">{t.validators.studentNumberHint} {t.memberForm.publicNote}</p>
-      <Input label={t.memberForm.nickname} maxLength={30} value={value.nickname} onChange={(e) => set('nickname', e.target.value)} />
+      <Input {...field('nickname')} label={t.memberForm.nickname} maxLength={30} value={value.nickname} onChange={(e) => set('nickname', e.target.value)} />
       <PhotoInput pending={value.photo_pending} nickname={value.nickname} onBusy={onPhotoBusy}
         photo={value.photo_id && value.photo_path ? { id: value.photo_id, path: value.photo_path, member_order: index } : undefined}
         onChange={pending => onChange({ ...value, photo_pending: pending, photo_id: null, photo_path: undefined })} />
@@ -49,6 +52,8 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
       </Select>
 
       {/* 태그 — 카드에 공개되는 정보입니다 */}
+      <div id={`member-${index}-taste_tags`} tabIndex={-1} aria-describedby={field('taste_tags').error ? `member-${index}-taste-error` : undefined}>
+      {field('taste_tags').error && <p id={`member-${index}-taste-error`} className="text-xs text-rose-600">{field('taste_tags').error}</p>}
       <TagPicker
         label={t.memberForm.tasteTags}
         options={TASTE_TAGS}
@@ -59,6 +64,7 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
         required
         hint={t.memberForm.tasteTagsHint}
       />
+      </div>
       <TagPicker
         label={t.memberForm.wantTags}
         options={WANT_TAGS}
@@ -76,6 +82,7 @@ export default function MemberForm({ index, value, onChange, onPhotoBusy }: Prop
         </Select>
         <div>
           <Input
+            {...field('contact_id')}
             label={value.contact_type === 'phone' ? t.register.phone : t.register.kakaoId}
             placeholder={value.contact_type === 'phone' ? t.validators.phonePlaceholder : t.register.kakaoId}
             inputMode={value.contact_type === 'phone' ? 'tel' : undefined}

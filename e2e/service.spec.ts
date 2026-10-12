@@ -3,12 +3,19 @@ import { readFileSync, mkdirSync } from 'node:fs';
 
 
 
+// Leave dirty forms explicitly so native beforeunload dialogs cannot strand browser teardown.
+test.afterEach(async ({ page }) => {
+  page.removeAllListeners('dialog');
+  page.on('dialog', dialog => dialog.accept().catch(() => {}));
+  if (!page.isClosed()) await page.goto('about:blank', {timeout:5000});
+});
+
 const uid = '00000000-0000-4000-8000-000000000001';
 const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@chuncheongating.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
 const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', member_order: 1, nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
 
-async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean } = {}) {
+async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean; matching?: boolean } = {}) {
   // No request can reach a real Supabase project, even if the build accidentally points to one.
   await page.route('**/*.supabase.co/**', route => route.abort());
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -28,6 +35,8 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   const storedPhotos: any[]=[];
   let published: any = null;
   const writes: string[] = [];
+  let matchStatus = 'pending';
+  let matchSent = false;
   await page.route((process.env.CC_TEST_API_ORIGIN ?? 'https://test.invalid') + '/**', async route => {
     if (!/\/(auth|rest|storage)\/v1\//.test(new URL(route.request().url()).pathname)) { await route.continue(); return; }
     const url = new URL(route.request().url());
@@ -41,7 +50,11 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
       else body = options.missingProfile || !registered ? [] : [currentProfile];
     }
     else if (url.pathname.endsWith('/team_drafts')) body = currentDraft ? [currentDraft] : [];
-    else if (url.pathname.endsWith('/teams')) body = published && url.searchParams.get('status') !== 'eq.matched' ? [published] : [];
+    else if (url.pathname.endsWith('/teams')) body = options.matching && url.searchParams.get('id') === `eq.${opponent.id}` ? [opponent] : published && url.searchParams.get('status') !== 'eq.matched' ? [published] : [];
+    else if (options.matching && url.pathname.endsWith('/match_requests')) {
+      if (route.request().method() === 'POST') { matchSent = true; writes.push('match'); body = null; }
+      else body = matchSent && !url.searchParams.has('to_team_id') ? [{id:'request-fixture',from_team_id:published.id,to_team_id:opponent.id,status:matchStatus,created_at:'2026-10-12T00:00:00Z',from_team:published,to_team:opponent}] : [];
+    }
     else if (url.pathname.endsWith('/team_members')) body = published ? published.members ?? [] : [];
     else if (url.pathname.endsWith('/rpc/is_username_available')) body = true;
     else if (url.pathname.endsWith('/rpc/save_my_team_draft')) {
@@ -77,7 +90,7 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
     }
     await route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' }, body: JSON.stringify(body) });
   });
-  return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; }, writes };
+  return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; }, acceptMatch: () => { matchStatus = 'accepted'; }, writes };
 }
 
 test('mobile landing exposes its first action and navigation works', async ({ page }) => {
@@ -168,6 +181,8 @@ test('enrolled administrator must verify before viewing admin content', async ({
 test('administrator can open optional authenticator setup without changing enrollment', async ({ page }) => {
   await mockApi(page, { signedIn: true, admin: true });
   const writes: string[] = [];
+  let matchStatus = 'pending';
+  let matchSent = false;
   page.on('request', request => { if (request.url().includes('/auth/v1/factors') && request.method() !== 'GET') writes.push(request.url()); });
   await page.goto('/admin/security');
   await expect(page.getByRole('button', { name: '인증 앱 연결', exact: true })).toBeVisible();
@@ -411,4 +426,96 @@ test('administrator can search and inspect deleted-team photo archive', async ({
   if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/member-photos',{recursive:true}); await page.screenshot({path:'docs/validation/member-photos/admin-archive.png',fullPage:true}); }
   await page.getByRole('button',{name:'사진팀원 사진 확대',exact:true}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+
+test('unsaved team entries survive cancelled navigation and cancel editing', async ({ page }) => {
+  await mockApi(page, {signedIn:true,unverified:true,draft:true});
+  await page.goto('/team');
+  await page.getByRole('button',{name:'팀 수정',exact:true}).click();
+  await page.locator('#team-intro').fill('저장 전 가상 소개글');
+  await page.locator('nav').getByRole('link',{name:'홈',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('저장하지 않고 나가면');
+  if(process.env.CC_ONBOARDING_SCREENSHOTS) { mkdirSync('docs/validation/onboarding',{recursive:true}); await page.screenshot({path:'docs/validation/onboarding/unsaved.png',animations:'disabled'}); }
+  await page.getByRole('button',{name:'계속 작성하기',exact:true}).click();
+  await expect(page.locator('#team-intro')).toHaveValue('저장 전 가상 소개글');
+  const prevented = await page.evaluate(() => { const event=new Event('beforeunload',{cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented; });
+  expect(prevented).toBe(true);
+  await page.getByRole('button',{name:'취소',exact:true}).click();
+  await page.getByRole('button',{name:'계속 작성하기',exact:true}).click();
+  await expect(page.locator('#team-intro')).toHaveValue('저장 전 가상 소개글');
+  await page.locator('nav').getByRole('link',{name:'홈',exact:true}).click();
+  await page.getByRole('button',{name:'저장하지 않고 나가기',exact:true}).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test('invalid member input is explained inline and receives focus', async ({ page }) => {
+  await mockApi(page, {signedIn:true,unverified:true,draft:true});
+  await page.goto('/team');
+  await page.getByRole('button',{name:'팀 수정',exact:true}).click();
+  await page.locator('#member-1-student_number').fill('abc');
+  await page.getByRole('button',{name:'팀 초안 저장',exact:true}).click();
+  await expect(page.locator('#member-1-student_number')).toBeFocused();
+  await expect(page.locator('#member-1-student_number')).toHaveAttribute('aria-invalid','true');
+  await expect(page.locator('#member-1-student_number-description')).toBeVisible();
+  if(process.env.CC_ONBOARDING_SCREENSHOTS) { mkdirSync('docs/validation/onboarding',{recursive:true}); await page.screenshot({path:'docs/validation/onboarding/inline-error.png',animations:'disabled'}); }
+  await page.locator('#member-1-student_number').fill('20260001');
+  await expect(page.locator('#member-1-student_number')).not.toHaveAttribute('aria-invalid','true');
+  page.on('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByText('비공개 초안',{exact:true})).toBeVisible();
+  await page.locator('nav').getByRole('link',{name:'홈',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('pending verification points to review status and approved draft explains publication', async ({ page }) => {
+  const api=await mockApi(page,{signedIn:true,unverified:true,draft:true});
+  await page.goto('/me/verification');
+  await page.getByLabel('학생증 사진').setInputFiles({name:'student.jpg',mimeType:'image/jpeg',buffer:Buffer.from([0xff,0xd8,0xff,0xe0])});
+  await page.getByRole('button',{name:'학생증 제출',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('학생증이 제출');
+  await page.goto('/team');
+  await expect(page.getByRole('link',{name:/심사 상태 확인/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/학생증 다시 제출/})).toHaveCount(0);
+  api.approve(); await page.reload();
+  await expect(page.getByRole('region',{name:'현재 단계'})).toContainText('팀 공개하기');
+  page.on('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'팀 공개하기',exact:true}).click();
+  await expect(page.getByRole('region',{name:'현재 단계'})).toContainText('팀이 공개되었어요');
+  await expect(page.getByRole('button',{name:'상대 팀 둘러보기',exact:true})).toBeVisible();
+});
+
+
+test('approved draft proceeds to first request and result without exposing contacts', async ({ page }) => {
+  const api=await mockApi(page,{signedIn:true,unverified:true,draft:true,matching:true});
+  page.on('dialog',dialog=>dialog.accept());
+  await page.goto('/team');
+  await expect(page.getByRole('button',{name:'관리자 승인 후 가능',exact:true})).toBeDisabled();
+  api.approve(); await page.reload();
+  await page.getByRole('button',{name:'팀 공개하기',exact:true}).click();
+  await page.getByRole('button',{name:'상대 팀 둘러보기',exact:true}).click();
+  await page.getByRole('button',{name:'신청하기',exact:true}).click();
+  await expect.poll(()=>api.writes).toContain('match');
+  await page.goto('/requests');
+  await page.getByRole('button',{name:/보낸 신청/}).click();
+  await expect(page.getByText('대기 중',{exact:true})).toBeVisible();
+  await expect(page.getByText('01000000000',{exact:true})).toHaveCount(0);
+  api.acceptMatch(); await page.reload();
+  await page.getByRole('button',{name:/매칭완료/}).click();
+  await expect(page.getByText('가상 상대 팀',{exact:false})).toBeVisible();
+});
+
+test('browser back keeps unsaved team after staying and continues after discard', async ({ page }) => {
+  await mockApi(page,{signedIn:true,unverified:true,draft:true});
+  await page.goto('/');
+  await page.locator('nav').getByRole('link',{name:'팀등록',exact:true}).click();
+  await page.getByRole('button',{name:'팀 수정',exact:true}).click();
+  await page.locator('#team-intro').fill('뒤로가기 보존 확인');
+  await page.evaluate(()=>history.back());
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button',{name:'계속 작성하기',exact:true}).click();
+  await expect(page.locator('#team-intro')).toHaveValue('뒤로가기 보존 확인');
+  await page.evaluate(()=>history.back());
+  await page.getByRole('button',{name:'저장하지 않고 나가기',exact:true}).click();
+  await expect(page).toHaveURL(/\/$/);
 });
