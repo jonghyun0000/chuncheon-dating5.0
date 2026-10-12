@@ -39,7 +39,7 @@ try{
  result(await service.storage.createBucket('student-ids',{public:false,fileSizeLimit:5242880,allowedMimeTypes:['image/png','image/jpeg','image/webp','image/heic','image/heif']}),'create synthetic student ID bucket');
  const migrations=readdirSync(join(root,'supabase/migrations')).filter(n=>n.endsWith('.sql')).sort();
  for(const migration of migrations)sql('BEGIN;\n'+readFileSync(join(root,'supabase/migrations',migration),'utf8')+'\nCOMMIT;');report.migrations=migrations;
- const runtimeSql=readFileSync(join(root,'supabase/operations/20261012005336_member_photo_cleanup_runtime.sql'),'utf8').replace('https://slddnhyvstfvobxxcazt.supabase.co/functions/v1/cleanup-member-photos','http://127.0.0.1:1/never-contact-hosted-projects');
+ const runtimeSql=readFileSync(join(root,'supabase/operations/20261012010153_member_photo_cleanup_runtime.sql'),'utf8').replace('https://slddnhyvstfvobxxcazt.supabase.co/functions/v1/cleanup-member-photos','http://127.0.0.1:1/never-contact-hosted-projects');
  sql('BEGIN;'+runtimeSql+"SELECT cron.unschedule('member-photo-retention-hourly'); COMMIT;");
  let ready=false;for(let i=0;i<10;i++){const ping=await client().rpc('get_home_stats');if(!ping.error){ready=true;break;}await new Promise(r=>setTimeout(r,300));}check(ready,'fresh local schema is reachable through real PostgREST');
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD0QAAAAASUVORK5CYII=','base64');

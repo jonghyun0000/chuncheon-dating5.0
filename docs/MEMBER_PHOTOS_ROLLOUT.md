@@ -58,3 +58,11 @@
 - 정리 작업 장애 시 `cron.job_run_details`, `net._http_response`의 상태/응답만 확인한다. 요청 헤더와 Vault 값은 출력하지 않는다. `SELECT public.enqueue_member_photo_cleanup();`로 안전하게 재시도 가능.
 - 삭제 작업은 Storage 오류 시 메타데이터를 보존하며 재실행 가능하다. 실패로 24시간 처리 목표를 넘기지 않도록 운영 모니터링이 필요하다.
 - DB 백업은 Storage 파일 바이트 복구를 보장하지 않는다. 만료 후 의도적으로 삭제한 사진을 무조건 복원할 수 있다고 안내하지 않는다.
+
+## 운영 백엔드 반영 기록 (2026-10-12 KST)
+
+- core migration `20261012010137_member_photos`와 runtime migration `20261012010153_member_photo_cleanup_runtime` 적용 완료. 검증한 SQL 내용은 동일하며 파일명은 실제 적용 버전에 맞췄다.
+- Edge Function `cleanup-member-photos` v1 ACTIVE. Vault 인증을 사용하는 예약 작업 활성화. 실제 예약 경로 호출 HTTP 200, 빈 큐 `removed=0, complete=true` 확인.
+- 인증 없는 호출과 잘못된 토큰은 HTTP 401.
+- 기존 profiles 141 / teams 30 / team_members 51 / match_requests 22 / 학생증 파일 139개 유지. 새 사진 0개.
+- 앱 운영 배포는 GitHub 최종 검사 완료 후 진행.
