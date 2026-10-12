@@ -42,7 +42,7 @@
       "total": 8
     }
   },
-  "migration_file": "supabase/migrations/20261011230431_deferred_student_verification.sql",
+  "migration_file": "supabase/migrations/20261012000030_deferred_student_verification.sql",
   "migration_sha256": "995cecb94d08e38f90d52db964f8c21b0a2e2f2d5aba04dc2c1205a99f4ec20c",
   "remaining": "User approval, backup/deployment verification, production rollout and post-rollout smoke tests"
 }

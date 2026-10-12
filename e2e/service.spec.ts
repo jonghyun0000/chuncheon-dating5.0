@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 
+
 const uid = '00000000-0000-4000-8000-000000000001';
 const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@chuncheongating.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
@@ -254,13 +255,14 @@ test('deferred verification submits a photo and displays pending review', async 
 });
 
 
-test('patched build compiler preserves mobile and desktop signup styles', async ({ page, browserName }) => {
+test('patched build compiler preserves mobile and desktop signup styles', async ({ page }) => {
   await mockApi(page);
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/register');
     await expect(page.getByRole('button', { name: '가입하기', exact: true })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
+    await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
     const styles = () => page.evaluate(() => {
       const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'borderRadius', 'paddingTop', 'paddingLeft', 'width'];
       return ['.card', '.input', '.btn-primary', 'h1'].map(selector => {
@@ -270,20 +272,15 @@ test('patched build compiler preserves mobile and desktop signup styles', async 
       });
     });
     const updated = await styles();
-    await page.locator('link[rel=stylesheet]').evaluateAll(links => links.forEach(link => (link as HTMLLinkElement).disabled = true));
+    await page.locator('link[rel=stylesheet][href*="/assets/"]').evaluateAll(links => links.forEach(link => (link as HTMLLinkElement).disabled = true));
     await page.addStyleTag({ content: readFileSync('e2e/fixtures/legacy-ui.css', 'utf8') });
     const previous = await styles();
     for (let i = 0; i < previous.length; i++) {
-      // Fluid flex widths can differ by subpixel rounding across compilers.
-      expect(parseFloat(updated[i].width as string)).toBeCloseTo(parseFloat(previous[i].width as string), 0);
+      // Font and flex calculations can differ by less than one CSS pixel across engines.
+      expect(Math.abs(parseFloat(updated[i].width as string) - parseFloat(previous[i].width as string))).toBeLessThan(1);
       const { width: oldWidth, ...oldStyle } = previous[i];
       const { width: newWidth, ...newStyle } = updated[i];
-      if (browserName === 'webkit' && i === 2) {
-        expect(newStyle).toMatchObject({ backgroundColor: 'rgb(233, 78, 133)', color: 'rgb(255, 255, 255)' });
-        const { color: oldColor, backgroundColor: oldBg, ...oldControl } = oldStyle;
-        const { color: newColor, backgroundColor: newBg, ...newControl } = newStyle;
-        expect(newControl).toEqual(oldControl);
-      } else expect(newStyle).toEqual(oldStyle);
+      expect(newStyle).toEqual(oldStyle);
     }
   }
 });

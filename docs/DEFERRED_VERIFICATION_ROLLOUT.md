@@ -36,7 +36,7 @@
 - 관리자 승인 취소 시 공개 모집 목록에서 즉시 제외하고 새로운 매칭 신청·수락을 차단한다.
 - 신규 API는 로그인·DB 소유권·활성 상태를 확인한다. 사용자 수정 가능한 Auth metadata로 권한을 판단하지 않는다.
 
-변경 SQL 전체: ../supabase/migrations/20261011230431_deferred_student_verification.sql.
+변경 SQL 전체: ../supabase/migrations/20261012000030_deferred_student_verification.sql.
 CLI가 생성한 버전은 UTC 기준이며 한국 시간으로 2026-10-12 생성이다.
 운영에는 **새 migration만 하나의 트랜잭션으로 적용**한다.
 baseline.sql, 테스트 SQL, 테스트용 Auth/Storage 초기화 스크립트는 운영에 실행하지 않는다.
@@ -108,7 +108,7 @@ match_requests 22, student-ids 객체 139개였다. 개별 회원 정보·파일
 
 GitHub main은 application/database 검사 성공을 필수로 요구한다. 기존 개발 의존성의 취약점 때문에 application 검사가 실패하여 보호 규칙을 유지한 채 수정했다.
 Tailwind와 PostCSS 연동을 4.3.3으로 고정하고 source-map-js를 수정 버전 1.2.2로 고정했다. 기존 색상 팔레트, 입력창·버튼 크기, 폰트, 테두리와 포커스 표시를 보존하도록 스타일을 조정했다.
-모바일·데스크톱 Chrome에서 주요 폼의 실제 계산된 스타일을 이전 빌드 CSS와 비교한다. Safari의 기본 버튼 색상이 브랜드 색상을 덮는 동작은 정상 브랜드 색상으로 정규화한다. Safari에서 약관 모달을 닫을 때 원래 버튼으로 포커스를 돌려주도록 수정했다.
+모바일·데스크톱 Chrome에서 주요 폼의 실제 계산된 스타일을 이전 빌드 CSS와 비교한다. 폰트와 애니메이션 전환에 의한 비교 오차를 제거하며, 엔진별 유동 너비 차이는 1 CSS 픽셀 미만만 허용한다. Safari에서 약관 모달을 닫을 때 원래 버튼으로 포커스를 돌려주도록 수정했다.
 이 업데이트는 Safari 16.4+, Chrome 111+, Firefox 128+의 현대 브라우저를 대상으로 한다. 구형 브라우저까지의 동작은 이 검증 범위가 아니다.
 공식 변경사항: https://tailwindcss.com/docs/upgrade-guide.
 최종 npm audit 결과는 경고 0건이다. 최초 준비 시점의 8건 기록은 과거 검증 자료로 보존한다. 새 배포 검사 결과와 운영 적용 기록은 별도 DEPLOYMENT_DEFERRED_VERIFICATION.md에 기록한다.

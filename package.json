@@ -16,7 +16,8 @@
     "test:integration:local": "node scripts/test-supabase-local.mjs",
     "test:production": "node scripts/smoke-production.mjs",
     "check": "npm run typecheck && npm test && npm run build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:webkit": "CC_TEST_API_ORIGIN=http://127.0.0.1:5181 playwright test --config=playwright.webkit.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.105.1",
