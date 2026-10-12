@@ -27,6 +27,7 @@ const items: Item[] = [
   { to: '/admin/notifications', label: (t) => t.admin.navNotifications, Icon: BellRing,        badge: true },
   { to: '/admin/users',        label: (t) => t.admin.navUsers,         Icon: Users },
   { to: '/admin/verification', label: (t) => t.admin.navVerification,  Icon: IdCard },
+  { to: '/admin/photos',       label: () => '팀원 사진', Icon: IdCard },
   { to: '/admin/teams',        label: (t) => t.admin.navTeams,         Icon: UsersRound },
   { to: '/admin/reports',      label: (t) => t.admin.navReports,       Icon: MessageSquareWarning },
   { to: '/admin/reviews',      label: (t) => t.admin.navReviews,       Icon: Sparkles },
@@ -88,7 +89,7 @@ export function AdminMobileNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-100 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-      <ul className="grid grid-cols-7">
+      <ul className="grid grid-cols-4">
         {items.map(({ to, label, Icon, end, badge }) => (
           <li key={to}>
             <NavLink

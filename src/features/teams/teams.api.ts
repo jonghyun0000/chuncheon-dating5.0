@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { getMemberPhotos } from '@/features/photos/photos.api';
 import { tr } from '@/i18n';
 import type { Team, TeamMember } from '@/types/database.types';
 import type { TeamRegisterInput, EditableTeam, TeamDraftRow } from './teams.types';
@@ -17,13 +18,26 @@ function draftResult(draft: TeamDraftRow): { team: EditableTeam; members: TeamMe
 /** Published teams retain their existing API; drafts stay in an owner-only table. */
 export async function fetchMyEditableTeam(): Promise<{ team: EditableTeam | null; members: TeamMember[] }> {
   const active = await fetchMyActiveTeam();
-  if (active.team) return active;
+  if (active.team) {
+    const photos = await getMemberPhotos(active.team.id);
+    return { ...active, members: active.members.map(m => {
+      const photo = photos.find(p => p.member_order === m.member_order);
+      return { ...m, photo_id: photo?.id, photo_path: photo?.path };
+    }) };
+  }
   const { data: u, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
   if (!u.user) return { team: null, members: [] };
   const { data, error } = await supabase.from('team_drafts').select('*').eq('owner_id', u.user.id).maybeSingle();
   if (error) throw error;
-  return data ? draftResult(data as TeamDraftRow) : { team: null, members: [] };
+  if (!data) return { team: null, members: [] };
+  const result = draftResult(data as TeamDraftRow);
+  const photos = await getMemberPhotos(result.team.id);
+  result.members = result.members.map(m => {
+    const photo = photos.find(p => p.member_order === m.member_order);
+    return { ...m, photo_id: photo?.id, photo_path: photo?.path };
+  });
+  return result;
 }
 
 export async function publishTeamDraft(id: string): Promise<void> {
@@ -130,6 +144,7 @@ async function saveTeam(teamId: string | null, input: TeamRegisterInput, draft =
     p_members_consent_confirmed: true,
     p_members: input.members.map((m, index) => ({
       member_order: index + 1,
+      photo_id: m.photo_id ?? null,
       school: m.school,
       department: m.department.trim(),
       student_number: m.student_number.trim(),

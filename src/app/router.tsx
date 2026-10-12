@@ -31,6 +31,7 @@ const AdminDashboardPage = lazy(() => import('@/features/admin/AdminDashboardPag
 const AdminNotificationsPage = lazy(() => import('@/features/admin/AdminNotificationsPage'));
 const AdminUsersPage = lazy(() => import('@/features/admin/AdminUsersPage'));
 const AdminVerificationPage = lazy(() => import('@/features/admin/AdminVerificationPage'));
+const AdminPhotosPage = lazy(() => import('@/features/admin/AdminPhotosPage'));
 const AdminTeamsPage = lazy(() => import('@/features/admin/AdminTeamsPage'));
 const AdminReportsPage = lazy(() => import('@/features/admin/AdminReportsPage'));
 const AdminReviewsPage = lazy(() => import('@/features/admin/AdminReviewsPage'));
@@ -79,6 +80,7 @@ export default function AppRouter() {
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="verification" element={<AdminVerificationPage />} />
+        <Route path="photos" element={<AdminPhotosPage />} />
         <Route path="teams" element={<AdminTeamsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="reviews" element={<AdminReviewsPage />} />

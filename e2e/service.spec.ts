@@ -1,14 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 
 
 
 const uid = '00000000-0000-4000-8000-000000000001';
 const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fixture@chuncheongating.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
-const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
+const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', member_order: 1, nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
 
-async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean } = {}) {
+async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean } = {}) {
   // No request can reach a real Supabase project, even if the build accidentally points to one.
   await page.route('**/*.supabase.co/**', route => route.abort());
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -20,6 +20,12 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   let currentProfile = { ...profile, role: options.admin ? 'admin' : 'user', is_verified: !options.unverified, verification_status: options.unverified ? 'pending' : 'approved', student_id_image_path: null as string | null };
   let registered = !options.signup;
   let currentDraft: any = options.draft ? { id: 'draft-fixture', owner_id: uid, gender: 'male', intro: '비공개 가상 팀', team_size: 1, members: [{ school: '강원대', department: '컴퓨터공학과', student_number: '20260001', nickname: '가상팀원', smoking: false, contact_type: 'phone', contact_id: '01000000000', taste_tags: ['cafe'], want_tags: [] }], members_consent_confirmed: true, members_consent_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' } : null;
+  if (options.photos && currentDraft) {
+    currentDraft.team_size = 3;
+    currentDraft.members = [1,2,3].map(n => ({ ...currentDraft.members[0], nickname: '사진팀원'+n }));
+  }
+  let photoCounter=0;
+  const storedPhotos: any[]=[];
   let published: any = null;
   const writes: string[] = [];
   await page.route((process.env.CC_TEST_API_ORIGIN ?? 'https://test.invalid') + '/**', async route => {
@@ -48,6 +54,21 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
       published = { ...currentDraft, status: 'active', matched_at: null }; currentDraft = null; body = published;
     }
     else if (url.pathname.endsWith('/rpc/submit_student_id')) { currentProfile.student_id_image_path = route.request().postDataJSON().p_path; body = null; }
+    else if (url.pathname.endsWith('/rpc/reserve_member_photo')) {
+      photoCounter++;
+      body={id:'photo-'+photoCounter,path:uid+'/photo-'+photoCounter+'.jpg'};
+      storedPhotos.push(body);
+    }
+    else if (url.pathname.endsWith('/rpc/get_member_photos')) {
+      if (currentDraft) body=currentDraft.members.flatMap((m: any,i: number)=>m.photo_id ? [{...storedPhotos.find(p=>p.id===m.photo_id),member_order:i+1}] : []);
+      else body=options.photos ? [{id:'public-photo',path:uid+'/public-photo.jpg',member_order:1}] : [];
+    }
+    else if (url.pathname.endsWith('/member_photos')) body=options.photos ? [{id:'archive-photo',path:uid+'/archive.jpg',member_order:1,school:'강원대',department:'컴퓨터공학과',student_number:'20260001',gender:'male',display_name:'사진팀원',nickname:'사진팀원',created_at:'2026-10-12T00:00:00Z',archived_at:'2026-10-12T00:00:00Z',expires_at:'2027-01-10T00:00:00Z'}] : [];
+    else if (url.pathname.includes('/storage/v1/object/') && url.pathname.includes('member-photos')) {
+      if (route.request().method()==='GET') { await route.fulfill({ status:200,contentType:'image/jpeg',headers:{'access-control-allow-origin':'*'},body:readFileSync(new URL('./fixtures/member-photo.jpg',import.meta.url)) }); return; }
+      if(options.uploadFails) {status=503;body={message:'Synthetic upload failure'};}
+      else body={Key:'synthetic-photo-upload'};
+    }
     else if (url.pathname.includes('/storage/v1/object/')) body = { Key: 'synthetic-upload' };
     else if (url.pathname.endsWith('/rpc/get_home_stats')) body = { total_teams: 1, matched_count: 0, total_users: 2 };
     else if (url.pathname.endsWith('/rpc/get_home_teams')) {
@@ -283,4 +304,67 @@ test('patched build compiler preserves mobile and desktop signup styles', async 
       expect(newStyle).toEqual(oldStyle);
     }
   }
+});
+
+
+test('three optional member photos survive draft save and reload', async ({ page }) => {
+  await mockApi(page, { signedIn: true, unverified: true, draft: true, photos: true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/team');
+  await page.getByRole('button', { name: '팀 수정', exact: true }).click();
+  const files=page.locator('input[type=file]');
+  await expect(files).toHaveCount(3);
+  await expect(files.first()).toBeDisabled();
+  const consents=page.getByRole('checkbox', {name:/사진 속 당사자/});
+  for(let i=0;i<3;i++) {
+    await consents.nth(i).check();
+    await files.nth(i).setInputFiles('e2e/fixtures/member-photo.jpg');
+    await expect(page.getByRole('button', {name:`사진팀원${i+1} 사진 확대`,exact:true})).toBeVisible();
+  }
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
+  await page.reload();
+  await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(3);
+  if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/member-photos',{recursive:true}); await page.screenshot({path:'docs/validation/member-photos/draft-three-photos.png',fullPage:true}); }
+  await page.getByRole('button', {name:'팀 수정',exact:true}).click();
+  await page.getByRole('button',{name:'사진 빼기 (팀 저장 시 반영)'}).nth(1).click();
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByRole('button', {name:/사진팀원[123] 사진 확대/})).toHaveCount(2);
+});
+
+test('photo failure does not block saving a team without a photo', async ({ page }) => {
+  await mockApi(page, { signedIn:true, unverified:true, draft:true, uploadFails:true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/team');
+  await page.getByRole('button', {name:'팀 수정',exact:true}).click();
+  await page.getByRole('checkbox', {name:/사진 속 당사자/}).check();
+  await page.locator('input[type=file]').setInputFiles('e2e/fixtures/member-photo.jpg');
+  await expect(page.getByRole('alert')).toContainText('사진 없이 저장');
+  await page.getByRole('button', {name:'팀 초안 저장',exact:true}).click();
+  await expect(page.getByText('비공개 초안', {exact:true})).toBeVisible();
+});
+
+test('browsing photo opens accessible preview and returns focus', async ({ page }) => {
+  await mockApi(page, { signedIn:true, photos:true });
+  await page.goto('/');
+  const button=page.getByRole('button',{name:'가상팀원 사진 확대',exact:true});
+  await button.click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(button).toBeFocused();
+});
+
+test('administrator can search and inspect deleted-team photo archive', async ({ page }) => {
+  await mockApi(page, {signedIn:true,admin:true,photos:true});
+  await page.goto('/admin/photos');
+  await expect(page.getByRole('heading',{name:'팀원 사진 보관함'})).toBeVisible();
+  await expect(page.getByText('강원대 / 컴퓨터공학과 / 20260001 / 남자 / 사진팀원 / 사진팀원',{exact:true})).toBeVisible();
+  const request=page.waitForRequest(r=>r.url().includes('/member_photos?') && new URL(r.url()).searchParams.get('gender')==='eq.male');
+  await page.getByRole('textbox').fill('남자');
+  await request;
+  await expect(page.getByText(/삭제된 팀/)).toBeVisible();
+  if(process.env.CC_PHOTO_SCREENSHOTS) { mkdirSync('docs/validation/member-photos',{recursive:true}); await page.screenshot({path:'docs/validation/member-photos/admin-archive.png',fullPage:true}); }
+  await page.getByRole('button',{name:'사진팀원 사진 확대',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 });

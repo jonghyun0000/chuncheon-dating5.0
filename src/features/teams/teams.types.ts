@@ -14,6 +14,8 @@ export interface TeamDraftRow {
 export type EditableTeam = Omit<Team, 'status'> & { status: Team['status'] | 'draft' };
 
 export interface MemberInput {
+  photo_id?: string | null;
+  photo_path?: string;
   school: School;
   department: string;
   student_number: string;
