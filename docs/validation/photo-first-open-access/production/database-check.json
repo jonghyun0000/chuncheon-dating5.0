@@ -1,0 +1,13 @@
+{
+  "migration": "20261014063206",
+  "profiles": 157,
+  "teams": 35,
+  "requests": 26,
+  "photos": 3,
+  "approved_active": 127,
+  "approved_access_failures": 0,
+  "rejected_access_failures": 0,
+  "pending_uploaded_access_failures": 0,
+  "restrictive_policies": 2,
+  "dataCountsUnchanged": true
+}

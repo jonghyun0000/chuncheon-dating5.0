@@ -1,0 +1,321 @@
+{
+  "counts": {
+    "teams": 35,
+    "photos": 3,
+    "profiles": 157,
+    "requests": 26,
+    "approved_active": 127
+  },
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "qual": "((from_team_id IN ( SELECT my_team_ids(auth.uid()) AS my_team_ids)) OR (to_team_id IN ( SELECT my_team_ids(auth.uid()) AS my_team_ids)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "mr_owner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "mr_admin_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "mr_admin_update",
+      "schemaname": "public",
+      "with_check": "is_admin(auth.uid())"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "mr_admin_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(department_team_visible(from_team_id) AND department_team_visible(to_team_id))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "RESTRICTIVE",
+      "policyname": "requests_department_privacy",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "match_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "mr_owner_insert",
+      "schemaname": "public",
+      "with_check": "((status = 'pending'::text) AND (responded_at IS NULL) AND (from_team_id IN ( SELECT my_team_ids(( SELECT auth.uid() AS uid)) AS my_team_ids)) AND can_participate(( SELECT auth.uid() AS uid)) AND (from_team_id <> to_team_id) AND can_request_match(from_team_id, to_team_id))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_self_insert",
+      "schemaname": "public",
+      "with_check": "((id = ( SELECT auth.uid() AS uid)) AND (role = 'user'::text) AND (NOT is_verified) AND (verification_status = 'pending'::text) AND (status = 'active'::text))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_self_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_admin_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_admin_update",
+      "schemaname": "public",
+      "with_check": "is_admin(auth.uid())"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_admin_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((id = ( SELECT auth.uid() AS uid)) AND (status = 'active'::text))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_self_update",
+      "schemaname": "public",
+      "with_check": "((id = ( SELECT auth.uid() AS uid)) AND (role = 'user'::text))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(owner_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_owner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(id IN ( SELECT my_matched_partner_team_ids(auth.uid()) AS my_matched_partner_team_ids))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_matched_partner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_admin_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((owner_id = ( SELECT auth.uid() AS uid)) AND (status = 'active'::text) AND can_participate(( SELECT auth.uid() AS uid)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_owner_update",
+      "schemaname": "public",
+      "with_check": "((owner_id = ( SELECT auth.uid() AS uid)) AND (status = 'active'::text) AND (matched_at IS NULL) AND (gender = my_gender(( SELECT auth.uid() AS uid))) AND members_consent_confirmed AND (members_consent_at IS NOT NULL))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_admin_update",
+      "schemaname": "public",
+      "with_check": "is_admin(auth.uid())"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((owner_id = auth.uid()) AND (status <> 'matched'::text))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_owner_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "is_admin(auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_admin_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((status = 'active'::text) AND (gender <> COALESCE(my_gender(( SELECT auth.uid() AS uid)), ''::text)) AND ( SELECT is_active_user(auth.uid()) AS is_active_user) AND can_participate(owner_id))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_public_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "department_team_visible(id)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "RESTRICTIVE",
+      "policyname": "teams_department_privacy",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "is_my_matched_counterpart(id, auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_matched_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "can_view_team_roster(id, ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_request_partner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "teams_owner_insert",
+      "schemaname": "public",
+      "with_check": "((owner_id = ( SELECT auth.uid() AS uid)) AND can_participate(( SELECT auth.uid() AS uid)) AND (gender = my_gender(( SELECT auth.uid() AS uid))) AND (status = 'active'::text) AND (matched_at IS NULL) AND members_consent_confirmed AND (members_consent_at IS NOT NULL) AND (NOT has_open_team(( SELECT auth.uid() AS uid))))"
+    }
+  ],
+  "functions": [
+    {
+      "name": "can_participate",
+      "definition": "CREATE OR REPLACE FUNCTION public.can_participate(uid uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT coalesce((SELECT p.status='active' AND p.is_verified AND p.verification_status='approved'\n FROM public.profiles p WHERE p.id=uid),false)\n$function$\n"
+    },
+    {
+      "name": "can_view_team_roster",
+      "definition": "CREATE OR REPLACE FUNCTION public.can_view_team_roster(team uuid, uid uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT uid IS NOT NULL AND uid = auth.uid() AND (\n    public.is_admin(uid) OR (public.is_active_user(uid) AND EXISTS (\n      SELECT 1 FROM public.teams t JOIN public.profiles p ON p.id = t.owner_id\n      WHERE t.id = team AND public.department_team_visible(t.id) AND (\n        t.owner_id = uid OR (p.status = 'active' AND (\n          (t.status = 'active' AND public.can_participate(t.owner_id) AND t.gender <> public.my_gender(uid))\n          OR EXISTS (SELECT 1 FROM public.match_requests r\n            JOIN public.teams mine ON mine.owner_id = uid\n            WHERE (r.from_team_id = team AND r.to_team_id = mine.id)\n               OR (r.to_team_id = team AND r.from_team_id = mine.id))\n        ))\n      )\n    ))\n  );\n$function$\n"
+    },
+    {
+      "name": "get_home_teams",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_home_teams()\n RETURNS TABLE(id uuid, owner_id uuid, gender text, intro text, status text, matched_at timestamp with time zone, created_at timestamp with time zone, team_size integer, members_consent_confirmed boolean, members_consent_at timestamp with time zone, members jsonb, owner_verified boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT t.id, t.owner_id, t.gender, t.intro, t.status, t.matched_at, t.created_at,\n t.team_size, t.members_consent_confirmed, t.members_consent_at,\n coalesce((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.member_order)\n           FROM public.team_members_public m WHERE m.team_id = t.id), '[]'::jsonb),\n p.is_verified\n FROM public.teams t JOIN public.profiles p ON p.id = t.owner_id\n WHERE (SELECT auth.uid()) IS NOT NULL\n   AND (SELECT public.is_active_user(auth.uid()))\n   AND public.department_team_visible(t.id)\n   AND t.status = 'active' AND p.status = 'active' AND p.is_verified AND p.verification_status='approved'\n   AND ((SELECT public.is_admin(auth.uid()))\n        OR t.gender <> (SELECT public.my_gender(auth.uid())))\n ORDER BY t.created_at DESC;\n$function$\n"
+    },
+    {
+      "name": "guard_profile_immutable_fields",
+      "definition": "CREATE OR REPLACE FUNCTION public.guard_profile_immutable_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nBEGIN\n  IF auth.uid() IS NULL THEN RETURN NEW; END IF;\n  IF TG_OP = 'INSERT' THEN\n    IF NEW.id IS DISTINCT FROM auth.uid()\n       OR NEW.role IS DISTINCT FROM 'user'\n       OR NEW.is_verified IS DISTINCT FROM false\n       OR NEW.verification_status IS DISTINCT FROM 'pending'\n       OR NEW.status IS DISTINCT FROM 'active' THEN\n      RAISE EXCEPTION '회원 권한과 인증 상태는 직접 지정할 수 없습니다.' USING ERRCODE = '42501';\n    END IF;\n    IF NEW.agreed_privacy IS DISTINCT FROM true\n       OR NEW.agreed_terms IS DISTINCT FROM true\n       OR NEW.agreed_disclaimer IS DISTINCT FROM true\n       OR nullif(btrim(NEW.terms_version), '') IS NULL\n       OR NEW.terms_agreed_at IS NULL THEN\n      RAISE EXCEPTION '필수 약관 동의가 필요합니다.' USING ERRCODE = '23514';\n    END IF;\n    IF NEW.student_id_image_path IS NOT NULL AND (\n       split_part(NEW.student_id_image_path, '/', 1) <> NEW.id::text\n       OR NOT EXISTS (SELECT 1 FROM storage.objects o WHERE o.bucket_id = 'student-ids'\n                        AND o.name = NEW.student_id_image_path)) THEN\n      RAISE EXCEPTION '본인의 학생증 파일 업로드가 필요합니다.' USING ERRCODE = '23514';\n    END IF;\n    NEW.created_at := now();\n    NEW.terms_agreed_at := now();\n    RETURN NEW;\n  END IF;\n  IF public.is_admin(auth.uid()) THEN\n    IF NEW.is_verified AND NEW.verification_status = 'approved'\n       AND (NOT OLD.is_verified OR OLD.verification_status <> 'approved')\n       AND (NEW.student_id_image_path IS NULL OR NOT EXISTS (\n         SELECT 1 FROM storage.objects o WHERE o.bucket_id='student-ids'\n           AND o.name=NEW.student_id_image_path\n           AND split_part(o.name,'/',1)=NEW.id::text)) THEN\n      RAISE EXCEPTION '학생증 제출 후 승인해주세요.' USING ERRCODE='23514';\n    END IF;\n    RETURN NEW;\n  END IF;\n  IF NEW.student_id_image_path IS DISTINCT FROM OLD.student_id_image_path THEN\n    IF OLD.status <> 'active' OR OLD.is_verified\n       OR NEW.student_id_image_path IS NULL\n       OR split_part(NEW.student_id_image_path,'/',1) <> OLD.id::text\n       OR NEW.verification_status <> 'pending'\n       OR NOT EXISTS (SELECT 1 FROM storage.objects o\n         WHERE o.bucket_id='student-ids' AND o.name=NEW.student_id_image_path) THEN\n      RAISE EXCEPTION '본인의 학생증 제출만 가능합니다.' USING ERRCODE='42501';\n    END IF;\n  ELSIF NEW.verification_status IS DISTINCT FROM OLD.verification_status THEN\n    RAISE EXCEPTION '인증 상태는 관리자만 변경할 수 있습니다.' USING ERRCODE='42501';\n  END IF;\n  IF NEW.id IS DISTINCT FROM OLD.id\n     OR NEW.username IS DISTINCT FROM OLD.username\n     OR NEW.gender IS DISTINCT FROM OLD.gender\n     OR NEW.school IS DISTINCT FROM OLD.school\n     OR NEW.role IS DISTINCT FROM OLD.role\n     OR NEW.is_verified IS DISTINCT FROM OLD.is_verified\n     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN\n    RAISE EXCEPTION '해당 항목은 관리자만 변경할 수 있습니다.' USING ERRCODE = '42501';\n  END IF;\n  IF NEW.agreed_privacy IS DISTINCT FROM OLD.agreed_privacy\n     OR NEW.agreed_terms IS DISTINCT FROM OLD.agreed_terms\n     OR NEW.agreed_disclaimer IS DISTINCT FROM OLD.agreed_disclaimer\n     OR NEW.terms_version IS DISTINCT FROM OLD.terms_version\n     OR NEW.terms_agreed_at IS DISTINCT FROM OLD.terms_agreed_at THEN\n    -- Preserve the deployed reconsent flow; clients cannot forge old timestamps\n    -- or clear consent. Update this version alongside src/lib/terms.ts.\n    IF NEW.agreed_privacy IS DISTINCT FROM true\n       OR NEW.agreed_terms IS DISTINCT FROM true\n       OR NEW.agreed_disclaimer IS DISTINCT FROM true\n       OR NEW.terms_version IS DISTINCT FROM 'v5.1' THEN\n      RAISE EXCEPTION '현재 약관 전체에 동의해주세요.' USING ERRCODE = '23514';\n    END IF;\n    NEW.terms_agreed_at := now();\n  END IF;\n  IF NEW.status IS DISTINCT FROM OLD.status AND NEW.status <> 'deleted' THEN\n    RAISE EXCEPTION '계정 상태는 관리자만 변경할 수 있습니다.' USING ERRCODE = '42501';\n  END IF;\n  IF OLD.status <> 'active' AND NEW.status <> 'deleted' THEN\n    RAISE EXCEPTION '이용 중지된 계정은 변경할 수 없습니다.' USING ERRCODE = '42501';\n  END IF;\n  RETURN NEW;\nEND $function$\n"
+    },
+    {
+      "name": "is_active_user",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_active_user(uid uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  select coalesce((select status = 'active' from public.profiles where id = uid), false);\n$function$\n"
+    }
+  ]
+}

@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = join(root, 'supabase/tests');
 const baseline = join(root, 'supabase/baseline.sql');
 const migrationDir = join(root, 'supabase/migrations');
-const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql', 'department-privacy.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
+const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql', 'department-privacy.sql', 'team-examples.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
   const [header, ...lines] = part.split('\n');
   const [id, mode, ...label] = header.trim().split(' ');
   return { id, mode, label: label.join(' '), sql: lines.join('\n') };
@@ -137,6 +137,15 @@ try {
     sql('BEGIN;\n' + migration + '\nCOMMIT;', db);
     sql("SELECT test_support.assert(public.can_participate('00000000-0000-4000-8000-000000000006'),'reapplication restores pending photo access');", db);
     console.log('PASS verification rollback and reapplication: existing verified access preserved');
+  }
+  const examplesMigration = migrations.find(name => name.endsWith('_same_gender_team_examples.sql'));
+  if (examplesMigration) {
+    sql('CREATE DATABASE examples_rollback TEMPLATE hardened;');
+    sql(readFileSync(join(root, 'supabase/operations/rollback_same_gender_team_examples.sql'), 'utf8'), 'examples_rollback');
+    sql("SELECT test_support.assert(to_regprocedure('public.get_same_gender_team_examples(integer,integer)') IS NULL,'example endpoint removed'); SELECT test_support.assert(to_regprocedure('public.get_home_teams()') IS NOT NULL,'existing home retained');", 'examples_rollback');
+    sql('BEGIN;\n' + readFileSync(join(migrationDir, examplesMigration), 'utf8') + '\nCOMMIT;', 'examples_rollback');
+    sql("SELECT test_support.assert(NOT has_function_privilege('anon','public.get_same_gender_team_examples(integer,integer)','EXECUTE'),'anonymous execute denied after reapply'); SELECT test_support.assert(has_function_privilege('authenticated','public.get_same_gender_team_examples(integer,integer)','EXECUTE'),'authenticated wrapper restored');", 'examples_rollback');
+    console.log('PASS examples rollback and reapplication: existing home and strict grants preserved');
   }
   // Two separate connections overlap while the first transaction holds its locks.
   for (const race of [

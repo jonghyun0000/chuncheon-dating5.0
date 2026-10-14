@@ -17,6 +17,7 @@ const FindUsernamePage = lazy(() => import('@/features/auth/FindUsernamePage'));
 const ResetPasswordRequestPage = lazy(() => import('@/features/auth/ResetPasswordRequestPage'));
 const ReconsentPage = lazy(() => import('@/features/auth/ReconsentPage'));
 const ReportPage = lazy(() => import('@/features/reports/ReportPage'));
+const TeamExamplesPage = lazy(() => import('@/features/teamExamples/TeamExamplesPage'));
 const HomePage = lazy(() => import('@/features/home/HomePage'));
 const TeamRegisterPage = lazy(() => import('@/features/teams/TeamRegisterPage'));
 const RequestsPage = lazy(() => import('@/features/matches/RequestsPage'));
@@ -64,6 +65,7 @@ export default function AppRouter() {
       <Route path="/disclaimer" element={<PublicDocPage docKey="disclaimer" />} />
       <Route path="/account-deletion" element={<AccountDeletionPage />} />
 
+      <Route path="/team-examples" element={<ProtectedRoute><TeamExamplesPage /></ProtectedRoute>} />
       <Route path="/team" element={<ProtectedRoute><TeamRegisterPage /></ProtectedRoute>} />
       <Route path="/requests" element={<ProtectedRoute><RequestsPage /></ProtectedRoute>} />
       <Route path="/matches/:id" element={<ProtectedRoute><MatchDetailPage /></ProtectedRoute>} />
