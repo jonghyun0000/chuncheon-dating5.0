@@ -600,3 +600,49 @@ test('rejection routes to MyPage; resubmission stays restricted until approval',
   await expect(page).toHaveURL(/\/team$/);
   await expect(page.getByText('학생증 사진을 다시 확인해주세요', { exact: true })).toHaveCount(0);
 });
+
+
+test('same-gender examples are read-only and do not fetch photos or contacts', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  await page.route('**/rest/v1/rpc/get_same_gender_team_examples', route => route.fulfill({
+    json: [{ id: 'example-team', intro: '주말에는 함께 카페 가요', team_size: 2, owner_verified: true,
+      members: [{ member_order: 1, school: '한림대', department: '경영학과', smoking: false, taste_tags: ['cafe'], want_tags: [] }] }],
+    headers: { 'access-control-allow-origin': '*' },
+  }));
+  await page.goto('/');
+  await page.getByRole('link', { name: '같은 성별 팀 구경하기' }).click();
+  await expect(page.getByRole('heading', { name: '같은 성별 팀 구경하기' })).toBeVisible();
+  const requests: string[] = [];
+  page.on('request', request => requests.push(new URL(request.url()).pathname));
+  await page.reload();
+  await expect(page.getByText('주말에는 함께 카페 가요')).toBeVisible();
+  await expect(page.getByTestId('team-example').locator('img')).toHaveCount(0);
+  await expect(page.getByTestId('team-example').getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('팀원 1', {exact:true})).toBeVisible();
+  expect(requests.some(path => /get_member_photos|storage\/v1|team_members|match_requests/.test(path))).toBe(false);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:'docs/validation/team-examples/mobile.png',fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:'docs/validation/team-examples/desktop.png',fullPage:true});
+  await page.getByRole('link', { name: '우리 팀도 작성하기' }).click();
+  await expect(page).toHaveURL(/\/team$/);
+});
+
+test('same-gender examples retry failure and show empty state', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  let fail = true;
+  await page.route('**/rest/v1/rpc/get_same_gender_team_examples', route => route.fulfill({
+    status: fail ? 503 : 200, json: fail ? {message:'Synthetic outage'} : [], headers: {'access-control-allow-origin':'*'},
+  }));
+  await page.goto('/team-examples');
+  await expect(page.getByRole('alert')).toBeVisible();
+  fail = false;
+  await page.getByRole('button',{name:'다시 시도'}).click();
+  await expect(page.getByText('지금 구경할 수 있는 같은 성별 팀이 없어요.')).toBeVisible();
+});
+
+test('same-gender examples require login', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/team-examples');
+  await expect(page).toHaveURL(/\/login$/);
+});

@@ -1,3 +1,4 @@
+import { teamExamplesCopy } from '@/features/teamExamples/teamExamplesCopy';
 import { canParticipate } from '@/features/auth/verificationAccess';
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Users } from 'lucide-react';
@@ -142,6 +143,10 @@ export default function HomePage() {
           ))}
         </div>
       )}
+      <section className="mt-8 border-t border-zinc-200 pt-6">
+        <p className="mb-2 text-center text-sm text-zinc-500">{teamExamplesCopy(lang).hint}</p>
+        <Link to="/team-examples" className="btn-ghost w-full">{teamExamplesCopy(lang).title} →</Link>
+      </section>
     </PageLayout>
   );
 }

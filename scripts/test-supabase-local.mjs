@@ -60,6 +60,21 @@ try{
  async function makeTeam(user,intro){return result(await user.c.rpc('save_my_team',{p_team_id:null,p_intro:intro,p_team_size:2,p_members:members,p_members_consent_confirmed:true}),'atomic real API team creation');}
  const a=await makeTeam(male,'Synthetic male team');const b=await makeTeam(female,'Synthetic female team');check(Boolean(a.id&&b.id),'real authenticated RPC creates complete teams');
  const homes=result(await male.c.rpc('get_home_teams'),'home RPC');check(homes.length===1&&homes[0].id===b.id&&homes[0].members.length===2&&!('contact_id'in homes[0].members[0]),'real home response includes matching public roster without contacts');
+ // Same-gender examples: real Auth/PostgREST projection and existing access boundaries.
+ const exampleTeam=await makeTeam(admin,'Synthetic reference team');
+ const examples=result(await male.c.rpc('get_same_gender_team_examples'),'same-gender examples');
+ check(examples.length===1&&examples[0].id===exampleTeam.id,'real examples return only another same-gender team');
+ check(Object.keys(examples[0]).sort().join(',')==='id,intro,members,owner_verified,team_size'&&Object.keys(examples[0].members[0]).sort().join(',')==='department,member_order,school,smoking,taste_tags,want_tags','real response omits owner identity photos names and contacts');
+ check(Boolean((await client().rpc('get_same_gender_team_examples')).error),'anonymous example request denied');
+ check(result(await male.c.from('team_members').select('*').eq('team_id',exampleTeam.id),'example private roster').length===0,'example does not grant contact table access');
+ check(result(await male.c.rpc('get_member_photos',{p_team_id:exampleTeam.id}),'example photo RPC').length===0,'example does not grant photo access');
+ check(Boolean((await male.c.from('match_requests').insert({from_team_id:a.id,to_team_id:exampleTeam.id})).error),'same-gender direct match request denied');
+ result(await male.c.rpc('set_department_privacy',{p_enabled:true}),'example privacy on');
+ check(result(await male.c.rpc('get_same_gender_team_examples'),'private examples').length===0,'viewer opt-in hides example');
+ check(result(await admin.c.rpc('get_same_gender_team_examples'),'reverse private examples').length===0,'other side opt-in hides even in admin reference page');
+ result(await male.c.rpc('set_department_privacy',{p_enabled:false}),'example privacy off');
+ result(await admin.c.from('teams').update({status:'hidden'}).eq('id',exampleTeam.id),'hide synthetic reference team');
+ check(result(await male.c.rpc('get_same_gender_team_examples'),'finished examples').length===0,'hidden reference team excluded');
  // Real PostgREST round trip for optional symmetric department privacy.
  result(await female.c.rpc('set_department_privacy',{p_enabled:true}),'enable department privacy');
  check(result(await male.c.rpc('get_home_teams'),'hidden home response').length===0,'one-sided preference hides opposite team');
