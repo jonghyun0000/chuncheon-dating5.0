@@ -5,6 +5,7 @@ import { TERMS_VERSION } from '@/lib/terms';
 import { usernameToFakeEmail } from '@/utils/security';
 import type { FindUsernameInput, RegisterInput, ResetPasswordRequestInput } from './auth.types';
 import { authMessages } from './auth.messages';
+import { verificationCopy } from './verificationCopy';
 import { validateStudentIdFile } from './studentIdFile';
 
 export async function signIn(username: string, password: string) {
@@ -42,7 +43,8 @@ export async function signUp(input: RegisterInput) {
     throw new Error(tr().register.errTermsRequired);
   }
 
-  const fileInfo = input.studentIdFile ? await validateStudentIdFile(input.studentIdFile) : null;
+  if (!input.studentIdFile) throw new Error(verificationCopy().needPhoto);
+  const fileInfo = await validateStudentIdFile(input.studentIdFile);
   const email = usernameToFakeEmail(input.username.trim());
 
   // 1) Auth 계정 생성

@@ -35,6 +35,7 @@ export interface Profile {
   student_number: string | null;
   student_id_image_path: string | null;
   is_verified: boolean;
+  verification_restricted: boolean;
   verification_status: 'pending' | 'approved' | 'rejected';
   role: Role;
   status: UserStatus;

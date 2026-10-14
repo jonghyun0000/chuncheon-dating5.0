@@ -1,0 +1,303 @@
+{
+  "scope": "Fresh local Docker Supabase only, synthetic accounts and a one-pixel image; no hosted project access.",
+  "startedAt": "2026-10-14T06:08:06.729Z",
+  "cliVersion": "2.120.0",
+  "checks": [
+    {
+      "label": "fresh local schema is reachable through real PostgREST",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real Auth issues a signed session",
+      "passed": true
+    },
+    {
+      "label": "real signup request cannot self-assign admin or verified role",
+      "passed": true
+    },
+    {
+      "label": "approved verification image replacement is denied by real Storage",
+      "passed": true
+    },
+    {
+      "label": "real Storage denies another member image download",
+      "passed": true
+    },
+    {
+      "label": "ordinary signed session cannot validate admin deletion",
+      "passed": true
+    },
+    {
+      "label": "verified-factor admin old AAL1 JWT is blocked at the database",
+      "passed": true
+    },
+    {
+      "label": "real TOTP AAL2 JWT restores admin access",
+      "passed": true
+    },
+    {
+      "label": "real authenticated RPC creates complete teams",
+      "passed": true
+    },
+    {
+      "label": "real home response includes matching public roster without contacts",
+      "passed": true
+    },
+    {
+      "label": "one-sided preference hides opposite team",
+      "passed": true
+    },
+    {
+      "label": "preference hides both directions",
+      "passed": true
+    },
+    {
+      "label": "direct REST cannot bypass privacy",
+      "passed": true
+    },
+    {
+      "label": "public roster cannot bypass privacy",
+      "passed": true
+    },
+    {
+      "label": "hidden team cannot receive matching request",
+      "passed": true
+    },
+    {
+      "label": "disable restores existing flow",
+      "passed": true
+    },
+    {
+      "label": "real request acceptance marks both teams matched",
+      "passed": true
+    },
+    {
+      "label": "matched counterpart roster is readable and masked",
+      "passed": true
+    },
+    {
+      "label": "real RLS keeps matched counterpart private member records hidden",
+      "passed": true
+    },
+    {
+      "label": "photo-free signup immediately issues a real signed session",
+      "passed": true
+    },
+    {
+      "label": "real API rejects profile without photo",
+      "passed": true
+    },
+    {
+      "label": "ordinary uploaded image grants initial participation without badge",
+      "passed": true
+    },
+    {
+      "label": "other user cannot download unattached photos",
+      "passed": true
+    },
+    {
+      "label": "unreserved path upload denied by real Storage",
+      "passed": true
+    },
+    {
+      "label": "pending account saves draft through real authenticated API",
+      "passed": true
+    },
+    {
+      "label": "real RLS lets owner reload private draft",
+      "passed": true
+    },
+    {
+      "label": "real RLS hides draft contacts from other members",
+      "passed": true
+    },
+    {
+      "label": "real API denies self-approval",
+      "passed": true
+    },
+    {
+      "label": "private draft is not public",
+      "passed": true
+    },
+    {
+      "label": "pending real API publishes atomically and removes draft",
+      "passed": true
+    },
+    {
+      "label": "pending published team appears without badge and with contact-free roster",
+      "passed": true
+    },
+    {
+      "label": "approval does not expose member contacts to another user",
+      "passed": true
+    },
+    {
+      "label": "published team exposes exactly one optional photo per member",
+      "passed": true
+    },
+    {
+      "label": "public viewer cannot read photo student-number snapshots",
+      "passed": true
+    },
+    {
+      "label": "all three photos downloadable through authenticated Storage",
+      "passed": true
+    },
+    {
+      "label": "privacy removes photo references through real RPC",
+      "passed": true
+    },
+    {
+      "label": "privacy denies known real Storage photo path",
+      "passed": true
+    },
+    {
+      "label": "privacy denies known real Storage photo path",
+      "passed": true
+    },
+    {
+      "label": "privacy denies known real Storage photo path",
+      "passed": true
+    },
+    {
+      "label": "AAL1 administrator cannot inspect photo archive",
+      "passed": true
+    },
+    {
+      "label": "AAL2 administrator can inspect all photo snapshots",
+      "passed": true
+    },
+    {
+      "label": "revocation immediately denies new photo downloads",
+      "passed": true
+    },
+    {
+      "label": "rejection blocks browsing with existing JWT",
+      "passed": true
+    },
+    {
+      "label": "rejected owner cannot edit team",
+      "passed": true
+    },
+    {
+      "label": "rejected owner cannot download public member photos",
+      "passed": true
+    },
+    {
+      "label": "resubmitted account remains restricted and unverified",
+      "passed": true
+    },
+    {
+      "label": "cannot clear restriction through direct REST",
+      "passed": true
+    },
+    {
+      "label": "resubmission does not unlock participation",
+      "passed": true
+    },
+    {
+      "label": "resubmission does not expose team photos",
+      "passed": true
+    },
+    {
+      "label": "approval restores access",
+      "passed": true
+    },
+    {
+      "label": "approval adds visible verified badge",
+      "passed": true
+    },
+    {
+      "label": "team deletion retains three administrator-only archive records",
+      "passed": true
+    },
+    {
+      "label": "deleted team photos hidden even from original owner",
+      "passed": true
+    },
+    {
+      "label": "deletion request immediately blocks new archive downloads",
+      "passed": true
+    },
+    {
+      "label": "real Vault rejects invalid scheduler token",
+      "passed": true
+    },
+    {
+      "label": "ordinary user cannot call scheduler authentication RPC",
+      "passed": true
+    },
+    {
+      "label": "real Vault authorizes scheduler and worker completes",
+      "passed": true
+    },
+    {
+      "label": "real hourly cleanup removes all expired Storage bytes and metadata",
+      "passed": true
+    },
+    {
+      "label": "expired photos physically removed from real Storage",
+      "passed": true
+    },
+    {
+      "label": "expired photo metadata removed after Storage succeeds",
+      "passed": true
+    },
+    {
+      "label": "rejected team disappears from real home API",
+      "passed": true
+    },
+    {
+      "label": "anonymous real RPC purge is denied",
+      "passed": true
+    },
+    {
+      "label": "admin self-deletion preflight is denied before files are touched",
+      "passed": true
+    },
+    {
+      "label": "real admin deletion anonymizes profile after file removal",
+      "passed": true
+    },
+    {
+      "label": "student image is removed through actual Storage API",
+      "passed": true
+    },
+    {
+      "label": "Auth account remains while deleted member name is cleared",
+      "passed": true
+    },
+    {
+      "label": "still-signed-in withdrawn member cannot create another team",
+      "passed": true
+    }
+  ],
+  "productionValidated": false,
+  "projectId": "cc-quality-3f1d2fe8",
+  "migrations": [
+    "20260924171521_harden_authorization_and_atomic_teams.sql",
+    "20260924172034_redact_completed_deletion_snapshots.sql",
+    "20260924175355_admin_home_visibility.sql",
+    "20260924175401_enforce_opted_in_admin_mfa.sql",
+    "20260924175407_protect_relationship_helper_privacy.sql",
+    "20261012000030_deferred_student_verification.sql",
+    "20261012010137_member_photos.sql",
+    "20261012051216_department_privacy.sql",
+    "20261014060428_photo_first_open_access.sql"
+  ],
+  "passed": true,
+  "cleanedUp": true,
+  "finishedAt": "2026-10-14T06:08:42.052Z"
+}

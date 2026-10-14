@@ -152,12 +152,12 @@ SELECT test_support.expect_denied($q$SELECT public.save_my_team('10000000-0000-4
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
 SELECT test_support.expect_denied($q$SELECT public.save_my_team('20000000-0000-4000-8000-000000000004','Hidden edit',2,test_support.members(),true)$q$);
 
--- TEST team-ineligible NORMAL Inactive and unverified accounts cannot create teams
+-- TEST team-ineligible NORMAL Inactive accounts cannot create teams; pending submitted accounts can
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
 SET LOCAL ROLE authenticated;
 SELECT test_support.expect_denied($q$SELECT public.save_my_team(NULL,'Inactive',2,test_support.members(),true)$q$);
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000006',true);
-SELECT test_support.expect_denied($q$SELECT public.save_my_team(NULL,'Unverified',2,test_support.members(),true)$q$);
+SELECT public.save_my_team(NULL,'Unverified',2,test_support.members(),true);
 
 -- TEST team-rollback NORMAL A late roster insert failure rolls back team update and original roster deletion
 CREATE FUNCTION test_support.fail_second_member() RETURNS trigger LANGUAGE plpgsql AS $f$

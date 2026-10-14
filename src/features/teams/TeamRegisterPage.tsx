@@ -1,3 +1,4 @@
+import { canParticipate } from '@/features/auth/verificationAccess';
 import DepartmentPrivacy from '@/features/teams/DepartmentPrivacy';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useBlocker } from 'react-router-dom';
@@ -58,7 +59,7 @@ export default function TeamRegisterPage() {
   const v = verificationCopy(lang);
   const photos = photoCopy(lang);
   const journey = journeyCopy(lang);
-  const approved = !!profile?.is_verified && profile.verification_status === 'approved';
+  const eligible = canParticipate(profile);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [photoBusy, setPhotoBusy] = useState<Record<number, boolean>>({});
@@ -237,10 +238,10 @@ export default function TeamRegisterPage() {
         alert(activeTeam.status === 'draft' ? v.saved : t.team.updatedAlert);
         await reload();
       } else {
-        await createTeam(input, !approved);
+        await createTeam(input, !eligible);
         markSaved();
-        alert(approved ? t.team.createdAlert : v.saved);
-        if (approved) nav('/'); else await reload();
+        alert(eligible ? t.team.createdAlert : v.saved);
+        if (eligible) nav('/'); else await reload();
       }
     } catch (e) {
       setErr(koMessage(e));
@@ -329,7 +330,7 @@ export default function TeamRegisterPage() {
               {activeTeam.team_size} : {activeTeam.team_size}
             </Badge>
           </div>
-          {(activeTeam.status !== 'draft' || approved) && <section aria-label={journey.status} className="rounded-xl bg-sakura-50 p-3 text-sm text-zinc-700">
+          {(activeTeam.status !== 'draft' || eligible) && <section aria-label={journey.status} className="rounded-xl bg-sakura-50 p-3 text-sm text-zinc-700">
             {activeTeam.status === 'draft' ? journey.ready : journey.published}
           </section>}
           <p className="font-display text-lg text-zinc-900">"{activeTeam.intro}"</p>
@@ -370,12 +371,12 @@ export default function TeamRegisterPage() {
             </Button>
           </div>
           {activeTeam.status === 'draft' && (
-            <Button className="w-full" disabled={!approved} loading={submitting} onClick={async () => {
+            <Button className="w-full" disabled={!eligible} loading={submitting} onClick={async () => {
               setSubmitting(true);
               try { await publishTeamDraft(activeTeam.id); await refreshProfile(); await reload(); alert(v.published); }
               catch (e) { alert(koMessage(e)); }
               finally { setSubmitting(false); }
-            }}>{approved ? v.publish : v.approvedOnly}</Button>
+            }}>{eligible ? v.publish : v.approvedOnly}</Button>
           )}
           <Button variant="ghost" className="w-full" onClick={() => nav('/')}>{activeTeam.status === 'draft' ? t.common.goHome : journey.browse}</Button>
         </div>
@@ -494,7 +495,7 @@ export default function TeamRegisterPage() {
             </Button>
           )}
           <Button onClick={submit} disabled={uploading} loading={submitting} className={isEdit ? '' : 'col-span-2 w-full'}>
-            {activeTeam?.status === 'draft' || !approved ? v.saveDraft : isEdit ? t.team.editDone : t.team.registerButton(teamSize)}
+            {activeTeam?.status === 'draft' || !eligible ? v.saveDraft : isEdit ? t.team.editDone : t.team.registerButton(teamSize)}
           </Button>
         </div>
       </div>

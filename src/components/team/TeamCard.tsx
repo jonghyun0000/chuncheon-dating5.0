@@ -1,3 +1,4 @@
+import { canParticipate } from '@/features/auth/verificationAccess';
 import { useEffect, useState } from 'react';
 import MemberPhoto from '@/features/photos/MemberPhoto';
 import { getMemberPhotos, type MemberPhoto as Photo } from '@/features/photos/photos.api';
@@ -31,7 +32,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
     return () => { cancelled = true; };
   }, [team.id, team.members]);
   const { profile } = useAuth();
-  const approved = profile?.is_verified && profile.verification_status === 'approved';
+  const eligible = canParticipate(profile);
   /**
    * 인원수가 정확히 같은 팀에만 신청할 수 있습니다.
    * (내 팀이 없으면 my_team_size 가 null 이라 판정하지 않습니다.)
@@ -108,7 +109,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
         ) : (
           <button className="btn-primary gap-1.5" disabled={applying} onClick={() => onApply(team.id)}>
             {!applying && <Send size={16} strokeWidth={2} />}
-            {applying ? t.teamCard.applying : approved ? t.teamCard.apply : verificationCopy(lang).approvedOnly}
+            {applying ? t.teamCard.applying : eligible ? t.teamCard.apply : verificationCopy(lang).approvedOnly}
           </button>
         )}
       </div>

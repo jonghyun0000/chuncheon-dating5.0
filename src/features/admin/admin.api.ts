@@ -152,20 +152,24 @@ export async function listVerificationQueue(): Promise<Profile[]> {
   return (data ?? []) as Profile[];
 }
 
-export async function approveVerification(uid: string) {
-  const { error } = await supabase
+export async function approveVerification(uid: string, expectedPath: string | null) {
+  if (!expectedPath) throw new Error('학생증 제출 후 심사해주세요.');
+  const { data, error } = await supabase
     .from('profiles')
     .update({ is_verified: true, verification_status: 'approved' })
-    .eq('id', uid);
+    .eq('id', uid).eq('student_id_image_path', expectedPath).select('id').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('학생증 사진이 변경되었거나 심사 권한이 없습니다. 새로고침 후 다시 확인해주세요.');
 }
 
-export async function rejectVerification(uid: string) {
-  const { error } = await supabase
+export async function rejectVerification(uid: string, expectedPath: string | null) {
+  if (!expectedPath) throw new Error('학생증 제출 후 심사해주세요.');
+  const { data, error } = await supabase
     .from('profiles')
     .update({ is_verified: false, verification_status: 'rejected' })
-    .eq('id', uid);
+    .eq('id', uid).eq('student_id_image_path', expectedPath).select('id').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('학생증 사진이 변경되었거나 심사 권한이 없습니다. 새로고침 후 다시 확인해주세요.');
 }
 
 /** 학생증 signed URL (관리자) */

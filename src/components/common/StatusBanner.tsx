@@ -1,3 +1,4 @@
+import { isVerificationRestricted } from '@/features/auth/verificationAccess';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Clock, MessageCircleWarning, PartyPopper, ShieldAlert, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -5,7 +6,7 @@ import { useI18n } from '@/i18n';
 import { journeyCopy } from '@/features/teams/journeyCopy';
 import { verificationCopy } from '@/features/auth/verificationCopy';
 
-/** Approval gates publication/matching; browsing and draft creation stay available. */
+/** Initial review permits access; rejection stays restricted through resubmission. */
 export function VerificationBanner() {
   const { profile } = useAuth();
   const { lang } = useI18n();
@@ -13,13 +14,14 @@ export function VerificationBanner() {
   if (!profile || (profile.is_verified && profile.verification_status === 'approved')) return null;
   const j = journeyCopy(lang);
   const pending = !!profile.student_id_image_path && profile.verification_status === 'pending';
+  const restricted = isVerificationRestricted(profile);
   const rejected = profile.verification_status === 'rejected';
   return (
-    <Link to="/me/verification" className={`mb-4 flex items-start gap-2.5 rounded-2xl px-4 py-3.5 ring-1 ${rejected ? 'bg-rose-50 ring-rose-100' : 'bg-amber-50 ring-amber-100'}`}>
+    <Link to="/me/verification" className={`mb-4 flex items-start gap-2.5 rounded-2xl px-4 py-3.5 ring-1 ${restricted ? 'bg-rose-50 ring-rose-100' : 'bg-amber-50 ring-amber-100'}`}>
       {rejected ? <XCircle size={17} className="mt-0.5 shrink-0" /> : <Clock size={17} className="mt-0.5 shrink-0" />}
       <div className="text-xs leading-relaxed text-zinc-700">
         <strong>{rejected ? v.rejected : profile.student_id_image_path ? v.pending : v.notSubmitted}</strong>
-        <p className="mt-1">{pending ? j.waiting : v.note}</p>
+        <p className="mt-1">{restricted ? (pending ? v.restrictedPending : v.restrictedNote) : pending ? j.waiting : v.note}</p>
         <span className="mt-1 inline-block font-semibold text-sakura-700">{pending ? j.review : rejected ? v.retry : v.submit} →</span>
       </div>
     </Link>
