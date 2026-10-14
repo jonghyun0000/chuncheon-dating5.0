@@ -1,3 +1,4 @@
+import { verificationCopy } from '@/features/auth/verificationCopy';
 import { useEffect, useMemo, useState } from 'react';
 import Loading from '@/components/common/Loading';
 import LoadError from '@/components/common/LoadError';
@@ -12,7 +13,8 @@ import { labelVerificationStatus, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 
 export default function AdminVerificationPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const v = verificationCopy(lang);
   const [rows, setRows] = useState<Profile[] | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   /** 이름 · 학번 · 아이디 검색어 */
@@ -152,23 +154,25 @@ export default function AdminVerificationPage() {
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{p.name}</p>
                 <Badge tone={p.verification_status === 'approved' ? 'green' : p.verification_status === 'rejected' ? 'gray' : 'amber'}>
-                  {labelVerificationStatus(p.verification_status)}
+                  {labelVerificationStatus(p.verification_status)}{p.verification_restricted && p.verification_status === 'pending' ? ' · ' + v.restrictedPending : ''}
                 </Badge>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
                 {schoolLabel(p.school)}{p.student_number ? ` · ${t.admin.studentNumberPrefix(p.student_number)}` : ''} · {t.admin.joinedPrefix(formatDate(p.created_at))}
               </p>
+              <p className="mt-3 text-xs text-rose-600">{v.adminRejectionNote}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button
                   variant="ghost"
-                  onClick={async () => { try { await rejectVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
+                  disabled={!p.student_id_image_path || p.status !== 'active'}
+                  onClick={async () => { try { await rejectVerification(p.id, p.student_id_image_path); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
                   {t.admin.rejectBtn}
                 </Button>
                 <Button
                   className="gap-1.5"
                   disabled={!p.student_id_image_path || p.status !== 'active'}
-                  onClick={async () => { try { await approveVerification(p.id); await load(); } catch (e) { alert(koMessage(e)); } }}
+                  onClick={async () => { try { await approveVerification(p.id, p.student_id_image_path); await load(); } catch (e) { alert(koMessage(e)); } }}
                 >
                   <Check size={16} strokeWidth={2.4} />
                   {t.admin.approve}

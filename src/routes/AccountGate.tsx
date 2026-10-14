@@ -1,3 +1,4 @@
+import { isVerificationRestricted } from '@/features/auth/verificationAccess';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Ban, Mail, UserMinus } from 'lucide-react';
@@ -18,7 +19,7 @@ const EXEMPT = ['/terms-consent', '/report', '/me/change-password'];
  * 로그인 이후의 계정 상태 게이트.
  *   - 정지(inactive) 계정 : 전체 차단 화면
  *   - 약관 재동의 필요     : /terms-consent 로 이동
- * 학생증 미인증은 둘러보기까지 막지 않고, 각 화면에서 배너로 안내합니다.
+ * 최초 심사는 이용을 막지 않습니다. 거절 후에는 정정 화면으로 안내합니다.
  */
 export default function AccountGate({ children }: { children: ReactNode }) {
   const { profile, signOut, loading, error } = useAuth();
@@ -83,6 +84,11 @@ export default function AccountGate({ children }: { children: ReactNode }) {
   const exempt = EXEMPT.some((p) => loc.pathname.startsWith(p));
   if (needsReconsent && !exempt) {
     return <Navigate to="/terms-consent" replace state={{ from: loc.pathname }} />;
+  }
+
+  if (profile.role !== 'admin' && isVerificationRestricted(profile)
+    && !['/me', '/me/verification', '/me/edit', '/me/change-password', '/report', '/terms-consent'].includes(loc.pathname)) {
+    return <Navigate to="/me" replace />;
   }
 
   return profile.role === 'admin'

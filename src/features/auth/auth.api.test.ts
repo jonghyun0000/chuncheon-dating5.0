@@ -24,28 +24,19 @@ beforeEach(() => {
 });
 
 describe('registration and interrupted signup recovery', () => {
-  it('registers without an image or any Storage calls and leaves approval to the server', async () => {
+  it('requires an image before creating any Auth account', async () => {
     const { studentIdFile: _, ...noPhoto } = input();
-    await expect(signUp(noPhoto)).resolves.toEqual({ uid: user.id });
+    await expect(signUp(noPhoto)).rejects.toThrow();
+    expect(mocks.signUp).not.toHaveBeenCalled();
     expect(mocks.upload).not.toHaveBeenCalled();
-    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ student_id_image_path: null }));
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+  it('accepts an ordinary image without pretending to verify its subject', async () => {
+    const value = input();
+    value.studentIdFile = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'ordinary-photo.jpg', { type: 'image/jpeg' });
+    await expect(signUp(value)).resolves.toEqual({ uid: user.id });
     expect(mocks.insert.mock.calls[0][0]).not.toHaveProperty('is_verified');
-  });
-
-  it('recognizes a committed photo-free profile after a lost insert response', async () => {
-    const { studentIdFile: _, ...noPhoto } = input();
-    mocks.insert.mockResolvedValue({ error: new Error('connection lost') });
-    mocks.read.mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({ data: { student_id_image_path: null }, error: null });
-    await expect(signUp(noPhoto)).resolves.toEqual({ uid: user.id });
-    expect(mocks.remove).not.toHaveBeenCalled();
-  });
-
-  it('does not mistake a missing profile for a committed photo-free signup', async () => {
-    const { studentIdFile: _, ...noPhoto } = input();
-    mocks.insert.mockResolvedValue({ error: new Error('insert failed') });
-    await expect(signUp(noPhoto)).rejects.toThrow('insert failed');
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.insert.mock.calls[0][0]).not.toHaveProperty('verification_restricted');
   });
   it('creates the missing profile and uploads a normalized image MIME type', async () => {
     const value = input();

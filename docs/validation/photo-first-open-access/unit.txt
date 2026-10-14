@@ -1,0 +1,13 @@
+
+> chuncheon-gating@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Volumes/T7/GPT/chuncheon-deferred-verification
+
+
+ Test Files  21 passed (21)
+      Tests  105 passed (105)
+   Start at  15:13:13
+   Duration  2.46s (transform 2.07s, setup 3.21s, import 3.16s, tests 1.86s, environment 9.61s)
+

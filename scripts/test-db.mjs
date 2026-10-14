@@ -127,6 +127,17 @@ try {
     sql('BEGIN;\n' + readFileSync(join(testDir, 'redaction-fixtures.sql'), 'utf8') + '\n' + repair + '\n' + repair + '\n' + readFileSync(join(testDir, 'redaction-assertions.sql'), 'utf8') + '\nROLLBACK;', 'hardened');
     console.log('PASS historical redaction: idempotent, preserves all rows and unrelated content');
   }
+  const photoFirst = migrations.find(name => name.endsWith('_photo_first_open_access.sql'));
+  if (photoFirst) {
+    sql('CREATE DATABASE verification_rollback TEMPLATE hardened;');
+    const db = 'verification_rollback';
+    sql(readFileSync(join(root, 'supabase/operations/rollback_photo_first_open_access.sql'), 'utf8'), db);
+    sql("SELECT test_support.assert(NOT public.can_participate('00000000-0000-4000-8000-000000000006'),'rollback restores approval gate'); SELECT test_support.assert(public.can_participate('00000000-0000-4000-8000-000000000002'),'rollback preserves verified access');", db);
+    const migration = readFileSync(join(migrationDir, photoFirst), 'utf8');
+    sql('BEGIN;\n' + migration + '\nCOMMIT;', db);
+    sql("SELECT test_support.assert(public.can_participate('00000000-0000-4000-8000-000000000006'),'reapplication restores pending photo access');", db);
+    console.log('PASS verification rollback and reapplication: existing verified access preserved');
+  }
   // Two separate connections overlap while the first transaction holds its locks.
   for (const race of [
     { name: 'privacy_accept', uid: '00000000-0000-4000-8000-000000000003',

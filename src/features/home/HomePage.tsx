@@ -1,3 +1,4 @@
+import { canParticipate } from '@/features/auth/verificationAccess';
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Users } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
@@ -64,7 +65,7 @@ export default function HomePage() {
   useEffect(() => { void load(); }, [load]);
 
   const handleApply = async (toTeamId: string) => {
-    if (!profile?.is_verified || profile.verification_status !== 'approved') { nav('/me/verification'); return; }
+    if (!canParticipate(profile)) { nav('/me/verification'); return; }
     setApplyingId(toTeamId);
     try {
       await applyToTeam(toTeamId);

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, X } from 'lucide-react';
+import { Camera, Check, X } from 'lucide-react';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Button from '@/components/common/Button';
@@ -20,6 +20,7 @@ import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { authMessages } from './auth.messages';
 import { verificationCopy } from './verificationCopy';
+import { STUDENT_ID_ACCEPT, studentIdFileMetadata } from './studentIdFile';
 
 export default function RegisterPage() {
   const nav = useNavigate();
@@ -40,6 +41,8 @@ export default function RegisterPage() {
     contact_type: DEFAULT_CONTACT_TYPE as 'kakao' | 'phone',
     contact_id: '',
   });
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [studentIdFile, setStudentIdFile] = useState<File | null>(null);
   const [agree, setAgree] = useState<TermsAgreementState>(EMPTY_TERMS_AGREEMENT);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -107,6 +110,7 @@ export default function RegisterPage() {
     if (!isValidStudentNumber(form.student_number)) return setErr(t.validators.studentNumberError);
     const contactErr = validateContact(form.contact_type, form.contact_id);
     if (contactErr) return setErr(contactErr);
+    if (!studentIdFile) return setErr(v.needPhoto);
     if (!isAllAgreed(agree)) return setErr(t.register.errTermsRequired);
 
     setLoading(true);
@@ -120,6 +124,7 @@ export default function RegisterPage() {
         student_number: normalizeStudentNumber(form.student_number),
         contact_type: form.contact_type,
         contact_id: normalizeContactId(form.contact_type, form.contact_id),
+        studentIdFile,
         agreed_privacy: true,
         agreed_terms: true,
         agreed_disclaimer: true,
@@ -245,6 +250,26 @@ export default function RegisterPage() {
           </p>
 
           <p className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">{v.signupNote}</p>
+
+          <div className="space-y-2">
+            <label className="label" htmlFor="register-student-id">{t.register.studentIdPhoto} *</label>
+            <button type="button" disabled={loading} onClick={() => photoInput.current?.click()}
+              className="flex min-h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sakura-400 bg-sakura-50 p-4 text-sakura-800 hover:bg-sakura-100">
+              <Camera size={30} aria-hidden="true" />
+              <span className="font-bold">{studentIdFile ? v.change : v.choose}</span>
+              <span className="text-xs">{v.selectHint}</span>
+            </button>
+            <input ref={photoInput} id="register-student-id" type="file" accept={STUDENT_ID_ACCEPT} disabled={loading}
+              className="sr-only" tabIndex={-1} onChange={(e) => {
+                const file = e.target.files?.[0]; e.target.value = '';
+                if (!file) return;
+                setStudentIdFile(null); setErr(null);
+                try { studentIdFileMetadata(file); setStudentIdFile(file); }
+                catch (error) { setErr(koMessage(error)); }
+              }} />
+            {studentIdFile && <p role="status" className="break-all rounded-lg bg-green-50 p-3 text-sm text-green-800">✓ {studentIdFile.name}</p>}
+            <p className="text-xs text-zinc-500">{m.formats}<br />{v.privateNote}</p>
+          </div>
 
           <TermsAgreement value={agree} onChange={setAgree} />
 

@@ -1,3 +1,4 @@
+import { isVerificationRestricted } from './verificationAccess';
 import { useRef, useState } from 'react';
 import { Camera, ImagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -22,6 +23,7 @@ export default function VerificationPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const restricted = isVerificationRestricted(profile);
   const approved = profile?.is_verified && profile.verification_status === 'approved';
   const label = approved ? t.mypage.verifyApproved : profile?.verification_status === 'rejected'
     ? v.rejected : profile?.student_id_image_path ? v.pending : v.notSubmitted;
@@ -30,7 +32,7 @@ export default function VerificationPage() {
       <section className="card space-y-4 p-5">
         <h1 className="font-display text-xl">{v.title}</h1>
         <p className="text-sm font-semibold">{label}</p>
-        <p className="text-sm leading-relaxed text-zinc-600">{profile?.student_id_image_path && profile.verification_status === 'pending' ? j.waiting : v.note}</p>
+        <p className="text-sm leading-relaxed text-zinc-600">{restricted ? (profile?.verification_status === 'pending' ? v.restrictedPending : v.restrictedNote) : profile?.student_id_image_path && profile.verification_status === 'pending' ? j.waiting : v.note}</p>
         {!approved && <form className="space-y-4" onSubmit={async (e) => {
           e.preventDefault();
           if (!file) { setError(v.needPhoto); return; }
@@ -64,7 +66,7 @@ export default function VerificationPage() {
           </Button>
         </form>}
         {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
-        {sent && <p role="status" className="text-sm text-green-700">{v.sent}</p>}
+        {sent && <p role="status" className="text-sm text-green-700">{restricted ? v.restrictedPending : v.sent}</p>}
         <Link to="/team" className="block text-sm font-semibold text-sakura-600">{t.team.mySubtitle}</Link>
       </section>
     </PageLayout>

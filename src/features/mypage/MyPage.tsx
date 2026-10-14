@@ -1,3 +1,4 @@
+import { hasVerificationBadge } from '@/features/auth/verificationAccess';
 import DepartmentPrivacy from '@/features/teams/DepartmentPrivacy';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -82,11 +83,11 @@ export default function MyPage() {
   }
 
   const verifyTone =
-    profile.verification_status === 'approved' ? 'green' :
+    hasVerificationBadge(profile) ? 'green' :
     profile.verification_status === 'rejected' ? 'gray' :
     'amber';
   const verifyLabel =
-    profile.verification_status === 'approved' ? t.mypage.verifyApproved :
+    hasVerificationBadge(profile) ? t.mypage.verifyApproved :
     profile.verification_status === 'rejected' ? t.mypage.verifyRejected :
     profile.student_id_image_path ? v.pending : v.notSubmitted;
 
@@ -144,7 +145,7 @@ export default function MyPage() {
           <li className="flex items-center justify-between px-4 py-3">
             <span className="text-zinc-500">{t.mypage.verification}</span>
             <Badge tone={verifyTone} className="gap-1">
-              {profile.verification_status === 'approved' && <ShieldCheck size={12} strokeWidth={2.2} />}
+              {hasVerificationBadge(profile) && <ShieldCheck size={12} strokeWidth={2.2} />}
               {verifyLabel}
             </Badge>
           </li>

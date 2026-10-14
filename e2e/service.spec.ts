@@ -15,7 +15,7 @@ const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'fix
 const profile = { id: uid, username: 'fixture', name: '가상회원', gender: 'male', school: '강원대', contact_type: 'phone', contact_id: '01000000000', role: 'user', status: 'active', is_verified: true, verification_status: 'approved', terms_version: 'v5.1' };
 const opponent = { id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z', members: [{ id: 'm1', member_order: 1, nickname: '가상팀원', school: '한림대', department: '경영학과', student_number: '26', smoking: false, taste_tags: ['산책'], want_tags: [] }] };
 
-async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean; matching?: boolean; privacyReadFails?: boolean; privacySaveFails?: boolean; } = {}) {
+async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile?: boolean; homeFails?: boolean; admin?: boolean; mfa?: boolean; unverified?: boolean; submitted?: boolean; rejected?: boolean; draft?: boolean; signup?: boolean; photos?: boolean; uploadFails?: boolean; matching?: boolean; privacyReadFails?: boolean; privacySaveFails?: boolean; } = {}) {
   // No request can reach a real Supabase project, even if the build accidentally points to one.
   await page.route('**/*.supabase.co/**', route => route.abort());
   const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -26,7 +26,7 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
   let privacy = false;
   let privacyReadFails = options.privacyReadFails ?? false;
   let failHome = options.homeFails ?? false;
-  let currentProfile = { ...profile, role: options.admin ? 'admin' : 'user', is_verified: !options.unverified, verification_status: options.unverified ? 'pending' : 'approved', student_id_image_path: null as string | null };
+  let currentProfile = { ...profile, role: options.admin ? 'admin' : 'user', is_verified: !options.unverified, verification_status: options.rejected ? 'rejected' : options.unverified ? 'pending' : 'approved', verification_restricted: !!options.rejected, student_id_image_path: (options.submitted || options.rejected ? uid+'/student.jpg' : null) as string | null };
   let registered = !options.signup;
   let currentDraft: any = options.draft ? { id: 'draft-fixture', owner_id: uid, gender: 'male', intro: '비공개 가상 팀', team_size: 1, members: [{ school: '강원대', department: '컴퓨터공학과', student_number: '20260001', nickname: '가상팀원', smoking: false, contact_type: 'phone', contact_id: '01000000000', taste_tags: ['cafe'], want_tags: [] }], members_consent_confirmed: true, members_consent_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' } : null;
   if (options.photos && currentDraft) {
@@ -76,7 +76,7 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
       writes.push('publish');
       published = { ...currentDraft, status: 'active', matched_at: null }; currentDraft = null; body = published;
     }
-    else if (url.pathname.endsWith('/rpc/submit_student_id')) { currentProfile.student_id_image_path = route.request().postDataJSON().p_path; body = null; }
+    else if (url.pathname.endsWith('/rpc/submit_student_id')) { currentProfile.student_id_image_path = route.request().postDataJSON().p_path; currentProfile.verification_status = 'pending'; body = null; }
     else if (url.pathname.endsWith('/rpc/reserve_member_photo')) {
       photoCounter++;
       body={id:'photo-'+photoCounter,path:uid+'/photo-'+photoCounter+'.jpg'};
@@ -100,7 +100,7 @@ async function mockApi(page: Page, options: { signedIn?: boolean; missingProfile
     }
     await route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey,x-client-info,content-type,prefer,x-supabase-api-version,accept-profile,content-profile,range,range-unit', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS' }, body: JSON.stringify(body) });
   });
-  return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; }, acceptMatch: () => { matchStatus = 'accepted'; }, writes };
+  return { restoreHome: () => { failHome = false; }, approve: () => { currentProfile.is_verified = true; currentProfile.verification_status = 'approved'; currentProfile.verification_restricted = false; }, acceptMatch: () => { matchStatus = 'accepted'; }, writes };
 }
 
 test('mobile landing exposes its first action and navigation works', async ({ page }) => {
@@ -242,11 +242,11 @@ test('mobile zoom is enabled and reduced-motion preference is respected', async 
 });
 
 
-test('photo-free signup enters browsing with unverified matching guidance', async ({ page }) => {
+test('signup requires an image then grants initial access before verification', async ({ page }) => {
   await mockApi(page, { signup: true, unverified: true });
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/register');
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /학생증 사진 등록하기/ })).toBeVisible();
   await page.getByLabel('아이디', { exact: true }).fill('fixture');
   await page.getByRole('button', { name: '중복확인', exact: true }).click();
   await expect(page.getByText('사용할 수 있는 아이디예요.', { exact: true })).toBeVisible();
@@ -257,19 +257,21 @@ test('photo-free signup enters browsing with unverified matching guidance', asyn
   await page.getByLabel('전화번호', { exact: true }).fill('01000000000');
   await page.getByRole('checkbox', { name: '약관에 모두 동의합니다' }).check();
   await page.getByRole('button', { name: '가입하기', exact: true }).click();
+  await expect(page.getByText('학생증 사진을 선택해주세요.', { exact: true })).toBeVisible();
+  await page.locator('#register-student-id').setInputFiles({ name: 'ordinary-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  await page.getByRole('button', { name: '가입하기', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText('학생증 미제출', { exact: true })).toBeVisible();
+  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
   await expect(page.getByText('가상 상대 팀', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: '관리자 승인 후 가능', exact: true }).click();
-  await expect(page).toHaveURL(/\/me\/verification$/);
+  await expect(page.getByRole('button', { name: '신청하기', exact: true })).toBeEnabled();
 });
 
-test('pending member can edit and reload a private draft but cannot publish', async ({ page }) => {
+test('legacy missing-photo member can edit and reload a private draft but must submit to publish', async ({ page }) => {
   const api = await mockApi(page, { signedIn: true, unverified: true, draft: true });
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/team');
   await expect(page.getByText('비공개 초안', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '관리자 승인 후 가능', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '학생증 사진 제출 필요', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '팀 수정', exact: true }).click();
   await page.getByLabel('팀 한줄소개', { exact: true }).fill('수정된 비공개 가상 팀');
   await page.getByRole('button', { name: '팀 초안 저장', exact: true }).click();
@@ -283,7 +285,7 @@ test('admin-approved owner explicitly publishes the saved draft', async ({ page 
   const api = await mockApi(page, { signedIn: true, unverified: true, draft: true });
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/team');
-  await expect(page.getByRole('button', { name: '관리자 승인 후 가능', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '학생증 사진 제출 필요', exact: true })).toBeDisabled();
   api.approve(); await page.reload();
   await page.getByRole('button', { name: '팀 공개하기', exact: true }).click();
   await expect(page.getByText('활성', { exact: true })).toBeVisible();
@@ -302,7 +304,7 @@ test('deferred verification submits a photo and displays pending review', async 
   await page.screenshot({path:'/tmp/cc-student-upload.png',fullPage:true});
   await page.getByRole('button', { name: '학생증 제출', exact: true }).click();
   await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('학생증이 제출되었어요.');
+  await expect(page.getByRole('status')).toContainText('학생증 사진이 제출되었어요.');
 });
 
 
@@ -495,7 +497,7 @@ test('pending verification points to review status and approved draft explains p
   await page.goto('/me/verification');
   await page.getByLabel('학생증 사진').setInputFiles({name:'student.jpg',mimeType:'image/jpeg',buffer:Buffer.from([0xff,0xd8,0xff,0xe0])});
   await page.getByRole('button',{name:'학생증 제출',exact:true}).click();
-  await expect(page.getByRole('status')).toContainText('학생증이 제출');
+  await expect(page.getByRole('status')).toContainText('학생증 사진이 제출');
   await page.goto('/team');
   await expect(page.getByRole('link',{name:/심사 상태 확인/})).toBeVisible();
   await expect(page.getByRole('link',{name:/학생증 다시 제출/})).toHaveCount(0);
@@ -512,7 +514,7 @@ test('approved draft proceeds to first request and result without exposing conta
   const api=await mockApi(page,{signedIn:true,unverified:true,draft:true,matching:true});
   page.on('dialog',dialog=>dialog.accept());
   await page.goto('/team');
-  await expect(page.getByRole('button',{name:'관리자 승인 후 가능',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'학생증 사진 제출 필요',exact:true})).toBeDisabled();
   api.approve(); await page.reload();
   await page.getByRole('button',{name:'팀 공개하기',exact:true}).click();
   await page.getByRole('button',{name:'상대 팀 둘러보기',exact:true}).click();
@@ -568,4 +570,33 @@ test('department privacy failed save never claims protection enabled',async({pag
  await expect(option).toBeEnabled();await option.click();
  await expect(page.getByRole('alert')).toContainText('설정을 확인하지 못했어요');await expect(option).not.toBeChecked();
  await expect(option).toBeDisabled();expect(api.writes).toEqual([]);
+});
+
+
+test('pending uploaded member publishes a team before administrator approval', async ({ page }) => {
+  const api = await mockApi(page, { signedIn: true, unverified: true, submitted: true, draft: true });
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/team');
+  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '팀 공개하기', exact: true }).click();
+  await expect(page.getByText('활성', { exact: true })).toBeVisible();
+  expect(api.writes).toEqual(['publish']);
+});
+
+test('rejection routes to MyPage; resubmission stays restricted until approval', async ({ page }) => {
+  const api = await mockApi(page, { signedIn: true, unverified: true, rejected: true });
+  await page.goto('/team');
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('link', { name: /학생증 사진을 다시 확인해주세요/ })).toBeVisible();
+  await page.getByRole('link', { name: /학생증 사진을 다시 확인해주세요/ }).click();
+  await page.getByLabel('학생증 사진', { exact: true }).setInputFiles({ name: 'retry.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  await page.getByRole('button', { name: '학생증 다시 제출', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('재승인 후 이용 제한이 해제');
+  await page.goto('/team');
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole('link', { name: /재승인 후 이용 제한이 해제/ })).toBeVisible();
+  api.approve(); await page.reload();
+  await page.goto('/team');
+  await expect(page).toHaveURL(/\/team$/);
+  await expect(page.getByText('학생증 사진을 다시 확인해주세요', { exact: true })).toHaveCount(0);
 });

@@ -74,12 +74,16 @@ try{
  const teams=result(await female.c.from('teams').select('id,status').in('id',[a.id,b.id]),'read accepted teams');check(teams.length===2&&teams.every(t=>t.status==='matched'),'real request acceptance marks both teams matched');
  const roster=result(await female.c.from('team_members_public').select('*').eq('team_id',a.id),'read matched roster');check(roster.length===2&&roster.every(m=>!('contact_id'in m)&&m.student_number.length<=2),'matched counterpart roster is readable and masked');
  const privateRows=result(await female.c.from('team_members').select('id').eq('team_id',a.id),'private counterpart check');check(privateRows.length===0,'real RLS keeps matched counterpart private member records hidden');
- // Deferred verification runs through actual local Auth, Storage and PostgREST.
+ // Photo-first access runs through actual local Auth, Storage and PostgREST.
  const deferred=client();
  const deferredAuth=result(await deferred.auth.signUp({email:'qa_deferred@example.test',password:'Synthetic!'+randomBytes(16).toString('hex')}),'photo-free Auth signup');
  check(Boolean(deferredAuth.session),'photo-free signup immediately issues a real signed session');
  const deferredId=deferredAuth.user.id;
- result(await deferred.from('profiles').insert({id:deferredId,username:'qa_deferred',name:'Synthetic deferred',gender:'female',school:'한림대',student_number:'20260001',contact_type:'kakao',contact_id:'synthetic-deferred',student_id_image_path:null,agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()}),'profile without photo');
+ check(Boolean((await deferred.from('profiles').insert({id:deferredId,username:'qa_deferred',name:'Synthetic deferred',gender:'female',school:'한림대',student_number:'20260001',contact_type:'kakao',contact_id:'synthetic-deferred',student_id_image_path:null,agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()})).error),'real API rejects profile without photo');
+ const deferredPath=deferredId+'/ordinary-image.png';
+ result(await deferred.storage.from('student-ids').upload(deferredPath,png,{contentType:'image/png'}),'upload ordinary image without content verification');
+ result(await deferred.from('profiles').insert({id:deferredId,username:'qa_deferred',name:'Synthetic deferred',gender:'female',school:'한림대',student_number:'20260001',contact_type:'kakao',contact_id:'synthetic-deferred',student_id_image_path:deferredPath,agreed_privacy:true,agreed_terms:true,agreed_disclaimer:true,terms_version:'v5.1',terms_agreed_at:new Date().toISOString()}),'profile with uploaded image');
+ check(result(await deferred.rpc('can_participate',{uid:deferredId}),'pending eligibility'),'ordinary uploaded image grants initial participation without badge');
  const photoMembers = [...members, { ...members[0], nickname:'Third optional photo' }];
  const photoPaths=[];
  for (const member of photoMembers) {
@@ -94,17 +98,11 @@ try{
  check(Boolean(draft.id)&&draft.members.length===3,'pending account saves draft through real authenticated API');
  const owned=result(await deferred.from('team_drafts').select('*'),'reload private draft');check(owned.length===1,'real RLS lets owner reload private draft');
  check(result(await male.c.from('team_drafts').select('*'),'foreign draft isolation').length===0,'real RLS hides draft contacts from other members');
- check(Boolean((await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id})).error),'real API blocks pending publication');
- check(Boolean((await deferred.rpc('save_my_team',args)).error),'old public save endpoint still denies pending users');
- check(Boolean((await admin.c.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId)).error),'real admin approval refuses missing student photo');
- const deferredPath=deferredId+'/deferred.png';result(await deferred.storage.from('student-ids').upload(deferredPath,png,{contentType:'image/png'}),'later real Storage upload');
- result(await deferred.rpc('submit_student_id',{p_path:deferredPath}),'attach later photo through real RPC');
  check(Boolean((await deferred.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId)).error),'real API denies self-approval');
- result(await admin.c.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId),'approve deferred profile');
- check(result(await male.c.rpc('get_home_teams'),'pre-publish browsing').every(t=>t.owner_id!==deferredId),'admin approval alone does not expose private draft');
- const published=result(await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id}),'publish approved draft');
- check(Boolean(published.id)&&result(await deferred.from('team_drafts').select('*'),'draft after publish').length===0,'approved real API publishes atomically and removes draft');
- const deferredHome=result(await male.c.rpc('get_home_teams'),'post-publish browsing');check(deferredHome.some(t=>t.id===published.id&&t.members.length===3&&!('contact_id' in t.members[0])),'approved published team appears with contact-free roster');
+ check(result(await male.c.rpc('get_home_teams'),'pre-publish browsing').every(t=>t.owner_id!==deferredId),'private draft is not public');
+ const published=result(await deferred.rpc('publish_my_team_draft',{p_draft_id:draft.id}),'publish pending draft');
+ check(Boolean(published.id)&&result(await deferred.from('team_drafts').select('*'),'draft after publish').length===0,'pending real API publishes atomically and removes draft');
+ const deferredHome=result(await male.c.rpc('get_home_teams'),'post-publish browsing');check(deferredHome.some(t=>t.id===published.id&&!t.owner_verified&&t.members.length===3&&!('contact_id' in t.members[0])),'pending published team appears without badge and with contact-free roster');
  check(result(await male.c.from('team_members').select('*').eq('team_id',published.id),'private published roster').length===0,'approval does not expose member contacts to another user');
  const visiblePhotos=result(await male.c.rpc('get_member_photos',{p_team_id:published.id}),'public photo references');
  check(visiblePhotos.length===3,'published team exposes exactly one optional photo per member');
@@ -121,6 +119,21 @@ try{
  check(result(await admin.c.from('member_photos').select('*'),'admin archive').length===3,'AAL2 administrator can inspect all photo snapshots');
  result(await admin.c.from('profiles').update({is_verified:false,verification_status:'rejected'}).eq('id',deferredId),'revoke deferred verification');
  check(Boolean((await male.c.storage.from('member-photos').download(photoPaths[0])).error),'revocation immediately denies new photo downloads');
+ check(result(await deferred.rpc('get_home_teams'),'rejected browsing').length===0,'rejection blocks browsing with existing JWT');
+ check(Boolean((await deferred.rpc('save_my_team',{...args,p_team_id:published.id})).error),'rejected owner cannot edit team');
+ check(Boolean((await deferred.storage.from('member-photos').download(visiblePhotos[0].path)).error),'rejected owner cannot download public member photos');
+ const retryPath=deferredId+'/retry.png';
+ result(await deferred.storage.from('student-ids').upload(retryPath,png,{contentType:'image/png'}),'restricted user can upload correction');
+ result(await deferred.rpc('submit_student_id',{p_path:retryPath}),'restricted user can resubmit');
+ const resubmitted=result(await deferred.from('profiles').select('verification_status,verification_restricted,is_verified').single(),'read own restricted status');
+ check(resubmitted.verification_status==='pending'&&resubmitted.verification_restricted&&!resubmitted.is_verified,'resubmitted account remains restricted and unverified');
+ check(Boolean((await deferred.from('profiles').update({verification_restricted:false}).eq('id',deferredId)).error),'cannot clear restriction through direct REST');
+ check(!result(await deferred.rpc('can_participate',{uid:deferredId}),'restricted eligibility'),'resubmission does not unlock participation');
+ check(Boolean((await male.c.storage.from('member-photos').download(photoPaths[0])).error),'resubmission does not expose team photos');
+ result(await admin.c.from('profiles').update({is_verified:true,verification_status:'approved'}).eq('id',deferredId),'approve corrected photo');
+ check(result(await deferred.rpc('can_participate',{uid:deferredId}),'restored eligibility'),'approval restores access');
+ check(result(await male.c.rpc('get_home_teams'),'approved badge').some(t=>t.id===published.id&&t.owner_verified),'approval adds visible verified badge');
+ result(await male.c.storage.from('member-photos').download(photoPaths[0]),'approval restores actual photo access');
  result(await deferred.from('teams').delete().eq('id',published.id),'delete synthetic photo team');
  const archived=result(await admin.c.from('member_photos').select('*'),'archive survives team deletion');
  check(archived.length===3&&archived.every(p=>p.archived_at&&p.expires_at),'team deletion retains three administrator-only archive records');
