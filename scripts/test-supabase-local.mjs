@@ -56,6 +56,41 @@ try{
  const low=createClient(api,anon,{auth:authOptions,global:{headers:{Authorization:'Bearer '+admin.initialToken}}});
  check(Boolean((await low.rpc('validate_account_deletion',{p_user_id:male.id})).error),'verified-factor admin old AAL1 JWT is blocked at the database');
  result(await admin.c.rpc('validate_account_deletion',{p_user_id:male.id}),'AAL2 admin deletion preflight');check(true,'real TOTP AAL2 JWT restores admin access');
+ // Real Auth, PostgREST and Storage coverage for the advertising APIs.
+ const bannerId=crypto.randomUUID();
+ const bannerPath=admin.id+'/'+bannerId+'.jpg';
+ const adImages='ad-banner-images';
+ check(Boolean((await male.c.storage.from(adImages).upload(male.id+'/'+bannerId+'.jpg',png,{contentType:'image/jpeg'})).error),'member cannot upload advertising images');
+ result(await admin.c.storage.from(adImages).upload(bannerPath,readFileSync(join(root,'e2e/fixtures/member-photo.jpg')),{contentType:'image/jpeg'}),'admin uploads a private ad image');
+ const adInput={p_id:bannerId,p_advertiser:'Synthetic cafe',p_headline:'Synthetic offer',p_description:'Synthetic benefits',p_destination_url:'https://offer.invalid/benefit',p_image_path:bannerPath,p_starts_at:null,p_ends_at:null};
+ result(await admin.c.rpc('create_home_ad_banner',adInput),'admin registers a banner');
+ result(await admin.c.rpc('create_home_ad_banner',adInput),'retry the same banner registration');
+ const adList=result(await admin.c.rpc('get_admin_home_ad_banners'),'admin reads banner list');
+ check(adList.length===1&&adList[0].id===bannerId&&!adList[0].enabled,'real API returns one paused banner after retry');
+ const adHome=result(await male.c.rpc('get_home_advertising'),'real visit without live banner');
+ check(adHome.banner===null,'paused banner is absent from the real home RPC');
+ check(Boolean((await male.c.storage.from(adImages).download(bannerPath)).error),'member cannot download paused creative');
+ check(Boolean((await low.rpc('get_admin_home_ad_banners')).error),'admin AAL1 cannot access advertising after MFA enrollment');
+ result(await admin.c.rpc('set_home_ad_enabled',{p_id:bannerId,p_enabled:true}),'start ad exposure');
+ check(result(await male.c.rpc('get_home_advertising'),'real live banner').banner?.id===bannerId,'member receives live banner from real PostgREST');
+ const realAdImage=result(await male.c.storage.from(adImages).download(bannerPath),'member downloads active creative');
+ check(realAdImage.size>0,'real active ad image is downloadable');
+ check(Boolean((await client().storage.from(adImages).download(bannerPath)).error),'anonymous storage cannot download advertising creative');
+ await Promise.all([
+   male.c.rpc('record_home_ad_event',{p_banner:bannerId,p_clicked:false}),
+   male.c.rpc('record_home_ad_event',{p_banner:bannerId,p_clicked:true}),
+   male.c.rpc('record_home_ad_event',{p_banner:bannerId,p_clicked:true}),
+ ].map(async request=>{check(result(await request,'real concurrent ad event')===true,'valid concurrent ad event accepted');}));
+ result(await female.c.rpc('get_home_advertising'),'second unique visit');
+ const statsArgs={p_from:adHome.day,p_through:adHome.day,p_banner:bannerId};
+ const adMetrics=result(await admin.c.rpc('get_admin_home_ad_metrics',statsArgs),'admin reads real ad metrics')[0];
+ check(adMetrics.tracked&&Number(adMetrics.visitors)===2&&Number(adMetrics.viewers)===1&&Number(adMetrics.clickers)===1,'real RPC deduplicates concurrent visits, impressions and clicks');
+ check(Boolean((await male.c.rpc('get_admin_home_ad_metrics',statsArgs)).error),'member cannot read real ad metrics');
+ result(await admin.c.rpc('set_home_ad_enabled',{p_id:bannerId,p_enabled:false}),'pause banner');
+ check(result(await female.c.rpc('get_home_advertising'),'real paused home').banner===null,'pause removes the banner for new requests');
+ check(result(await female.c.rpc('record_home_ad_event',{p_banner:bannerId,p_clicked:true}),'real stale ad click')===false,'pause prevents later events');
+ check(Boolean((await female.c.storage.from(adImages).download(bannerPath)).error),'pause revokes later creative downloads');
+
  const members=[1,2].map(n=>({school:'강원대',department:'Synthetic department',student_number:'20260001',nickname:'Synthetic member '+n,smoking:false,contact_type:'kakao',contact_id:'synthetic-contact-'+n,taste_tags:['cafe'],want_tags:['humor']}));
  async function makeTeam(user,intro){return result(await user.c.rpc('save_my_team',{p_team_id:null,p_intro:intro,p_team_size:2,p_members:members,p_members_consent_confirmed:true}),'atomic real API team creation');}
  const a=await makeTeam(male,'Synthetic male team');const b=await makeTeam(female,'Synthetic female team');check(Boolean(a.id&&b.id),'real authenticated RPC creates complete teams');

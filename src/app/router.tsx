@@ -28,6 +28,7 @@ const EditProfilePage = lazy(() => import('@/features/mypage/EditProfilePage'));
 const ChangePasswordPage = lazy(() => import('@/features/mypage/ChangePasswordPage'));
 
 const AdminLayout = lazy(() => import('@/features/admin/AdminLayout'));
+const AdminAdsPage = lazy(() => import('@/features/ads/AdminAdsPage'));
 const AdminDashboardPage = lazy(() => import('@/features/admin/AdminDashboardPage'));
 const AdminNotificationsPage = lazy(() => import('@/features/admin/AdminNotificationsPage'));
 const AdminUsersPage = lazy(() => import('@/features/admin/AdminUsersPage'));
@@ -79,6 +80,7 @@ export default function AppRouter() {
 
       <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
         <Route index element={<AdminDashboardPage />} />
+        <Route path="ads" element={<AdminAdsPage />} />
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="verification" element={<AdminVerificationPage />} />

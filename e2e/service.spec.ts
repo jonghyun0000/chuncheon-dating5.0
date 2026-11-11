@@ -662,3 +662,139 @@ test('same-gender examples require login', async ({ page }) => {
   await page.goto('/team-examples');
   await expect(page).toHaveURL(/\/login$/);
 });
+
+const testAd = {
+  id: 'a0000000-0000-4000-8000-000000000001',
+  advertiser: '가상 카페',
+  headline: '학생증 제시하면 음료 할인',
+  description: '가상 학생 할인 안내',
+  destination_url: 'https://offer.invalid/benefit',
+  image_path: null,
+  ends_at: null,
+};
+
+function mockAdTeams(amount: number) {
+  return Array.from({ length: amount }, (_, index) => ({
+    ...opponent, id: 'ad-fixture-team-' + index, intro: '광고 위치 테스트 팀 ' + (index + 1),
+    members: [{ ...opponent.members[0], school: index < 3 ? '한림대' : '강원대' }],
+  }));
+}
+
+async function stubRpc(page: Page, name: string, handle: (input: any) => { body: unknown; status?: number }) {
+  const origin = process.env.CC_TEST_API_ORIGIN ?? 'https://test.invalid';
+  await page.route(origin + '/rest/v1/rpc/' + name, async route => {
+    if (route.request().method() === 'OPTIONS') { await route.fallback(); return; }
+    const { body, status } = handle(route.request().postDataJSON());
+    await route.fulfill({ status: status ?? 200, json: body, headers: { 'access-control-allow-origin': '*' } });
+  });
+}
+
+test('home shows one marked banner after the third team and counts exposure only in view', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  const events: boolean[] = [];
+  let homeLoads = 0;
+  await stubRpc(page, 'get_home_teams', () => ({ body: mockAdTeams(5) }));
+  await stubRpc(page, 'get_home_advertising', () => {
+    homeLoads++;
+    return { body: { day: '2026-11-12', banner: testAd } };
+  });
+  await stubRpc(page, 'record_home_ad_event', input => {
+    events.push(input.p_clicked);
+    return { body: true };
+  });
+  await page.context().route('https://offer.invalid/**', route => route.fulfill({ status: 200, body: 'Synthetic offer' }));
+  await page.goto('/');
+  const banner = page.getByTestId('home-ad-banner');
+  await expect(banner).toHaveCount(1);
+  await expect(banner.getByText('광고', { exact: true })).toBeVisible();
+  const order = await banner.evaluate(element => ({
+    before: element.previousElementSibling?.textContent,
+    after: element.nextElementSibling?.textContent,
+  }));
+  expect(order.before).toContain('광고 위치 테스트 팀 3');
+  expect(order.after).toContain('광고 위치 테스트 팀 4');
+  await expect(banner).not.toBeInViewport();
+  expect(events).toEqual([]);
+  const beforeScroll = Date.now();
+  await banner.scrollIntoViewIfNeeded();
+  await expect.poll(() => events).toEqual([false]);
+  expect(Date.now() - beforeScroll).toBeGreaterThanOrEqual(950);
+  const popupPromise = page.waitForEvent('popup');
+  await banner.click();
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL('https://offer.invalid/benefit');
+  await popup.close();
+  await expect.poll(() => events).toEqual([false, true]);
+  await page.getByRole('button', { name: '한림대', exact: true }).click();
+  await expect(page.getByText('광고 위치 테스트 팀 3', { exact: false })).toBeVisible();
+  await expect(banner).toHaveCount(0);
+  expect(homeLoads).toBe(1);
+});
+
+test('a failed advertising request does not block existing team browsing', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  await stubRpc(page, 'get_home_teams', () => ({ body: mockAdTeams(5) }));
+  await stubRpc(page, 'get_home_advertising', () => ({ status: 503, body: { message: 'Synthetic ad outage' } }));
+  await page.goto('/');
+  await expect(page.getByText('광고 위치 테스트 팀 5', { exact: false })).toBeVisible();
+  await expect(page.getByTestId('home-ad-banner')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '신청하기', exact: true })).toHaveCount(5);
+});
+
+test('administrator can register, start and pause a banner and filter daily metrics', async ({ page }) => {
+  await mockApi(page, { signedIn: true, admin: true });
+  let banners: any[] = [];
+  let lastFilter: string | null = null;
+  let registration: any;
+  await stubRpc(page, 'get_admin_home_ad_banners', () => ({ body: banners }));
+  await stubRpc(page, 'get_admin_home_ad_metrics', input => {
+    lastFilter = input.p_banner;
+    return { body: [
+      { day: input.p_through, visitors: 100, viewers: 60, clickers: 6, tracked: true },
+      { day: input.p_from, visitors: 0, viewers: 0, clickers: 0, tracked: false },
+    ] };
+  });
+  await stubRpc(page, 'create_home_ad_banner', input => {
+    registration = input;
+    banners = [{
+      ...testAd, id: input.p_id, advertiser: input.p_advertiser, headline: input.p_headline,
+      starts_at: new Date(Date.now() - 60000).toISOString(), enabled: false,
+    }];
+    return { body: null };
+  });
+  await stubRpc(page, 'set_home_ad_enabled', input => {
+    banners = banners.map(banner => ({ ...banner, enabled: input.p_enabled }));
+    return { body: null };
+  });
+  await page.goto('/admin/ads');
+  await expect(page.getByRole('heading', { name: '광고 관리', exact: true })).toBeVisible();
+  const metrics = page.getByRole('table', { name: '광고 일별 성과' });
+  await expect(metrics.getByRole('cell', { name: '10.0%' })).toBeVisible();
+  await expect(metrics.getByRole('cell', { name: '100', exact: true })).toBeVisible();
+  await expect(metrics.getByRole('cell', { name: '—', exact: true })).toHaveCount(4);
+  await page.getByLabel('광고주', { exact: true }).fill('가상 카페');
+  await page.getByLabel('제목', { exact: true }).fill('가상 학생 할인');
+  await page.getByLabel('광고 링크', { exact: true }).fill('https://offer.invalid/benefit');
+  await page.getByLabel('배너 이미지 (선택)', { exact: true }).setInputFiles('e2e/fixtures/member-photo.jpg');
+  await page.getByRole('button', { name: '배너 등록하기', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '배너를 등록했습니다' })).toBeVisible();
+  expect(registration.p_image_path).toBe(uid + '/' + registration.p_id + '.jpg');
+  await page.getByRole('button', { name: '노출 시작', exact: true }).click();
+  await expect(page.getByText('노출 중', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '일시 중지', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '배너를 일시 중지했습니다' })).toBeVisible();
+  await page.getByLabel('배너', { exact: true }).selectOption(registration.p_id);
+  await expect.poll(() => lastFilter).toBe(registration.p_id);
+  await expect(metrics.getByRole('cell', { name: '10.0%' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('advertising management is protected by the administrator route', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  const requests: string[] = [];
+  page.on('request', request => { if (request.url().includes('/rpc/get_admin_home_ad')) requests.push(request.url()); });
+  await page.goto('/admin/ads');
+  await expect(page.getByRole('heading', { name: '광고 관리', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /권한/ })).toBeVisible();
+  expect(requests).toEqual([]);
+});
