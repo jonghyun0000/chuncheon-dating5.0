@@ -1,6 +1,6 @@
 import { tr } from '@/i18n';
 
-export const SCHOOLS = ['강원대', '한림대', '성심대', '춘교대'] as const;
+export const SCHOOLS = ['강원대', '한림대', '성심대', '춘교대', '송곡대'] as const;
 export type School = (typeof SCHOOLS)[number];
 
 /** 학교 표시명 (현재 언어) — 값(DB)은 한국어 그대로, 화면 라벨만 번역 */
@@ -40,12 +40,13 @@ export const ADMIN_EMAIL = 'john_1217@naver.com';
 
 export const STORAGE_BUCKET = 'student-ids';
 
-/** 학교 뱃지 색상 (4개 대학) */
+/** 학교 뱃지 색상 */
 export const SCHOOL_BADGE_COLOR: Record<School, string> = {
   강원대: 'bg-blue-100 text-blue-700 ring-blue-200',
   한림대: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
   성심대: 'bg-violet-100 text-violet-700 ring-violet-200',
   춘교대: 'bg-orange-100 text-orange-700 ring-orange-200',
+  송곡대: 'bg-teal-100 text-teal-700 ring-teal-200',
 };
 
 // ---- 표시 라벨 (현재 언어 사전에서 조회) --------------------------------

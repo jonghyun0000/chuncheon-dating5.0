@@ -11,6 +11,7 @@ const SCHOOL_SHORT: Record<string, string> = {
   한림대: '翰林大',
   성심대: '圣心大',
   춘교대: '春教大',
+  송곡대: '松谷大',
 };
 
 const SCHOOL_FULL: Record<string, string> = {
@@ -18,6 +19,7 @@ const SCHOOL_FULL: Record<string, string> = {
   한림대: '翰林大学',
   성심대: '翰林圣心大学',
   춘교대: '春川教育大学',
+  송곡대: '松谷大学',
 };
 
 const PREVAIL_NOTE =
@@ -110,7 +112,7 @@ const TERMS_SERVICE_DOC: TermsDoc = {
     {
       heading: '第2条（会员资格）',
       body: [
-        '1. 本服务面向江原国立大学、翰林大学、翰林圣心大学、春川教育大学的在读生及休学生。',
+        '1. 本服务面向江原国立大学、翰林大学、翰林圣心大学、春川教育大学、松谷大学的在读生及休学生。',
         '2. 会员须年满19周岁，未成年人不得注册。',
         '3. 注册时须提交学生证照片。首次审核期间可使用所有功能，批准后显示认证徽章。照片被拒绝后将限制使用，重新提交有效照片并获批准后解除限制。',
         '4. 一人仅限一个账号。冒用他人名义或学生证注册的，可不经通知限制使用。',
@@ -255,7 +257,7 @@ const TERMS_DISCLAIMER: TermsDoc = {
 export const zh: Dict = {
   common: {
     appName: '春川联谊',
-    tagline: '江原大 · 翰林大 · 圣心大 · 春教大',
+    tagline: '江原大 · 翰林大 · 圣心大 · 春教大 · 松谷大',
     taglineService: '团体相亲匹配服务',
     loading: '加载中...',
     processing: '处理中...',
@@ -318,7 +320,7 @@ export const zh: Dict = {
 
     c1: {
       tag: '快速了解',
-      line1: '春川四所大学',
+      line1: '春川五所大学',
       line2: '以队伍形式相遇的地方',
       sub: '不必再通过熟人的熟人，\n也能约到联谊。',
       sizes: '1:1 · 2:2 · 3:3 · 4:4',
@@ -386,7 +388,7 @@ export const zh: Dict = {
   },
 
   login: {
-    subtitle: '江原大 · 翰林大 · 圣心大 · 春教大 联谊匹配',
+    subtitle: '江原大 · 翰林大 · 圣心大 · 春教大 · 松谷大 联谊匹配',
     username: '用户名',
     usernamePlaceholder: '字母/数字/下划线',
     password: '密码',
@@ -977,7 +979,7 @@ export const zh: Dict = {
     checkStudentNumber: '学号须为6~12位数字。（例：20233105）',
     checkPhone: '电话号码须为以01开头的10~11位数字。（例：01012345678）',
     checkContactType: '联系方式只能登记 KakaoTalk ID 或电话号码。',
-    checkSchool: '不支持的学校。请从江原大·翰林大·圣心大·春教大中选择。',
+    checkSchool: '不支持的学校。请从江原大·翰林大·圣心大·春教大·松谷大中选择。',
     checkTeamSize: '队伍人数须为1至4人。',
     emailNotConfirmed: '需要邮箱验证。',
     invalidCredentials: '用户名或密码不正确。',

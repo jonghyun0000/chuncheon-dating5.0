@@ -253,13 +253,16 @@ test('signup requires an image then grants initial access before verification', 
   await page.getByLabel('비밀번호', { exact: true }).fill('Fixture123!');
   await page.getByLabel('비밀번호 확인', { exact: true }).fill('Fixture123!');
   await page.getByLabel('이름', { exact: true }).fill('가상회원');
+  await page.getByLabel('학교', { exact: true }).selectOption('송곡대');
   await page.getByLabel('학번', { exact: true }).fill('20260001');
   await page.getByLabel('전화번호', { exact: true }).fill('01000000000');
   await page.getByRole('checkbox', { name: '약관에 모두 동의합니다' }).check();
   await page.getByRole('button', { name: '가입하기', exact: true }).click();
   await expect(page.getByText('학생증 사진을 선택해주세요.', { exact: true })).toBeVisible();
   await page.locator('#register-student-id').setInputFiles({ name: 'ordinary-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
+  const profileSave = page.waitForRequest(request => request.url().endsWith('/rest/v1/profiles') && request.method() === 'POST');
   await page.getByRole('button', { name: '가입하기', exact: true }).click();
+  expect((await profileSave).postDataJSON().school).toBe('송곡대');
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText('지금 바로 이용할 수 있어요', { exact: true })).toBeVisible();
   await expect(page.getByText('가상 상대 팀', { exact: false })).toBeVisible();
@@ -273,11 +276,13 @@ test('legacy missing-photo member can edit and reload a private draft but must s
   await expect(page.getByText('비공개 초안', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '학생증 사진 제출 필요', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '팀 수정', exact: true }).click();
+  await page.getByRole('combobox', { name: '학교', exact: true }).selectOption('송곡대');
   await page.getByLabel('팀 한줄소개', { exact: true }).fill('수정된 비공개 가상 팀');
   await page.getByRole('button', { name: '팀 초안 저장', exact: true }).click();
   await expect(page.getByText('수정된 비공개 가상 팀', { exact: false })).toBeVisible();
   await page.reload();
   await expect(page.getByText('수정된 비공개 가상 팀', { exact: false })).toBeVisible();
+  await expect(page.getByText('송곡대', { exact: true })).toBeVisible();
   expect(api.writes).toEqual(['draft']);
 });
 
@@ -797,4 +802,22 @@ test('advertising management is protected by the administrator route', async ({ 
   await expect(page.getByRole('heading', { name: '광고 관리', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /권한/ })).toBeVisible();
   expect(requests).toEqual([]);
+});
+
+test('home school filter includes Songgok teams', async ({ page }) => {
+  await mockApi(page, { signedIn: true });
+  await stubRpc(page, 'get_home_teams', () => ({ body: [
+    opponent,
+    {
+      ...opponent,
+      id: 'songgok-team-fixture',
+      intro: '가상 송곡대 팀',
+      members: [{ ...opponent.members[0], school: '송곡대' }],
+    },
+  ] }));
+  await page.goto('/');
+  await expect(page.getByText('가상 상대 팀', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: '송곡대', exact: true }).click();
+  await expect(page.getByText('가상 송곡대 팀', { exact: false })).toBeVisible();
+  await expect(page.getByText('가상 상대 팀', { exact: false })).toHaveCount(0);
 });

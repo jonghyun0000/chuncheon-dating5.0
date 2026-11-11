@@ -11,6 +11,7 @@ const SCHOOL_SHORT: Record<string, string> = {
   한림대: '翰林大',
   성심대: '聖心大',
   춘교대: '春教大',
+  송곡대: '松谷大',
 };
 
 const SCHOOL_FULL: Record<string, string> = {
@@ -18,6 +19,7 @@ const SCHOOL_FULL: Record<string, string> = {
   한림대: '翰林大学校',
   성심대: '翰林聖心大学校',
   춘교대: '春川教育大学校',
+  송곡대: '松谷大学校',
 };
 
 const PREVAIL_NOTE =
@@ -110,7 +112,7 @@ const TERMS_SERVICE_DOC: TermsDoc = {
     {
       heading: '第2条（会員資格）',
       body: [
-        '1. 本サービスは、江原大学校・翰林大学校・翰林聖心大学校・春川教育大学校の在学生および休学生を対象とします。',
+        '1. 本サービスは、江原大学校・翰林大学校・翰林聖心大学校・春川教育大学校・松谷大学校の在学生および休学生を対象とします。',
         '2. 会員は満19歳以上でなければならず、未成年者の登録は認められません。',
         '3. 登録時に学生証の写真が必要です。初回審査中も全機能を利用でき、承認後に認証バッジが表示されます。拒否された場合は利用が制限され、正しい写真の再提出と再承認後に解除されます。',
         '4. 1人1アカウントのみ許可されます。他人の名義や学生証を不正利用して登録した場合、事前通知なく利用が制限されることがあります。',
@@ -255,7 +257,7 @@ const TERMS_DISCLAIMER: TermsDoc = {
 export const ja: Dict = {
   common: {
     appName: '春川合コン',
-    tagline: '江原大 · 翰林大 · 聖心大 · 春教大',
+    tagline: '江原大 · 翰林大 · 聖心大 · 春教大 · 松谷大',
     taglineService: '合コンマッチングサービス',
     loading: '読み込み中...',
     processing: '処理中...',
@@ -318,7 +320,7 @@ export const ja: Dict = {
 
     c1: {
       tag: '見てみる',
-      line1: '春川の4大学が',
+      line1: '春川の5大学が',
       line2: 'チームで出会う場所です',
       sub: '知り合いの知り合いを頼らなくても\n合コンを組めます。',
       sizes: '1:1 · 2:2 · 3:3 · 4:4',
@@ -386,7 +388,7 @@ export const ja: Dict = {
   },
 
   login: {
-    subtitle: '江原大 · 翰林大 · 聖心大 · 春教大 合コンマッチング',
+    subtitle: '江原大 · 翰林大 · 聖心大 · 春教大 · 松谷大 合コンマッチング',
     username: 'ユーザー名',
     usernamePlaceholder: '英数字/アンダーバー',
     password: 'パスワード',
@@ -977,7 +979,7 @@ export const ja: Dict = {
     checkStudentNumber: '学籍番号は数字6~12桁で入力してください。（例：20233105）',
     checkPhone: '電話番号は01で始まる数字10~11桁で入力してください。（例：01012345678）',
     checkContactType: '連絡先は KakaoTalk ID または電話番号のみ登録できます。',
-    checkSchool: '対応していない学校です。江原大・翰林大・聖心大・春教大から選択してください。',
+    checkSchool: '対応していない学校です。江原大・翰林大・聖心大・春教大・松谷大から選択してください。',
     checkTeamSize: 'チームの人数は1名から4名までです。',
     emailNotConfirmed: 'メール認証が必要です。',
     invalidCredentials: 'ユーザー名またはパスワードが正しくありません。',

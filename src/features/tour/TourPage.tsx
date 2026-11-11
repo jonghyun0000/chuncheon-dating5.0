@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import { useI18n } from '@/i18n';
+import { SCHOOLS, SCHOOL_BADGE_COLOR } from '@/lib/constants';
 
 /**
  * 가입 전 둘러보기 (온보딩 튜토리얼).
@@ -200,21 +201,15 @@ function StepRow({
 function Card1() {
   const { t } = useI18n();
   const c = t.tour.c1;
-  const schools: { key: string; cls: string }[] = [
-    { key: '강원대', cls: 'bg-blue-100 text-blue-700' },
-    { key: '한림대', cls: 'bg-emerald-100 text-emerald-700' },
-    { key: '성심대', cls: 'bg-violet-100 text-violet-700' },
-    { key: '춘교대', cls: 'bg-orange-100 text-orange-700' },
-  ];
   return (
     <>
       <Head tag={c.tag} line1={c.line1} line2={c.line2} sub={c.sub} />
       <div className="mt-5 space-y-2.5">
         <Panel>
           <div className="flex flex-wrap justify-center gap-1.5">
-            {schools.map((s) => (
-              <span key={s.key} className={`rounded-full px-3 py-1.5 text-[11px] font-medium ${s.cls}`}>
-                {t.schools.short[s.key] ?? s.key}
+            {SCHOOLS.map((school) => (
+              <span key={school} className={`rounded-full px-3 py-1.5 text-[11px] font-medium ${SCHOOL_BADGE_COLOR[school]}`}>
+                {t.schools.short[school] ?? school}
               </span>
             ))}
           </div>
