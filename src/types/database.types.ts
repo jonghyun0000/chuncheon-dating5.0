@@ -2,8 +2,10 @@
  * Supabase 테이블 타입 정의.
  */
 
+import type { School } from '@/lib/constants';
+
+export type { School } from '@/lib/constants';
 export type Gender = 'male' | 'female';
-export type School = '강원대' | '한림대' | '성심대' | '춘교대';
 /** 'instagram' 은 5.0 개편 이전 가입자의 레거시 값 (신규 입력 불가) */
 export type ContactType = 'kakao' | 'phone' | 'instagram';
 export type TeamStatus = 'active' | 'hidden' | 'matched';

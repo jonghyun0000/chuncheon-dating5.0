@@ -1,6 +1,6 @@
 import { Leaf } from 'lucide-react';
 import type { FilterSchool, FilterTeamSize } from '@/types/common.types';
-import { schoolLabel } from '@/lib/constants';
+import { SCHOOLS, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   onSize: (s: FilterTeamSize) => void;
 }
 
-const schoolOptions: FilterSchool[] = ['전체', '강원대', '한림대', '성심대', '춘교대'];
+const schoolOptions: FilterSchool[] = ['전체', ...SCHOOLS];
 const sizeOptions: FilterTeamSize[] = ['전체', 1, 2, 3, 4];
 
 export default function TeamFilter({ school, noSmoke, size, onSchool, onNoSmoke, onSize }: Props) {

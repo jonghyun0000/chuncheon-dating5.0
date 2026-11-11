@@ -1,7 +1,7 @@
 {
   "name": "춘천과팅",
   "short_name": "춘천과팅",
-  "description": "강원대·한림대·성심대·춘교대 재학생을 위한 팀 과팅 매칭 서비스",
+  "description": "강원대·한림대·성심대·춘교대·송곡대 재학생을 위한 팀 과팅 매칭 서비스",
   "lang": "ko",
   "dir": "ltr",
   "start_url": "/?source=pwa",

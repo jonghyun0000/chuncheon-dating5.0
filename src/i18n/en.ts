@@ -11,6 +11,7 @@ const SCHOOL_SHORT: Record<string, string> = {
   한림대: 'Hallym',
   성심대: 'HPU',
   춘교대: 'CNUE',
+  송곡대: 'Songgok',
 };
 
 const SCHOOL_FULL: Record<string, string> = {
@@ -18,6 +19,7 @@ const SCHOOL_FULL: Record<string, string> = {
   한림대: 'Hallym University',
   성심대: 'Hallym Polytechnic University',
   춘교대: 'Chuncheon National University of Education',
+  송곡대: 'Songgok University',
 };
 
 const PREVAIL_NOTE =
@@ -110,7 +112,7 @@ const TERMS_SERVICE_DOC: TermsDoc = {
     {
       heading: 'Article 2 (Eligibility)',
       body: [
-        '1. The Service is for enrolled students (including those on leave) of Kangwon National University, Hallym University, Hallym Polytechnic University, and Chuncheon National University of Education.',
+        '1. The Service is for enrolled students (including those on leave) of Kangwon National University, Hallym University, Hallym Polytechnic University, Chuncheon National University of Education, and Songgok University.',
         '2. Members must be at least 19 years old. Minors may not sign up.',
         '3. A student ID photo is required at signup. All features are available during the initial review. Admin approval adds a verified badge. Rejection restricts access until a corrected photo is submitted and approved.',
         '4. One account per person. Accounts created with another person\'s identity or student ID may be restricted without notice.',
@@ -255,7 +257,7 @@ const TERMS_DISCLAIMER: TermsDoc = {
 export const en: Dict = {
   common: {
     appName: 'Chuncheon Gating',
-    tagline: 'KNU · Hallym · HPU · CNUE',
+    tagline: 'KNU · Hallym · HPU · CNUE · Songgok',
     taglineService: 'Group blind-date matching',
     loading: 'Loading...',
     processing: 'Working...',
@@ -318,7 +320,7 @@ export const en: Dict = {
 
     c1: {
       tag: 'Tour',
-      line1: "Chuncheon's four universities",
+      line1: "Chuncheon's five universities",
       line2: 'meet here, as teams',
       sub: 'No need to go through a friend of a friend\nto set up a group date.',
       sizes: '1:1 · 2:2 · 3:3 · 4:4',
@@ -386,7 +388,7 @@ export const en: Dict = {
   },
 
   login: {
-    subtitle: 'KNU · Hallym · HPU · CNUE group-date matching',
+    subtitle: 'KNU · Hallym · HPU · CNUE · Songgok group-date matching',
     username: 'Username',
     usernamePlaceholder: 'Letters/numbers/underscore',
     password: 'Password',
@@ -977,7 +979,7 @@ export const en: Dict = {
     checkStudentNumber: 'Student ID number must be 6–12 digits. (e.g. 20233105)',
     checkPhone: 'Phone number must be 10–11 digits starting with 01. (e.g. 01012345678)',
     checkContactType: 'Only KakaoTalk ID or phone number can be registered as contact.',
-    checkSchool: 'Unsupported school. Choose from KNU, Hallym, HPU, or CNUE.',
+    checkSchool: 'Unsupported school. Choose from KNU, Hallym, HPU, CNUE, or Songgok.',
     checkTeamSize: 'Team size must be between 1 and 4.',
     emailNotConfirmed: 'Email confirmation required.',
     invalidCredentials: 'Incorrect username or password.',
