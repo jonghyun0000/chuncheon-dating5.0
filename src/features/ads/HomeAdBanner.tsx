@@ -40,7 +40,7 @@ export function AdBannerContent({ advertiser, headline, description, imageUrl }:
 
 export const adCardClass = 'card flex w-full items-center gap-3 border border-zinc-200 bg-white p-3 text-left';
 
-function useAdImage(path: string | null) {
+export function useAdImage(path: string | null) {
   const [image, setImage] = useState<{ path: string; url: string } | null>(null);
   useEffect(() => {
     if (!path) return;

@@ -150,3 +150,33 @@ SELECT test_support.assert((SELECT visitors=1 AND viewers=1 AND clickers=1
   'only member activity counted');
 SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000001',false);
 SELECT test_support.assert(public.get_home_advertising()->'banners'->0->>'headline'='Offer B','pausing leaves the other ad live');
+
+-- TEST AD10_edit PASS An authorized edit preserves status and statistics and protects image ownership
+INSERT INTO home_ads.banners(id,advertiser,headline,destination_url,starts_at,enabled)
+VALUES ('a0000000-0000-4000-8000-000000000001','Shop','Old headline','https://example.test',now(),true);
+INSERT INTO home_ads.reach(day,banner_id,member_id,clicked)
+VALUES ((now() AT TIME ZONE 'Asia/Seoul')::date,'a0000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002',true);
+INSERT INTO storage.objects(bucket_id,name,owner)
+VALUES ('ad-banner-images','00000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-000000000004.jpg','00000000-0000-4000-8000-000000000001');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+SELECT test_support.expect_denied($q$SELECT public.edit_home_ad_banner(
+ 'a0000000-0000-4000-8000-000000000001','Shop','Forbidden','','https://example.test',false,NULL,NULL,NULL)$q$);
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT test_support.expect_denied($q$SELECT public.edit_home_ad_banner(
+ 'a0000000-0000-4000-8000-000000000001','Shop','Forbidden','','https://example.test',true,'other/private.jpg',NULL,NULL)$q$);
+SELECT public.edit_home_ad_banner('a0000000-0000-4000-8000-000000000001','New shop','New headline','Benefit',
+ 'https://example.test/new',true,'00000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-000000000004.jpg',NULL,now()+interval '1 day');
+SELECT test_support.assert((SELECT enabled AND headline='New headline' AND image_path IS NOT NULL
+ FROM public.get_admin_home_ad_banners()),'title and image changed while enabled');
+SELECT test_support.assert((SELECT viewers=1 AND clickers=1
+ FROM public.get_admin_home_ad_metrics((now() AT TIME ZONE 'Asia/Seoul')::date,(now() AT TIME ZONE 'Asia/Seoul')::date)),
+ 'existing metrics preserved');
+SELECT public.edit_home_ad_banner('a0000000-0000-4000-8000-000000000001','New shop','New headline','Benefit',
+ 'https://example.test/new',false,NULL,NULL,NULL);
+SELECT test_support.assert((SELECT enabled AND image_path IS NOT NULL AND ends_at IS NULL
+ FROM public.get_admin_home_ad_banners()),'keep image and clear end time');
+SELECT public.edit_home_ad_banner('a0000000-0000-4000-8000-000000000001','New shop','New headline','Benefit',
+ 'https://example.test/new',true,NULL,NULL,NULL);
+SELECT test_support.assert((SELECT enabled AND image_path IS NULL
+ FROM public.get_admin_home_ad_banners()),'remove image without changing enabled status');

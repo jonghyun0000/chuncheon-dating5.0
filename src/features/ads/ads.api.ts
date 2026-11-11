@@ -68,7 +68,7 @@ export async function downloadAdImage(path: string): Promise<Blob> {
   return data;
 }
 
-export async function registerAdBanner(input: {
+interface BannerInput {
   id: string;
   ownerId: string;
   advertiser: string;
@@ -78,28 +78,42 @@ export async function registerAdBanner(input: {
   image: File | null;
   startsAt: string | null;
   endsAt: string | null;
-}): Promise<void> {
+}
+
+async function bannerFields(input: BannerInput, uploadId: string) {
   const destination = safeAdUrl(input.url);
   if (!destination) throw new Error('https://로 시작하는 광고 링크를 입력해주세요.');
 
   let imagePath: string | null = null;
   if (input.image) {
     const image = await prepareMemberPhoto(input.image);
-    imagePath = input.ownerId + '/' + input.id + '.jpg';
+    imagePath = input.ownerId + '/' + uploadId + '.jpg';
     const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(imagePath, image, {
       contentType: 'image/jpeg', cacheControl: '0', upsert: false,
     });
     if (error) {
-      // The original upload may have succeeded despite a lost response. Retry the same draft ID.
+      // Retry the same upload when the original response may have been lost.
       try { await downloadAdImage(imagePath); }
       catch { throw new Error('배너 이미지를 업로드하지 못했습니다. 다시 시도해주세요.'); }
     }
   }
 
-  const { error } = await supabase.rpc('create_home_ad_banner', {
+  return {
     p_id: input.id, p_advertiser: input.advertiser, p_headline: input.headline,
     p_description: input.description, p_destination_url: destination, p_image_path: imagePath,
     p_starts_at: input.startsAt, p_ends_at: input.endsAt,
+  };
+}
+
+export async function registerAdBanner(input: BannerInput): Promise<void> {
+  const { error } = await supabase.rpc('create_home_ad_banner', await bannerFields(input, input.id));
+  if (error) throw error;
+}
+
+export async function editAdBanner(input: BannerInput, uploadId: string, removeImage: boolean): Promise<void> {
+  const { error } = await supabase.rpc('edit_home_ad_banner', {
+    ...await bannerFields(input, uploadId),
+    p_replace_image: Boolean(input.image) || removeImage,
   });
   if (error) throw error;
 }
