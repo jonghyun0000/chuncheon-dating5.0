@@ -746,14 +746,13 @@ test('a failed advertising request does not block existing team browsing', async
   await expect(page.getByRole('button', { name: '신청하기', exact: true })).toHaveCount(5);
 });
 
-test('administrator can register, start and pause a banner and filter daily metrics', async ({ page }) => {
+test('administrator can register, edit, start and pause a banner', async ({ page }) => {
   await mockApi(page, { signedIn: true, admin: true });
   let banners: any[] = [];
-  let lastFilter: string | null = null;
   let registration: any;
   await stubRpc(page, 'get_admin_home_ad_banners', () => ({ body: banners }));
   await stubRpc(page, 'get_admin_home_ad_metrics', input => {
-    lastFilter = input.p_banner;
+    expect(input.p_banner).toBeNull();
     return { body: [
       { day: input.p_through, visitors: 100, viewers: 60, clickers: 6, tracked: true },
       { day: input.p_from, visitors: 0, viewers: 0, clickers: 0, tracked: false },
@@ -804,9 +803,54 @@ test('administrator can register, start and pause a banner and filter daily metr
   await expect(page.getByText('노출 중', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '일시 중지', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '배너를 일시 중지했습니다' })).toBeVisible();
-  await page.getByLabel('배너', { exact: true }).selectOption(registration.p_id);
-  await expect.poll(() => lastFilter).toBe(registration.p_id);
   await expect(metrics.getByRole('cell', { name: '10.0%' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('banner performance shows its own daily counts without changing overall performance', async ({ page }) => {
+  await mockApi(page, { signedIn: true, admin: true });
+  const first = { ...testAd, headline: '첫 번째 성과 배너', starts_at: '2026-01-01T00:00:00Z', enabled: true };
+  const second = {
+    ...first, id: 'second-performance-banner', headline: '종료된 성과 배너',
+    ends_at: '2026-01-02T00:00:00Z', enabled: false,
+  };
+  const requests: { p_from: string; p_through: string; p_banner: string | null }[] = [];
+  await stubRpc(page, 'get_admin_home_ad_banners', () => ({ body: [first, second] }));
+  await stubRpc(page, 'get_admin_home_ad_metrics', input => {
+    requests.push(input);
+    const [viewers, clickers] = input.p_banner === first.id ? [20, 5]
+      : input.p_banner === second.id ? [8, 1] : [26, 5];
+    return { body: [{ day: input.p_through, visitors: 100, viewers, clickers, tracked: true }] };
+  });
+
+  await page.goto('/admin/ads');
+  const overall = page.getByRole('region', { name: '전체 성과' });
+  const table = overall.getByRole('table');
+  await expect(table.getByRole('cell', { name: '100', exact: true })).toBeVisible();
+  await expect(table.getByRole('cell', { name: '26', exact: true })).toBeVisible();
+  expect(requests.every(request => request.p_banner === null)).toBe(true);
+
+  const firstCard = page.getByRole('article').filter({ hasText: first.headline });
+  await firstCard.getByRole('button', { name: '성과 보기' }).click();
+  const firstReport = firstCard.getByRole('region', { name: '배너 성과' });
+  await expect(firstReport.getByRole('cell', { name: '25.0%' })).toBeVisible();
+  await expect(firstReport.getByRole('columnheader', { name: '방문' })).toHaveCount(0);
+  expect(requests.at(-1)?.p_banner).toBe(first.id);
+  await expect(table.getByRole('cell', { name: '26', exact: true })).toBeVisible();
+
+  const secondCard = page.getByRole('article').filter({ hasText: second.headline });
+  await secondCard.getByRole('button', { name: '성과 보기' }).click();
+  await expect(firstReport).toHaveCount(0);
+  const secondReport = secondCard.getByRole('region', { name: '배너 성과' });
+  await expect(secondReport.getByRole('cell', { name: '12.5%' })).toBeVisible();
+  expect(requests.at(-1)?.p_banner).toBe(second.id);
+
+  const originalStart = await overall.getByLabel('시작 날짜').inputValue();
+  const newStart = new Date(Date.parse(originalStart) - 86400000).toISOString().slice(0, 10);
+  await secondReport.getByLabel('시작 날짜').fill(newStart);
+  await expect.poll(() => requests.at(-1)).toMatchObject({ p_from: newStart, p_banner: second.id });
+  await expect(overall.getByLabel('시작 날짜')).toHaveValue(originalStart);
+  await expect(table.getByRole('cell', { name: '26', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
