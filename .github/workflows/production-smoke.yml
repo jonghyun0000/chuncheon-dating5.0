@@ -70,7 +70,7 @@ jobs:
       - if: steps.trusted.outputs.run == 'true'
         run: npm ci
       - if: steps.trusted.outputs.run == 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --only-shell chromium
       - name: Skip a release superseded during setup
         id: current
         if: steps.trusted.outputs.run == 'true'
