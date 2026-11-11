@@ -1,4 +1,4 @@
-import { isVerificationRestricted } from './verificationAccess';
+import { canParticipate, hasVerificationBadge, isVerificationRestricted } from './verificationAccess';
 import { useRef, useState } from 'react';
 import { Camera, ImagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -24,15 +24,29 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const restricted = isVerificationRestricted(profile);
-  const approved = profile?.is_verified && profile.verification_status === 'approved';
+  const approved = hasVerificationBadge(profile);
+  const eligible = canParticipate(profile);
+  const pending = !!profile?.student_id_image_path && profile.verification_status === 'pending';
+  const available = pending && eligible;
   const label = approved ? t.mypage.verifyApproved : profile?.verification_status === 'rejected'
-    ? v.rejected : profile?.student_id_image_path ? v.pending : v.notSubmitted;
+    ? v.rejected : available ? v.available : pending ? v.pending : v.notSubmitted;
   return (
     <PageLayout subtitle={v.title}>
       <section className="card space-y-4 p-5">
         <h1 className="font-display text-xl">{v.title}</h1>
         <p className="text-sm font-semibold">{label}</p>
-        <p className="text-sm leading-relaxed text-zinc-600">{restricted ? (profile?.verification_status === 'pending' ? v.restrictedPending : v.restrictedNote) : profile?.student_id_image_path && profile.verification_status === 'pending' ? j.waiting : v.note}</p>
+        {!approved && (
+          <p className="text-sm leading-relaxed text-zinc-600">
+            {restricted ? (pending ? v.restrictedPending : v.restrictedNote) : available ? j.waiting : v.note}
+          </p>
+        )}
+        {sent && <p role="status" className="text-sm text-green-700">{restricted ? v.restrictedPending : v.sent}</p>}
+        {eligible && (
+          <div className="flex flex-wrap gap-2">
+            <Link to="/team" className="btn-primary">{v.openTeam}</Link>
+            <Link to="/" className="btn-ghost">{t.common.goHome}</Link>
+          </div>
+        )}
         {!approved && <form className="space-y-4" onSubmit={async (e) => {
           e.preventDefault();
           if (!file) { setError(v.needPhoto); return; }
@@ -66,8 +80,6 @@ export default function VerificationPage() {
           </Button>
         </form>}
         {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
-        {sent && <p role="status" className="text-sm text-green-700">{restricted ? v.restrictedPending : v.sent}</p>}
-        <Link to="/team" className="block text-sm font-semibold text-sakura-600">{t.team.mySubtitle}</Link>
       </section>
     </PageLayout>
   );

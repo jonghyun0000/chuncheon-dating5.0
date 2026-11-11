@@ -261,7 +261,7 @@ test('signup requires an image then grants initial access before verification', 
   await page.locator('#register-student-id').setInputFiles({ name: 'ordinary-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff,0xd8,0xff,0xe0]) });
   await page.getByRole('button', { name: '가입하기', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
+  await expect(page.getByText('지금 바로 이용할 수 있어요', { exact: true })).toBeVisible();
   await expect(page.getByText('가상 상대 팀', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: '신청하기', exact: true })).toBeEnabled();
 });
@@ -292,8 +292,9 @@ test('admin-approved owner explicitly publishes the saved draft', async ({ page 
   expect(api.writes).toEqual(['publish']);
 });
 
-test('deferred verification submits a photo and displays pending review', async ({ page }) => {
-  await mockApi(page, { signedIn: true, unverified: true });
+test('first student ID submission opens team publication without admin review', async ({ page }) => {
+  const api = await mockApi(page, { signedIn: true, unverified: true, draft: true });
+  page.on('dialog', dialog => dialog.accept());
   await page.goto('/me/verification');
   await expect(page.getByText('학생증 미제출', { exact: true })).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
@@ -303,8 +304,12 @@ test('deferred verification submits a photo and displays pending review', async 
   await expect(page.getByRole('status')).toContainText('student.jpg');
   await page.screenshot({path:'/tmp/cc-student-upload.png',fullPage:true});
   await page.getByRole('button', { name: '학생증 제출', exact: true }).click();
-  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
+  await expect(page.getByText('지금 바로 이용할 수 있어요', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('학생증 사진이 제출되었어요.');
+  await page.getByRole('link', { name: '팀 등록하기', exact: true }).click();
+  await page.getByRole('button', { name: '팀 공개하기', exact: true }).click();
+  await expect(page.getByText('활성', { exact: true })).toBeVisible();
+  expect(api.writes).toEqual(['publish']);
 });
 
 
@@ -427,12 +432,23 @@ test('partial photo upload retries keep completed photos without duplicate reser
   expect(reservations).toBe(4);
 });
 
-test('browsing photo opens accessible preview and returns focus', async ({ page }) => {
+test('team profile photo is circular and opens an accessible preview', async ({ page }) => {
   await mockApi(page, { signedIn:true, photos:true });
   await page.goto('/');
-  const button=page.getByRole('button',{name:'가상팀원 사진 확대',exact:true});
+  const button = page.getByRole('button', { name: '가상팀원 사진 확대', exact: true });
+  await expect(button).toBeVisible();
+  const placement = await button.evaluate(avatar => ({
+    school: avatar.previousElementSibling?.textContent?.trim(),
+    nickname: avatar.nextElementSibling?.firstElementChild?.textContent,
+    circular: parseFloat(getComputedStyle(avatar).borderTopLeftRadius) >= avatar.getBoundingClientRect().width / 2,
+    size: avatar.getBoundingClientRect().width,
+  }));
+  expect(placement).toEqual({ school: '한림대', nickname: '가상팀원', circular: true, size: 44 });
   await button.click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: '가상팀원 프로필 사진' });
+  await expect(dialog).toBeVisible();
+  const enlarged = await dialog.getByRole('img').boundingBox();
+  expect(enlarged?.width).toBeGreaterThan(placement.size);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(button).toBeFocused();
@@ -577,7 +593,7 @@ test('pending uploaded member publishes a team before administrator approval', a
   const api = await mockApi(page, { signedIn: true, unverified: true, submitted: true, draft: true });
   page.on('dialog', dialog => dialog.accept());
   await page.goto('/team');
-  await expect(page.getByText('관리자 심사 중', { exact: true })).toBeVisible();
+  await expect(page.getByText('지금 바로 이용할 수 있어요', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '팀 공개하기', exact: true }).click();
   await expect(page.getByText('활성', { exact: true })).toBeVisible();
   expect(api.writes).toEqual(['publish']);

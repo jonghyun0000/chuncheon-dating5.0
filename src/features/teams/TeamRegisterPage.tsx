@@ -10,7 +10,7 @@ import Input from '@/components/common/Input';
 import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
 import LoadError from '@/components/common/LoadError';
-import MemberPhoto from '@/features/photos/MemberPhoto';
+import TeamMemberIdentity from '@/components/team/TeamMemberIdentity';
 import { photoCopy } from '@/features/photos/photoCopy';
 import { uploadMemberPhoto } from '@/features/photos/photos.api';
 import MemberForm from '@/components/team/MemberForm';
@@ -26,8 +26,7 @@ import {
 import type { MemberInput, TeamRegisterInput, EditableTeam } from './teams.types';
 import type { Team, TeamMember, TeamSize } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
-import { admissionLabel } from '@/utils/format';
-import { DEFAULT_CONTACT_TYPE, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
+import { DEFAULT_CONTACT_TYPE, labelSmoking, labelTeamGender } from '@/lib/constants';
 import {
   isValidStudentNumber, normalizeContactId, normalizeStudentNumber, validateContact,
 } from '@/utils/validators';
@@ -277,12 +276,10 @@ export default function TeamRegisterPage() {
           <ul className="mt-4 divide-y divide-zinc-100 rounded-2xl bg-white/70 ring-1 ring-zinc-100">
             {matchedMembers.map((m) => (
               <li key={m.id} className="px-4 py-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">{m.nickname}</p>
-                  {m.photo_path && <MemberPhoto path={m.photo_path} nickname={m.nickname} />}
-                  <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
+                <div className="flex items-center justify-between gap-3">
+                  <TeamMemberIdentity member={m} photoPath={m.photo_path} />
+                  <Badge className="shrink-0" tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
                 </div>
-                <p className="text-xs text-zinc-500">{schoolLabel(m.school)} · {m.department} · {admissionLabel(m.student_number)}</p>
               </li>
             ))}
           </ul>
@@ -337,12 +334,10 @@ export default function TeamRegisterPage() {
           <ul className="divide-y divide-zinc-100 rounded-2xl bg-zinc-50/60 ring-1 ring-zinc-100">
             {activeMembers.map((m) => (
               <li key={m.id} className="px-4 py-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">{m.nickname}</p>
-                  {m.photo_path && <MemberPhoto path={m.photo_path} nickname={m.nickname} />}
-                  <Badge tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
+                <div className="flex items-center justify-between gap-3">
+                  <TeamMemberIdentity member={m} photoPath={m.photo_path} />
+                  <Badge className="shrink-0" tone={m.smoking ? 'amber' : 'green'}>{labelSmoking(m.smoking)}</Badge>
                 </div>
-                <p className="text-xs text-zinc-500">{schoolLabel(m.school)} · {m.department} · {admissionLabel(m.student_number)}</p>
               </li>
             ))}
           </ul>
