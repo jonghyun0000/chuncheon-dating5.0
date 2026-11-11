@@ -718,6 +718,8 @@ export const ko = {
     termsSection: '약관 및 정책',
     agreedVersion: (v: string) => `동의한 약관 버전: ${v}`,
     contactSection: '문의',
+    advertisingInquiry: '광고 문의',
+    advertisingMailSubject: '[춘천과팅] 광고 문의',
     contactDesc: '매칭 상대에 대한 신고는 위 [신고하기]에서 접수해주세요. 그 밖의 문의는 관리자 이메일로 보내주시면 됩니다.',
     mailSubject: '[춘천과팅] 신고/문의',
     adminSection: '관리자 메뉴',

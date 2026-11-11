@@ -681,7 +681,7 @@ const testAd = {
 function mockAdTeams(amount: number) {
   return Array.from({ length: amount }, (_, index) => ({
     ...opponent, id: 'ad-fixture-team-' + index, intro: '광고 위치 테스트 팀 ' + (index + 1),
-    members: [{ ...opponent.members[0], school: index < 3 ? '한림대' : '강원대' }],
+    members: [{ ...opponent.members[0], school: index < 2 ? '한림대' : '강원대' }],
   }));
 }
 
@@ -731,7 +731,7 @@ test('home shows one marked banner after the third team and counts exposure only
   await popup.close();
   await expect.poll(() => events).toEqual([false, true]);
   await page.getByRole('button', { name: '한림대', exact: true }).click();
-  await expect(page.getByText('광고 위치 테스트 팀 3', { exact: false })).toBeVisible();
+  await expect(page.getByText('광고 위치 테스트 팀 2', { exact: false })).toBeVisible();
   await expect(banner).toHaveCount(0);
   expect(homeLoads).toBe(1);
 });
@@ -763,8 +763,15 @@ test('administrator can register, start and pause a banner and filter daily metr
     registration = input;
     banners = [{
       ...testAd, id: input.p_id, advertiser: input.p_advertiser, headline: input.p_headline,
-      starts_at: new Date(Date.now() - 60000).toISOString(), enabled: false,
+      starts_at: new Date(Date.now() - 60000).toISOString(), enabled: false, image_path: input.p_image_path,
     }];
+    return { body: null };
+  });
+  await stubRpc(page, 'edit_home_ad_banner', input => {
+    expect(input.p_id).toBe(registration.p_id);
+    expect(input.p_replace_image).toBe(true);
+    expect(input.p_image_path).toBeNull();
+    banners = banners.map(banner => ({ ...banner, headline: input.p_headline, image_path: null }));
     return { body: null };
   });
   await stubRpc(page, 'set_home_ad_enabled', input => {
@@ -785,6 +792,15 @@ test('administrator can register, start and pause a banner and filter daily metr
   await expect(page.getByRole('status').filter({ hasText: '배너를 등록했습니다' })).toBeVisible();
   expect(registration.p_image_path).toBe(uid + '/' + registration.p_id + '.jpg');
   await page.getByRole('button', { name: '노출 시작', exact: true }).click();
+  await expect(page.getByText('노출 중', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '수정하기', exact: true }).click();
+  const editor = page.getByRole('region', { name: '배너 수정' });
+  await expect(editor.getByLabel('제목', { exact: true })).toHaveValue('가상 학생 할인');
+  await editor.getByLabel('제목', { exact: true }).fill('수정된 학생 할인');
+  await editor.getByLabel('기존 이미지 제거').check();
+  await editor.getByRole('button', { name: '수정 저장', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '배너를 수정했습니다' })).toBeVisible();
+  await expect(page.getByText('수정된 학생 할인', { exact: true })).toBeVisible();
   await expect(page.getByText('노출 중', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '일시 중지', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '배너를 일시 중지했습니다' })).toBeVisible();
@@ -821,3 +837,36 @@ test('home school filter includes Songgok teams', async ({ page }) => {
   await expect(page.getByText('가상 송곡대 팀', { exact: false })).toBeVisible();
   await expect(page.getByText('가상 상대 팀', { exact: false })).toHaveCount(0);
 });
+
+for (const admin of [false, true]) {
+  test(`${admin ? 'administrator' : 'member'} sees different banners after every third team`, async ({ page }) => {
+    await mockApi(page, { signedIn: true, admin });
+    const events: unknown[] = [];
+    const secondAd = { ...testAd, id: 'second-ad-fixture', headline: '두 번째 테스트 광고' };
+    await stubRpc(page, 'get_home_teams', () => ({ body: mockAdTeams(7) }));
+    await stubRpc(page, 'get_home_advertising', () => ({
+      body: { day: '2026-11-12', banners: [testAd, secondAd] },
+    }));
+    await stubRpc(page, 'record_home_ad_event', input => {
+      events.push(input);
+      return { body: true };
+    });
+    await page.context().route('https://offer.invalid/**', route => route.fulfill({ status: 200, body: 'Synthetic offer' }));
+    await page.goto('/');
+    const banners = page.getByTestId('home-ad-banner');
+    await expect(banners).toHaveCount(2);
+    await expect(banners.nth(1)).toContainText(secondAd.headline);
+    const precedingCards = await banners.evaluateAll(elements =>
+      elements.map(element => element.previousElementSibling?.textContent),
+    );
+    expect(precedingCards[0]).toContain('광고 위치 테스트 팀 3');
+    expect(precedingCards[1]).toContain('광고 위치 테스트 팀 6');
+    const popupPromise = page.waitForEvent('popup');
+    await banners.nth(1).click();
+    await (await popupPromise).close();
+    if (admin) expect(events).toEqual([]);
+    else await expect.poll(() => events).toContainEqual({ p_banner: secondAd.id, p_clicked: true });
+    await page.goto('/me');
+    await expect(page.getByRole('link', { name: '광고 문의', exact: true })).toHaveAttribute('href', /^mailto:.+\?subject=/);
+  });
+}

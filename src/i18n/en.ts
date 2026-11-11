@@ -710,6 +710,8 @@ export const en: Dict = {
     termsSection: 'Terms & policies',
     agreedVersion: (v: string) => `Agreed terms version: ${v}`,
     contactSection: 'Contact us',
+    advertisingInquiry: 'Advertising inquiries',
+    advertisingMailSubject: '[Chuncheon Gating] Advertising inquiry',
     contactDesc: 'Report match partners via [Report] above. For anything else, email the admin.',
     mailSubject: '[Chuncheon Gating] Report/Inquiry',
     adminSection: 'Admin menu',

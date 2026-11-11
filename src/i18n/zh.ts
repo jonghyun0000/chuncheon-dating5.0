@@ -710,6 +710,8 @@ export const zh: Dict = {
     termsSection: '条款与政策',
     agreedVersion: (v: string) => `已同意的条款版本：${v}`,
     contactSection: '联系我们',
+    advertisingInquiry: '广告咨询',
+    advertisingMailSubject: '[春川联谊] 广告咨询',
     contactDesc: '对匹配对象的举报请使用上方 [举报]。其他咨询请发送至管理员邮箱。',
     mailSubject: '[春川联谊] 举报/咨询',
     adminSection: '管理员菜单',

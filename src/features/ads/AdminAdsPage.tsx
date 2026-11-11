@@ -3,10 +3,10 @@ import { Megaphone, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { koMessage } from '@/utils/errors';
 import {
-  fetchAdBanners, fetchAdMetrics, registerAdBanner, setAdEnabled,
+  editAdBanner, fetchAdBanners, fetchAdMetrics, registerAdBanner, setAdEnabled,
   type AdminBanner, type AdMetrics,
 } from './ads.api';
-import { AdBannerContent, AdBannerPreview, adCardClass } from './HomeAdBanner';
+import { AdBannerContent, AdBannerPreview, adCardClass, useAdImage } from './HomeAdBanner';
 
 const koreaDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' });
 const koreaTime = new Intl.DateTimeFormat('ko-KR', {
@@ -14,6 +14,19 @@ const koreaTime = new Intl.DateTimeFormat('ko-KR', {
 });
 
 const emptyDraft = { advertiser: '', headline: '', description: '', url: '', start: '', end: '' };
+
+function koreanDateTimeInput(value: string | null) {
+  return value ? new Date(Date.parse(value) + 9 * 3600000).toISOString().slice(0, 19) : '';
+}
+
+function bannerDraft(banner?: AdminBanner) {
+  if (!banner) return emptyDraft;
+  return {
+    advertiser: banner.advertiser, headline: banner.headline, description: banner.description,
+    url: banner.destination_url, start: koreanDateTimeInput(banner.starts_at),
+    end: koreanDateTimeInput(banner.ends_at),
+  };
+}
 
 function bannerStatus(banner: AdminBanner) {
   const now = Date.now();
@@ -41,6 +54,7 @@ export default function AdminAdsPage() {
   const today = koreaDate.format(new Date());
   const [from, setFrom] = useState(() => koreaDate.format(new Date(Date.now() - 6 * 86400000)));
   const [through, setThrough] = useState(today);
+  const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
   const [busyBanner, setBusyBanner] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
@@ -157,7 +171,7 @@ export default function AdminAdsPage() {
         <p className="text-xs leading-relaxed text-zinc-500">노출은 배너의 절반 이상이 1초간 보였거나 클릭한 경우입니다. —는 집계 전이거나 클릭률을 계산할 노출이 없는 경우입니다.</p>
       </section>
 
-      {profile && <RegisterBanner ownerId={profile.id} onSaved={refresh} />}
+      {profile && <BannerForm ownerId={profile.id} onSaved={refresh} />}
 
       <section className="card space-y-3 p-4 sm:p-5" aria-labelledby="ad-list-title">
         <h2 id="ad-list-title" className="font-display text-lg font-bold">등록한 배너</h2>
@@ -167,16 +181,29 @@ export default function AdminAdsPage() {
         {!banners && !bannersError && <p role="status" className="text-sm text-zinc-500">배너를 불러오는 중…</p>}
         {banners?.length === 0 && <p className="text-sm text-zinc-500">등록한 배너가 없습니다.</p>}
         {banners?.map(banner => {
+          if (profile && editingBanner?.id === banner.id) {
+            return <BannerForm key={banner.id} banner={editingBanner} ownerId={profile.id}
+              onCancel={() => setEditingBanner(null)} onSaved={() => {
+                setEditingBanner(null);
+                setActionError('');
+                setActionMessage('배너를 수정했습니다.');
+                refresh();
+              }} />;
+          }
           const status = bannerStatus(banner);
           return (
             <article key={banner.id} className="space-y-2 rounded-xl border border-zinc-200 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">{status}</p>
-                {status !== '종료' && (
-                  <button type="button" className="btn-ghost" disabled={busyBanner !== null} onClick={() => void toggle(banner)}>
-                    {banner.enabled ? '일시 중지' : '노출 시작'}
-                  </button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-ghost" disabled={Boolean(editingBanner) || busyBanner !== null}
+                    onClick={() => setEditingBanner(banner)}>수정하기</button>
+                  {status !== '종료' && (
+                    <button type="button" className="btn-ghost" disabled={busyBanner !== null} onClick={() => void toggle(banner)}>
+                      {banner.enabled ? '일시 중지' : '노출 시작'}
+                    </button>
+                  )}
+                </div>
               </div>
               <AdBannerPreview banner={banner} />
               <p className="text-xs text-zinc-600">
@@ -191,9 +218,16 @@ export default function AdminAdsPage() {
   );
 }
 
-function RegisterBanner({ ownerId, onSaved }: { ownerId: string; onSaved: () => void }) {
-  const [draft, setDraft] = useState(emptyDraft);
+function BannerForm({ ownerId, banner, onSaved, onCancel }: {
+  ownerId: string;
+  banner?: AdminBanner;
+  onSaved: () => void;
+  onCancel?: () => void;
+}) {
+  const [draft, setDraft] = useState(() => bannerDraft(banner));
+  const [removeImage, setRemoveImage] = useState(false);
   const [image, setImage] = useState<File | null>(null);
+  const savedImage = useAdImage(!removeImage && !image ? banner?.image_path ?? null : null);
   const [preview, setPreview] = useState<string>();
   const [draftId, setDraftId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -209,7 +243,7 @@ function RegisterBanner({ ownerId, onSaved }: { ownerId: string; onSaved: () => 
 
   function update(key: keyof typeof emptyDraft, value: string) {
     setDraft(previous => ({ ...previous, [key]: value }));
-    setDraftId(null);
+    if (!banner) setDraftId(null);
     setSaved(false);
   }
 
@@ -219,25 +253,34 @@ function RegisterBanner({ ownerId, onSaved }: { ownerId: string; onSaved: () => 
     const form = event.currentTarget;
     setError('');
     setSaved(false);
+    const initial = bannerDraft(banner);
     const startsAt = draft.start ? new Date(draft.start + '+09:00') : null;
     const endsAt = draft.end ? new Date(draft.end + '+09:00') : null;
     if (!draft.advertiser.trim() || !draft.headline.trim()) {
       setError('광고주와 제목을 입력해주세요.');
       return;
     }
-    if (endsAt && endsAt.getTime() <= Math.max(Date.now(), startsAt?.getTime() ?? 0)) {
-      setError('종료 시간은 현재와 시작 시간보다 나중으로 선택해주세요.');
+    const earliestEnd = banner ? startsAt?.getTime() ?? Date.parse(banner.starts_at) : Math.max(Date.now(), startsAt?.getTime() ?? 0);
+    if (endsAt && endsAt.getTime() <= earliestEnd && (!banner || initial.start !== draft.start || initial.end !== draft.end)) {
+      setError(banner ? '종료 시간은 시작 시간보다 나중이어야 합니다.' : '종료 시간은 현재와 시작 시간보다 나중으로 선택해주세요.');
       return;
     }
     const id = draftId ?? crypto.randomUUID();
     setDraftId(id);
     setSaving(true);
     try {
-      await registerAdBanner({
-        id, ownerId, image, advertiser: draft.advertiser, headline: draft.headline,
+      const input = {
+        id: banner?.id ?? id, ownerId, image, advertiser: draft.advertiser, headline: draft.headline,
         description: draft.description, url: draft.url,
-        startsAt: startsAt?.toISOString() ?? null, endsAt: endsAt?.toISOString() ?? null,
-      });
+        startsAt: banner && initial.start === draft.start ? banner.starts_at : startsAt?.toISOString() ?? null,
+        endsAt: banner && initial.end === draft.end ? banner.ends_at : endsAt?.toISOString() ?? null,
+      };
+      if (banner) {
+        await editAdBanner(input, id, removeImage);
+        onSaved();
+        return;
+      }
+      await registerAdBanner(input);
       setDraft(emptyDraft);
       setImage(null);
       setDraftId(null);
@@ -252,9 +295,11 @@ function RegisterBanner({ ownerId, onSaved }: { ownerId: string; onSaved: () => 
   }
 
   return (
-    <section className="card space-y-3 p-4 sm:p-5" aria-labelledby="ad-register-title">
-      <h2 id="ad-register-title" className="font-display text-lg font-bold">배너 등록</h2>
-      <p className="text-xs text-zinc-600">등록 후 목록에서 ‘노출 시작’을 눌러 공개합니다.</p>
+    <section className="card space-y-3 p-4 sm:p-5" aria-labelledby={banner ? 'ad-edit-title' : 'ad-register-title'}>
+      <h2 id={banner ? 'ad-edit-title' : 'ad-register-title'} className="font-display text-lg font-bold">
+        {banner ? '배너 수정' : '배너 등록'}
+      </h2>
+      {!banner && <p className="text-xs text-zinc-600">등록 후 목록에서 ‘노출 시작’을 눌러 공개합니다.</p>}
       <form onSubmit={submit}>
         <fieldset disabled={saving} className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">광고주<input required maxLength={60} className="input mt-1 w-full" value={draft.advertiser} onChange={event => update('advertiser', event.target.value)} /></label>
@@ -262,24 +307,35 @@ function RegisterBanner({ ownerId, onSaved }: { ownerId: string; onSaved: () => 
           <label className="text-sm sm:col-span-2">혜택 설명<input maxLength={160} className="input mt-1 w-full" value={draft.description} onChange={event => update('description', event.target.value)} /></label>
           <label className="text-sm sm:col-span-2">광고 링크<input type="url" required maxLength={2048} placeholder="https://" className="input mt-1 w-full" value={draft.url} onChange={event => update('url', event.target.value)} /></label>
           <label className="min-w-0 text-sm">시작 시간 (한국 시간, 선택)
-            <input type="datetime-local" className="input mt-1 w-full min-w-0" value={draft.start} onChange={event => update('start', event.target.value)} />
+            <input type="datetime-local" step="1" className="input mt-1 w-full min-w-0" value={draft.start} onChange={event => update('start', event.target.value)} />
           </label>
           <label className="min-w-0 text-sm">종료 시간 (한국 시간, 선택)
-            <input type="datetime-local" className="input mt-1 w-full min-w-0" value={draft.end} onChange={event => update('end', event.target.value)} />
+            <input type="datetime-local" step="1" className="input mt-1 w-full min-w-0" value={draft.end} onChange={event => update('end', event.target.value)} />
           </label>
           <label className="min-w-0 text-sm sm:col-span-2">배너 이미지 (선택)
             <input type="file" accept="image/jpeg,image/png,image/webp" className="input mt-1 w-full"
-              onChange={event => { setImage(event.target.files?.[0] ?? null); setDraftId(null); setSaved(false); }} />
+              onChange={event => { setImage(event.target.files?.[0] ?? null); setRemoveImage(false); setDraftId(null); setSaved(false); }} />
           </label>
+          {banner?.image_path && !image && (
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" checked={removeImage} onChange={event => setRemoveImage(event.target.checked)} />
+              기존 이미지 제거
+            </label>
+          )}
           {(draft.headline || image) && (
             <div className="sm:col-span-2">
               <p className="mb-1 text-xs text-zinc-600">미리보기</p>
               <div className={adCardClass + ' max-w-sm'}>
-                <AdBannerContent advertiser={draft.advertiser} headline={draft.headline} description={draft.description} imageUrl={preview} />
+                <AdBannerContent advertiser={draft.advertiser} headline={draft.headline} description={draft.description} imageUrl={preview ?? savedImage} />
               </div>
             </div>
           )}
-          <button type="submit" className="btn-primary sm:col-span-2">{saving ? '등록 중…' : '배너 등록하기'}</button>
+          <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <button type="submit" className="btn-primary flex-1">
+              {saving ? '저장 중…' : banner ? '수정 저장' : '배너 등록하기'}
+            </button>
+            {onCancel && <button type="button" className="btn-ghost" onClick={onCancel}>취소</button>}
+          </div>
         </fieldset>
       </form>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
