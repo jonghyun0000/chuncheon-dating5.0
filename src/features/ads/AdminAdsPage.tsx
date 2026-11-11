@@ -3,12 +3,11 @@ import { Megaphone, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { koMessage } from '@/utils/errors';
 import {
-  editAdBanner, fetchAdBanners, fetchAdMetrics, registerAdBanner, setAdEnabled,
-  type AdminBanner, type AdMetrics,
+  editAdBanner, fetchAdBanners, registerAdBanner, setAdEnabled,
+  type AdminBanner,
 } from './ads.api';
 import { AdBannerContent, AdBannerPreview, adCardClass, useAdImage } from './HomeAdBanner';
-
-const koreaDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' });
+import AdPerformance from './AdPerformance';
 const koreaTime = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short',
 });
@@ -35,31 +34,16 @@ function bannerStatus(banner: AdminBanner) {
   return Date.parse(banner.starts_at) > now ? '예약' : '노출 중';
 }
 
-function count(value: number) {
-  return Number(value).toLocaleString('ko-KR');
-}
-
-function clickRate(row: AdMetrics) {
-  return row.viewers > 0 ? (100 * row.clickers / row.viewers).toFixed(1) + '%' : '—';
-}
-
 export default function AdminAdsPage() {
   const { profile } = useAuth();
   const [banners, setBanners] = useState<AdminBanner[] | null>(null);
-  const [metrics, setMetrics] = useState<AdMetrics[] | null>(null);
   const [bannersError, setBannersError] = useState(false);
-  const [metricsError, setMetricsError] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [bannerFilter, setBannerFilter] = useState('');
-  const today = koreaDate.format(new Date());
-  const [from, setFrom] = useState(() => koreaDate.format(new Date(Date.now() - 6 * 86400000)));
-  const [through, setThrough] = useState(today);
+  const [performanceBannerId, setPerformanceBannerId] = useState<string | null>(null);
   const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
   const [busyBanner, setBusyBanner] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
-  const span = (Date.parse(through) - Date.parse(from)) / 86400000;
-  const validRange = Boolean(from && through && span >= 0 && span < 90 && through <= today);
 
   useEffect(() => {
     let disposed = false;
@@ -68,17 +52,6 @@ export default function AdminAdsPage() {
       .catch(() => { if (!disposed) setBannersError(true); });
     return () => { disposed = true; };
   }, [revision]);
-
-  useEffect(() => {
-    let disposed = false;
-    setMetrics(null);
-    setMetricsError(false);
-    if (validRange) {
-      fetchAdMetrics(from, through, bannerFilter).then(rows => { if (!disposed) setMetrics(rows); })
-        .catch(() => { if (!disposed) setMetricsError(true); });
-    }
-    return () => { disposed = true; };
-  }, [from, through, bannerFilter, validRange, revision]);
 
   function refresh() { setRevision(value => value + 1); }
 
@@ -99,8 +72,6 @@ export default function AdminAdsPage() {
     }
   }
 
-  const latest = metrics?.[0];
-
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-2">
@@ -110,66 +81,7 @@ export default function AdminAdsPage() {
         <button type="button" className="btn-ghost gap-1.5" onClick={refresh}><RefreshCw size={15} aria-hidden="true" />새로고침</button>
       </header>
 
-      <section className="card space-y-4 p-4 sm:p-5" aria-labelledby="ad-stats-title">
-        <div>
-          <h2 id="ad-stats-title" className="font-display text-lg font-bold">날짜별 성과</h2>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-600">한국 시간 기준. 같은 회원은 하루에 한 번씩 셉니다. 배너를 선택해도 홈 방문은 전체 회원 기준입니다.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="min-w-0 text-sm">시작 날짜
-            <input className="input mt-1 w-full min-w-0" type="date" value={from} max={today} onChange={event => setFrom(event.target.value)} />
-          </label>
-          <label className="min-w-0 text-sm">종료 날짜
-            <input className="input mt-1 w-full min-w-0" type="date" value={through} min={from} max={today} onChange={event => setThrough(event.target.value)} />
-          </label>
-          <label className="min-w-0 text-sm">배너
-            <select aria-label="배너" className="input mt-1 w-full min-w-0" value={bannerFilter} onChange={event => setBannerFilter(event.target.value)}>
-              <option value="">전체 배너</option>
-              {banners?.map(banner => <option key={banner.id} value={banner.id}>{banner.advertiser} · {banner.headline}</option>)}
-            </select>
-          </label>
-        </div>
-        {!validRange && <p role="alert" className="text-sm text-rose-700">오늘까지의 날짜를 최대 90일로 선택해주세요.</p>}
-        {metricsError && <p role="alert" className="text-sm text-rose-700">성과를 불러오지 못했습니다. 새로고침을 눌러주세요.</p>}
-        {validRange && !metricsError && !metrics && <p role="status" className="text-sm text-zinc-500">성과를 불러오는 중…</p>}
-        {latest && (
-          <div>
-            <p className="mb-2 text-xs font-semibold text-zinc-600">{latest.day === today ? '오늘 · ' : ''}{latest.day}</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                ['홈 방문', count(latest.visitors) + '명'], ['배너 노출', count(latest.viewers) + '명'],
-                ['배너 클릭', count(latest.clickers) + '명'], ['클릭률', clickRate(latest)],
-              ] as const).map(([label, value]) => (
-                <div key={label} className="rounded-xl bg-sakura-50 px-3 py-2.5">
-                  <p className="text-xs text-zinc-600">{label}</p>
-                  <p className="mt-1 text-lg font-bold text-zinc-900">{latest.tracked ? value : '—'}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {metrics && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" aria-label="광고 일별 성과">
-              <thead className="border-b border-zinc-200 text-xs text-zinc-600">
-                <tr><th className="px-1 py-2 text-left">날짜</th><th className="px-1 text-right">방문</th><th className="px-1 text-right">노출</th><th className="px-1 text-right">클릭</th><th className="px-1 text-right">클릭률</th></tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 tabular-nums">
-                {metrics.map(row => (
-                  <tr key={row.day}>
-                    <th scope="row" className="whitespace-nowrap px-1 py-2 text-left font-medium">{row.day}</th>
-                    <td className="px-1 text-right">{row.tracked ? count(row.visitors) : '—'}</td>
-                    <td className="px-1 text-right">{row.tracked ? count(row.viewers) : '—'}</td>
-                    <td className="px-1 text-right">{row.tracked ? count(row.clickers) : '—'}</td>
-                    <td className="px-1 text-right">{row.tracked ? clickRate(row) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="text-xs leading-relaxed text-zinc-500">노출은 배너의 절반 이상이 1초간 보였거나 클릭한 경우입니다. —는 집계 전이거나 클릭률을 계산할 노출이 없는 경우입니다.</p>
-      </section>
+      <AdPerformance revision={revision} />
 
       {profile && <BannerForm ownerId={profile.id} onSaved={refresh} />}
 
@@ -191,11 +103,17 @@ export default function AdminAdsPage() {
               }} />;
           }
           const status = bannerStatus(banner);
+          const performanceOpen = performanceBannerId === banner.id;
+          const performanceId = `banner-performance-${banner.id}`;
           return (
             <article key={banner.id} className="space-y-2 rounded-xl border border-zinc-200 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">{status}</p>
                 <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-ghost" aria-expanded={performanceOpen} aria-controls={performanceId}
+                    onClick={() => setPerformanceBannerId(performanceOpen ? null : banner.id)}>
+                    {performanceOpen ? '성과 닫기' : '성과 보기'}
+                  </button>
                   <button type="button" className="btn-ghost" disabled={Boolean(editingBanner) || busyBanner !== null}
                     onClick={() => setEditingBanner(banner)}>수정하기</button>
                   {status !== '종료' && (
@@ -210,6 +128,9 @@ export default function AdminAdsPage() {
                 {koreaTime.format(new Date(banner.starts_at))} ~ {banner.ends_at ? koreaTime.format(new Date(banner.ends_at)) : '종료일 없음'}
               </p>
               <p className="break-all text-xs text-zinc-500">{banner.destination_url}</p>
+              <div id={performanceId} hidden={!performanceOpen}>
+                {performanceOpen && <AdPerformance revision={revision} bannerId={banner.id} />}
+              </div>
             </article>
           );
         })}
