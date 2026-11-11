@@ -1,10 +1,12 @@
 import { teamExamplesCopy } from '@/features/teamExamples/teamExamplesCopy';
 import { canParticipate } from '@/features/auth/verificationAccess';
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Users } from 'lucide-react';
 import PageLayout from '@/components/layout/PageLayout';
 import TeamFilter from './TeamFilter';
 import TeamCard from '@/components/team/TeamCard';
+import HomeAdBanner from '@/features/ads/HomeAdBanner';
+import { useHomeAdvertising } from '@/features/ads/useHomeAdvertising';
 import Loading from '@/components/common/Loading';
 import LoadError from '@/components/common/LoadError';
 import { fetchHomeStats, fetchHomeTeams, type TeamWithMembers, type HomeStats } from './home.api';
@@ -27,6 +29,7 @@ export default function HomePage() {
   const { t, lang } = useI18n();
   const admin = profile?.role === 'admin';
   const adminCopy = adminHomeCopy(lang);
+  const advertising = useHomeAdvertising(profile?.role === 'user' ? profile.id : undefined);
   const requestId = useRef(0);
   const [loadError, setLoadError] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
@@ -130,16 +133,20 @@ export default function HomePage() {
         <EmptyState />
       ) : (
         <div className="space-y-3">
-          {teams.map((t) => (
-            <TeamCard
-              key={t.id}
-              team={t}
-              onApply={handleApply}
-              applying={applyingId === t.id}
-              alreadyApplied={appliedTeamIds.has(t.id)}
-              isOwn={t.owner_id === profile?.id}
-              sameGender={t.gender === profile?.gender}
-            />
+          {teams.map((team, index) => (
+            <Fragment key={team.id}>
+              <TeamCard
+                team={team}
+                onApply={handleApply}
+                applying={applyingId === team.id}
+                alreadyApplied={appliedTeamIds.has(team.id)}
+                isOwn={team.owner_id === profile?.id}
+                sameGender={team.gender === profile?.gender}
+              />
+              {index === 2 && teams.length > 3 && advertising?.banner && (
+                <HomeAdBanner key={advertising.day + '/' + advertising.banner.id} banner={advertising.banner} />
+              )}
+            </Fragment>
           ))}
         </div>
       )}
