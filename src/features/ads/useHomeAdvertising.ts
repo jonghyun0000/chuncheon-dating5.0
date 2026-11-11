@@ -20,9 +20,11 @@ export function useHomeAdvertising(memberId: string | undefined): HomeAdvertisin
         const data = await fetchHomeAdvertising();
         if (disposed || !memberId) return;
         setResult({ memberId, data });
-        if (data?.banner && document.visibilityState === 'visible') {
-          const end = data.banner.ends_at ? Date.parse(data.banner.ends_at) - Date.now() : REFRESH_MS;
-          timer = window.setTimeout(refresh, Math.max(1000, Math.min(REFRESH_MS, end)));
+        if (document.visibilityState === 'visible') {
+          const expiries = (data?.banners ?? []).flatMap(banner =>
+            banner.ends_at ? [Date.parse(banner.ends_at) - Date.now()] : [],
+          );
+          timer = window.setTimeout(refresh, Math.max(1000, Math.min(REFRESH_MS, ...expiries)));
         }
       } catch {
         if (!disposed && memberId) setResult({ memberId, data: null });

@@ -246,6 +246,13 @@ export default function MyPage() {
           <Mail size={14} strokeWidth={1.8} />
           {ADMIN_EMAIL}
         </a>
+        <a
+          href={`mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t.mypage.advertisingMailSubject)}`}
+          className="mt-3 flex w-fit items-center gap-1.5 text-sm font-semibold text-sakura-700 underline underline-offset-2"
+        >
+          <Mail size={14} strokeWidth={1.8} />
+          {t.mypage.advertisingInquiry}
+        </a>
       </section>
 
       {profile.role === 'admin' && (

@@ -710,6 +710,8 @@ export const ja: Dict = {
     termsSection: '規約とポリシー',
     agreedVersion: (v: string) => `同意した規約バージョン：${v}`,
     contactSection: 'お問い合わせ',
+    advertisingInquiry: '広告のお問い合わせ',
+    advertisingMailSubject: '[春川合コン] 広告のお問い合わせ',
     contactDesc: 'マッチ相手への通報は上の [通報する] からお願いします。その他のお問い合わせは管理者メールへお送りください。',
     mailSubject: '[春川合コン] 通報/お問い合わせ',
     adminSection: '管理者メニュー',

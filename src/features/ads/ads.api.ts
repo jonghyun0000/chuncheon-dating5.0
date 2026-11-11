@@ -27,7 +27,7 @@ export interface AdMetrics {
 
 export interface HomeAdvertising {
   day: string;
-  banner: AdBanner | null;
+  banners: AdBanner[];
 }
 
 const IMAGE_BUCKET = 'ad-banner-images';
@@ -48,7 +48,9 @@ export async function fetchHomeAdvertising(): Promise<HomeAdvertising | null> {
     { data: null, error: null } as any, 'fetchHomeAdvertising',
   );
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  const { day, banner, banners } = data as HomeAdvertising & { banner?: AdBanner | null };
+  return { day, banners: banners ?? (banner ? [banner] : []) };
 }
 
 export async function recordAdEvent(bannerId: string, clicked: boolean): Promise<boolean> {

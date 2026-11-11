@@ -56,7 +56,7 @@ SELECT public.record_home_ad_event('a0000000-0000-4000-8000-000000000001',false)
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
 SELECT public.get_home_advertising();
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
-SELECT test_support.assert(public.get_home_advertising() IS NULL,'admin preview is not counted');
+SELECT test_support.assert(public.get_home_advertising()->'banners'->0->>'headline'='Offer','admin can see live ads');
 SELECT test_support.assert((SELECT visitors=3 AND viewers=2 AND clickers=1 AND tracked
   FROM public.get_admin_home_ad_metrics((now() AT TIME ZONE 'Asia/Seoul')::date,(now() AT TIME ZONE 'Asia/Seoul')::date)),
   'three visitors, two viewers, one clicker');
@@ -84,14 +84,14 @@ SELECT test_support.assert((SELECT NOT tracked FROM public.get_admin_home_ad_met
  (now() AT TIME ZONE 'Asia/Seoul')::date-2,(now() AT TIME ZONE 'Asia/Seoul')::date-2)),'pre-tracking dates are not reported as observed zero');
 SELECT test_support.expect_denied('SELECT * FROM public.get_admin_home_ad_metrics(current_date-90,current_date)');
 
--- TEST AD05_schedule PASS Overlapping schedules are rejected and ended or future ads are not counted
+-- TEST AD05_schedule PASS Overlapping schedules are allowed and ended or future ads are not counted
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SET LOCAL ROLE authenticated;
 SELECT public.create_home_ad_banner('a0000000-0000-4000-8000-000000000001','A','A','','https://example.test',NULL,now()-interval '2 days',now()-interval '1 day');
 SELECT public.create_home_ad_banner('a0000000-0000-4000-8000-000000000002','B','B','','https://example.test',NULL,now()+interval '1 day',now()+interval '2 days');
 SELECT public.create_home_ad_banner('a0000000-0000-4000-8000-000000000003','C','C','','https://example.test',NULL,now()+interval '1 day',NULL);
 SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000002',true);
-SELECT test_support.expect_denied($q$SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000003',true)$q$);
+SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000003',true);
 SELECT test_support.expect_denied($q$SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000001',true)$q$);
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 SELECT test_support.assert(public.get_home_advertising()->'banner'='null'::jsonb,'future/ended banner hidden');
@@ -131,3 +131,22 @@ SELECT test_support.assert(NOT public.record_home_ad_event('a0000000-0000-4000-8
 RESET ROLE;
 SELECT test_support.assert((SELECT count(*)=0 FROM home_ads.visits),'no invalid visitors');
 SELECT test_support.assert((SELECT count(*)=0 FROM home_ads.reach),'no invalid exposures');
+
+-- TEST AD09_multiple_live PASS Multiple active banners are ordered and admin preview preserves metrics
+INSERT INTO home_ads.banners(id,advertiser,headline,destination_url,starts_at,enabled)
+VALUES ('a0000000-0000-4000-8000-000000000001','Shop A','Offer A','https://example.test',now()-interval '1 minute',true),
+       ('a0000000-0000-4000-8000-000000000002','Shop B','Offer B','https://example.test',now(),true);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+SELECT test_support.assert(public.get_home_advertising()->'banners' @>
+ '[{"headline":"Offer A"},{"headline":"Offer B"}]'::jsonb, 'both live ads delivered');
+SELECT test_support.assert(public.get_home_advertising()->'banners'->0->>'headline'='Offer A','stable start order');
+SELECT test_support.assert(public.record_home_ad_event('a0000000-0000-4000-8000-000000000002',true),'second banner recorded');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT test_support.assert(jsonb_array_length(public.get_home_advertising()->'banners')=2,'admin sees both');
+SELECT test_support.assert(NOT public.record_home_ad_event('a0000000-0000-4000-8000-000000000001',true),'admin click ignored');
+SELECT test_support.assert((SELECT visitors=1 AND viewers=1 AND clickers=1
+  FROM public.get_admin_home_ad_metrics((now() AT TIME ZONE 'Asia/Seoul')::date,(now() AT TIME ZONE 'Asia/Seoul')::date)),
+  'only member activity counted');
+SELECT public.set_home_ad_enabled('a0000000-0000-4000-8000-000000000001',false);
+SELECT test_support.assert(public.get_home_advertising()->'banners'->0->>'headline'='Offer B','pausing leaves the other ad live');

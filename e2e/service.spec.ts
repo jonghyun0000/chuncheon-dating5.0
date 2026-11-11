@@ -681,7 +681,7 @@ const testAd = {
 function mockAdTeams(amount: number) {
   return Array.from({ length: amount }, (_, index) => ({
     ...opponent, id: 'ad-fixture-team-' + index, intro: '광고 위치 테스트 팀 ' + (index + 1),
-    members: [{ ...opponent.members[0], school: index < 3 ? '한림대' : '강원대' }],
+    members: [{ ...opponent.members[0], school: index < 2 ? '한림대' : '강원대' }],
   }));
 }
 
@@ -731,7 +731,7 @@ test('home shows one marked banner after the third team and counts exposure only
   await popup.close();
   await expect.poll(() => events).toEqual([false, true]);
   await page.getByRole('button', { name: '한림대', exact: true }).click();
-  await expect(page.getByText('광고 위치 테스트 팀 3', { exact: false })).toBeVisible();
+  await expect(page.getByText('광고 위치 테스트 팀 2', { exact: false })).toBeVisible();
   await expect(banner).toHaveCount(0);
   expect(homeLoads).toBe(1);
 });
@@ -820,4 +820,34 @@ test('home school filter includes Songgok teams', async ({ page }) => {
   await page.getByRole('button', { name: '송곡대', exact: true }).click();
   await expect(page.getByText('가상 송곡대 팀', { exact: false })).toBeVisible();
   await expect(page.getByText('가상 상대 팀', { exact: false })).toHaveCount(0);
+});
+
+test('administrator sees different banners after every third team without tracking preview activity', async ({ page }) => {
+  await mockApi(page, { signedIn: true, admin: true });
+  const events: unknown[] = [];
+  const secondAd = { ...testAd, id: 'second-ad-fixture', headline: '두 번째 테스트 광고' };
+  await stubRpc(page, 'get_home_teams', () => ({ body: mockAdTeams(7) }));
+  await stubRpc(page, 'get_home_advertising', () => ({
+    body: { day: '2026-11-12', banners: [testAd, secondAd] },
+  }));
+  await stubRpc(page, 'record_home_ad_event', input => {
+    events.push(input);
+    return { body: true };
+  });
+  await page.context().route('https://offer.invalid/**', route => route.fulfill({ status: 200, body: 'Synthetic offer' }));
+  await page.goto('/');
+  const banners = page.getByTestId('home-ad-banner');
+  await expect(banners).toHaveCount(2);
+  await expect(banners.nth(1)).toContainText(secondAd.headline);
+  const precedingCards = await banners.evaluateAll(elements =>
+    elements.map(element => element.previousElementSibling?.textContent),
+  );
+  expect(precedingCards[0]).toContain('광고 위치 테스트 팀 3');
+  expect(precedingCards[1]).toContain('광고 위치 테스트 팀 6');
+  const popupPromise = page.waitForEvent('popup');
+  await banners.nth(1).click();
+  await (await popupPromise).close();
+  expect(events).toEqual([]);
+  await page.goto('/me');
+  await expect(page.getByRole('link', { name: '광고 문의', exact: true })).toHaveAttribute('href', /^mailto:.+\?subject=/);
 });

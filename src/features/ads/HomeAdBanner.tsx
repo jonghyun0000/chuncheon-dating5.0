@@ -64,7 +64,7 @@ export function AdBannerPreview({ banner }: { banner: AdBanner }) {
   return <div className={adCardClass}><AdBannerContent {...banner} imageUrl={imageUrl} /></div>;
 }
 
-export default function HomeAdBanner({ banner }: { banner: AdBanner }) {
+export default function HomeAdBanner({ banner, track }: { banner: AdBanner; track: boolean }) {
   const ref = useRef<HTMLAnchorElement>(null);
   const clickRecorded = useRef(false);
   const imageUrl = useAdImage(banner.image_path);
@@ -72,7 +72,7 @@ export default function HomeAdBanner({ banner }: { banner: AdBanner }) {
 
   useEffect(() => {
     const element = ref.current;
-    if (!element || !('IntersectionObserver' in window)) return;
+    if (!track || !element || !('IntersectionObserver' in window)) return;
     let inView = false;
     let timer: number | undefined;
     let recorded = false;
@@ -96,11 +96,11 @@ export default function HomeAdBanner({ banner }: { banner: AdBanner }) {
       document.removeEventListener('visibilitychange', checkVisibility);
       window.clearTimeout(timer);
     };
-  }, [banner.id, href]);
+  }, [banner.id, href, track]);
 
   if (!href) return null;
   function recordClick() {
-    if (clickRecorded.current) return;
+    if (!track || clickRecorded.current) return;
     clickRecorded.current = true;
     void recordAdEvent(banner.id, true).then(ok => {
       if (!ok) clickRecorded.current = false;

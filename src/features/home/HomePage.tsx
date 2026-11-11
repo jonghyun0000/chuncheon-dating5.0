@@ -29,7 +29,7 @@ export default function HomePage() {
   const { t, lang } = useI18n();
   const admin = profile?.role === 'admin';
   const adminCopy = adminHomeCopy(lang);
-  const advertising = useHomeAdvertising(profile?.role === 'user' ? profile.id : undefined);
+  const advertising = useHomeAdvertising(profile?.id);
   const requestId = useRef(0);
   const [loadError, setLoadError] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
@@ -133,21 +133,25 @@ export default function HomePage() {
         <EmptyState />
       ) : (
         <div className="space-y-3">
-          {teams.map((team, index) => (
-            <Fragment key={team.id}>
-              <TeamCard
-                team={team}
-                onApply={handleApply}
-                applying={applyingId === team.id}
-                alreadyApplied={appliedTeamIds.has(team.id)}
-                isOwn={team.owner_id === profile?.id}
-                sameGender={team.gender === profile?.gender}
-              />
-              {index === 2 && teams.length > 3 && advertising?.banner && (
-                <HomeAdBanner key={advertising.day + '/' + advertising.banner.id} banner={advertising.banner} />
-              )}
-            </Fragment>
-          ))}
+          {teams.map((team, index) => {
+            const position = index + 1;
+            const banner = position % 3 === 0 ? advertising?.banners[position / 3 - 1] : undefined;
+            return (
+              <Fragment key={team.id}>
+                <TeamCard
+                  team={team}
+                  onApply={handleApply}
+                  applying={applyingId === team.id}
+                  alreadyApplied={appliedTeamIds.has(team.id)}
+                  isOwn={team.owner_id === profile?.id}
+                  sameGender={team.gender === profile?.gender}
+                />
+                {banner && (
+                  <HomeAdBanner key={advertising?.day + '/' + banner.id} banner={banner} track={!admin} />
+                )}
+              </Fragment>
+            );
+          })}
         </div>
       )}
       <section className="mt-8 border-t border-zinc-200 pt-6">
