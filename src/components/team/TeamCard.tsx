@@ -1,12 +1,11 @@
 import { canParticipate } from '@/features/auth/verificationAccess';
 import { useEffect, useState } from 'react';
-import MemberPhoto from '@/features/photos/MemberPhoto';
+import TeamMemberIdentity from '@/components/team/TeamMemberIdentity';
 import { getMemberPhotos, type MemberPhoto as Photo } from '@/features/photos/photos.api';
 import { BadgeCheck, Check, Send } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import MemberTags from '@/components/team/MemberTags';
-import { admissionLabel } from '@/utils/format';
-import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
+import { labelSmoking, labelTeamGender } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { verificationCopy } from '@/features/auth/verificationCopy';
@@ -70,22 +69,11 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
         {team.members.map((m) => (
           <li key={m.id} className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-[11px] font-medium ring-1 ${SCHOOL_BADGE_COLOR[m.school]}`}
-                >
-                  {schoolLabel(m.school)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-zinc-900 leading-tight">{m.nickname}</p>
-                  <p className="truncate text-xs text-zinc-500">{m.department} · {admissionLabel(m.student_number)}</p>
-                </div>
-              </div>
-              <Badge tone={m.smoking ? 'amber' : 'green'}>
+              <TeamMemberIdentity member={m} photoPath={photos.find(photo => photo.member_order === m.member_order)?.path} />
+              <Badge className="shrink-0" tone={m.smoking ? 'amber' : 'green'}>
                 {labelSmoking(m.smoking)}
               </Badge>
             </div>
-            {photos.filter(photo => photo.member_order === m.member_order).map(photo => <MemberPhoto key={photo.id} path={photo.path} nickname={m.nickname} />)}
             <MemberTags taste={m.taste_tags} want={m.want_tags} compact />
           </li>
         ))}

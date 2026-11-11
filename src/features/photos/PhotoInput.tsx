@@ -32,8 +32,8 @@ export default function PhotoInput({ photo, pending, nickname, onChange, onBusy 
   return <fieldset className="rounded-xl border border-sakura-100 bg-sakura-50/50 p-3" disabled={busy}>
     <legend className="text-sm font-semibold">{copy.title}</legend>
     <p className="mb-3 text-sm font-medium text-sakura-700">{copy.encourage}</p>
-    {preview ? <img src={preview} alt={`${nickname || '팀원'} ${copy.choose}`} className="mb-3 h-32 w-32 rounded-xl object-cover" />
-      : photo && <MemberPhoto path={photo.path} nickname={nickname || '팀원'} />}
+    {preview ? <img src={preview} alt={`${nickname || '팀원'} ${copy.choose}`} className="mb-3 h-11 w-11 rounded-full object-cover ring-1 ring-sakura-200" />
+      : photo && <MemberPhoto path={photo.path} nickname={nickname || '팀원'} avatar />}
     <div className="mt-3 grid gap-2">
     <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-16 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-sakura-300 bg-white p-3 text-sm font-semibold text-sakura-700 hover:bg-sakura-50 focus-visible:outline focus-visible:outline-2">
       {photo || pending ? <RefreshCw size={20} aria-hidden="true" /> : <><Camera size={20} aria-hidden="true" /><Plus size={16} aria-hidden="true" /></>}{photo || pending ? copy.change : copy.add}
