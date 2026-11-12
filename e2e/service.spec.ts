@@ -820,7 +820,17 @@ test('banner performance shows its own daily counts without changing overall per
     requests.push(input);
     const [viewers, clickers] = input.p_banner === first.id ? [20, 5]
       : input.p_banner === second.id ? [8, 1] : [26, 5];
-    return { body: [{ day: input.p_through, visitors: 100, viewers, clickers, tracked: true }] };
+    const current = { day: input.p_through, visitors: 100, viewers, clickers, tracked: true };
+    if (!input.p_banner) return { body: [current] };
+
+    const daysAgo = (days: number) => new Date(Date.parse(input.p_through) - days * 86400000).toISOString().slice(0, 10);
+    const rows = [
+      current,
+      { ...current, day: daysAgo(1), viewers: 2, clickers: 0 },
+      { ...current, day: daysAgo(3), viewers: 0, clickers: 0, tracked: false },
+      { ...current, day: daysAgo(7), viewers: 15, clickers: 4 },
+    ];
+    return { body: rows.filter(row => row.day >= input.p_from) };
   });
 
   await page.goto('/admin/ads');
@@ -834,6 +844,9 @@ test('banner performance shows its own daily counts without changing overall per
   await firstCard.getByRole('button', { name: '성과 보기' }).click();
   const firstReport = firstCard.getByRole('region', { name: '배너 성과' });
   await expect(firstReport.getByRole('cell', { name: '25.0%' })).toBeVisible();
+  await expect(firstReport.getByText('22건', { exact: true })).toBeVisible();
+  await expect(firstReport.getByText('5건', { exact: true })).toBeVisible();
+  await expect(firstReport.getByText('22.7%', { exact: true })).toBeVisible();
   await expect(firstReport.getByRole('columnheader', { name: '방문' })).toHaveCount(0);
   expect(requests.at(-1)?.p_banner).toBe(first.id);
   await expect(table.getByRole('cell', { name: '26', exact: true })).toBeVisible();
@@ -843,12 +856,18 @@ test('banner performance shows its own daily counts without changing overall per
   await expect(firstReport).toHaveCount(0);
   const secondReport = secondCard.getByRole('region', { name: '배너 성과' });
   await expect(secondReport.getByRole('cell', { name: '12.5%' })).toBeVisible();
+  await expect(secondReport.getByText('10건', { exact: true })).toBeVisible();
+  await expect(secondReport.getByText('1건', { exact: true })).toBeVisible();
+  await expect(secondReport.getByText('10.0%', { exact: true })).toBeVisible();
   expect(requests.at(-1)?.p_banner).toBe(second.id);
 
   const originalStart = await overall.getByLabel('시작 날짜').inputValue();
   const newStart = new Date(Date.parse(originalStart) - 86400000).toISOString().slice(0, 10);
   await secondReport.getByLabel('시작 날짜').fill(newStart);
   await expect.poll(() => requests.at(-1)).toMatchObject({ p_from: newStart, p_banner: second.id });
+  await expect(secondReport.getByText('25건', { exact: true })).toBeVisible();
+  await expect(secondReport.getByText('5건', { exact: true })).toBeVisible();
+  await expect(secondReport.getByText('20.0%', { exact: true })).toBeVisible();
   await expect(overall.getByLabel('시작 날짜')).toHaveValue(originalStart);
   await expect(table.getByRole('cell', { name: '26', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
