@@ -7,7 +7,7 @@ function count(value: number) {
   return Number(value).toLocaleString('ko-KR');
 }
 
-function clickRate(row: AdMetrics) {
+function clickRate(row: Pick<AdMetrics, 'viewers' | 'clickers'>) {
   return row.viewers > 0 ? (100 * row.clickers / row.viewers).toFixed(1) + '%' : '—';
 }
 
@@ -37,12 +37,22 @@ export default function AdPerformance({ revision, bannerId }: { revision: number
   const metrics = current?.rows;
   const metricsError = current !== null && !metrics;
   const latest = metrics?.[0];
-  const summary = latest ? [
-    ...(bannerId ? [] : [['홈 방문', count(latest.visitors) + '명']]),
+  const trackedDays = bannerId ? metrics?.filter(row => row.tracked) ?? [] : [];
+  const totals = trackedDays.reduce((sum, row) => ({
+    viewers: sum.viewers + Number(row.viewers),
+    clickers: sum.clickers + Number(row.clickers),
+  }), { viewers: 0, clickers: 0 });
+  const summary = bannerId ? [
+    ['총 노출', count(totals.viewers) + '건'],
+    ['총 클릭', count(totals.clickers) + '건'],
+    ['기간 클릭률', clickRate(totals)],
+  ] : latest ? [
+    ['홈 방문', count(latest.visitors) + '명'],
     ['배너 노출', count(latest.viewers) + '명'],
     ['배너 클릭', count(latest.clickers) + '명'],
     ['클릭률', clickRate(latest)],
   ] : [];
+  const summaryTracked = bannerId ? trackedDays.length > 0 : latest?.tracked;
   const Heading = bannerId ? 'h3' : 'h2';
 
   return (
@@ -72,15 +82,20 @@ export default function AdPerformance({ revision, bannerId }: { revision: number
       {validRange && !metricsError && !metrics && <p role="status" className="text-sm text-zinc-500">성과를 불러오는 중…</p>}
       {latest && (
         <div>
-          <p className="mb-2 text-xs font-semibold text-zinc-600">{latest.day === today ? '오늘 · ' : ''}{latest.day}</p>
+          <p className="mb-2 text-xs font-semibold text-zinc-600">
+            {bannerId ? `조회 기간 합계 · ${from} ~ ${through}` : `${latest.day === today ? '오늘 · ' : ''}${latest.day}`}
+          </p>
           <div className={`grid grid-cols-2 gap-2 ${bannerId ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
             {summary.map(([label, value]) => (
               <div key={label} className="rounded-xl bg-sakura-50 px-3 py-2.5">
                 <p className="text-xs text-zinc-600">{label}</p>
-                <p className="mt-1 text-lg font-bold text-zinc-900">{latest.tracked ? value : '—'}</p>
+                <p className="mt-1 text-lg font-bold text-zinc-900">{summaryTracked ? value : '—'}</p>
               </div>
             ))}
           </div>
+          {bannerId && (
+            <p className="mt-2 text-xs text-zinc-600">일별 집계의 합계입니다. 같은 회원이 다른 날짜에 노출되거나 클릭하면 날짜마다 집계됩니다.</p>
+          )}
         </div>
       )}
       {metrics && (
