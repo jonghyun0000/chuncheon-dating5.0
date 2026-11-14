@@ -1,0 +1,19 @@
+{
+  "errors": [],
+  "upgradeStorage": {
+    "auth": "synthetic-session-marker",
+    "draft": "preserve-draft",
+    "tab": "preserve-tab",
+    "idb": "keep-idb",
+    "valid": true,
+    "poisoned": false,
+    "unrelated": true
+  },
+  "invalidAsset": {
+    "status": 404,
+    "type": "text/plain",
+    "cached": false
+  },
+  "onlineReopenAfterUpgrade": true,
+  "passed": true
+}

@@ -933,3 +933,23 @@ for (const admin of [false, true]) {
     await expect(page.getByRole('link', { name: '광고 문의', exact: true })).toHaveAttribute('href', /^mailto:.+\?subject=/);
   });
 }
+
+for (const target of [
+  { path: '/admin/reports', chunk: 'AdminReportsPage', text: '신고', heading: true },
+  { path: '/admin/reviews', chunk: 'AdminReviewsPage', text: '후기관리', heading: true },
+  { path: '/matches/00000000-0000-4000-8000-000000000099', chunk: 'MatchDetailPage', text: '매칭 정보를 찾을 수 없어요', heading: false },
+]) {
+  test(`administrator recovers a stale ${target.chunk} without the developer error page`, async ({ page }) => {
+    await mockApi(page, { signedIn: true, admin: true });
+    let failed = false;
+    await page.route(`**/assets/${target.chunk}-*.js`, async route => {
+      if (!failed) { failed = true; await route.fulfill({ status: 200, contentType: 'text/html', headers: { 'cache-control': 'no-store' }, body: '<!doctype html><title>stale chunk</title>' }); }
+      else await route.continue();
+    });
+    await page.goto(target.path);
+    await expect(target.heading ? page.getByRole('heading', { name: target.text, exact: true }) : page.getByText(target.text, { exact: true })).toBeVisible();
+    expect(failed).toBe(true);
+    expect(await page.evaluate(() => sessionStorage.getItem('cc-chunk-reload-at'))).toBeTruthy();
+    await expect(page.getByText('Unexpected Application Error!', { exact: true })).toHaveCount(0);
+  });
+}

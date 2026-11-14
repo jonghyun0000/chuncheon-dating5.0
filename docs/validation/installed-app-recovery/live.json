@@ -1,0 +1,42 @@
+{
+  "engine": "26.0",
+  "checks": [
+    {
+      "appleTouchIcon": {
+        "status": 200,
+        "type": "image/png",
+        "width": 180,
+        "height": 180,
+        "opaque": true
+      }
+    },
+    {
+      "manifest": {
+        "start_url": "/?source=pwa",
+        "scope": "/",
+        "display": "standalone"
+      }
+    },
+    {
+      "legacyAndCurrentIcon": "/apple-touch-icon.png",
+      "status": 200
+    },
+    {
+      "legacyAndCurrentIcon": "/apple-touch-icon.png?v=20261115",
+      "status": 200
+    },
+    {
+      "route": "/login",
+      "logoLinked": true
+    },
+    {
+      "route": "/register",
+      "logoLinked": true
+    },
+    {
+      "simulatedStandaloneDetected": true
+    }
+  ],
+  "errors": [],
+  "passed": true
+}
