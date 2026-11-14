@@ -43,3 +43,48 @@ jobs:
             gosu postgres env PATH="/usr/lib/postgresql/17/bin:$PATH" node scripts/test-db.mjs &&
             gosu postgres env PATH="/usr/lib/postgresql/17/bin:$PATH" CC_VALIDATION_REPORT_DIR=/tmp/cc-validation node scripts/test-db-resilience.mjs
           '
+
+  installed-app-upgrade-browser:
+    name: installed-app-upgrade (${{ matrix.browser }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install matching browser engine
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Verify existing member and administrator installations across releases
+        env:
+          CC_UPGRADE_BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || github.sha }}
+        run: npm run test:installed-upgrade -- ${{ matrix.browser }}
+      - name: Save isolated upgrade evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installed-app-upgrade-${{ matrix.browser }}
+          path: test-results/installed-app-upgrade/${{ matrix.browser }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  installed-app-upgrade:
+    name: installed-app-upgrade
+    if: always()
+    needs: [installed-app-upgrade-browser]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require both browser engines
+        env:
+          UPGRADE_RESULT: ${{ needs.installed-app-upgrade-browser.result }}
+        run: test "$UPGRADE_RESULT" = success
