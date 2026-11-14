@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "engine": "26.0",
+  "results": [
+    {
+      "path": "/admin/reports",
+      "missingOldChunks": 4,
+      "recovered": true,
+      "syntheticAdminSessionPreserved": true
+    },
+    {
+      "path": "/admin/reviews",
+      "missingOldChunks": 4,
+      "recovered": true,
+      "syntheticAdminSessionPreserved": true
+    },
+    {
+      "path": "/matches/00000000-0000-4000-8000-000000000099",
+      "missingOldChunks": 4,
+      "recovered": true,
+      "syntheticAdminSessionPreserved": true
+    }
+  ]
+}

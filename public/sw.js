@@ -31,6 +31,14 @@ function isBrandResponse(path, response) {
     : type.startsWith('image/png'));
 }
 
+function isStaticResponse(path, response) {
+  if (!response || !response.ok) return false;
+  const type = response.headers.get('content-type') || '';
+  if (path.endsWith('.js')) return /^(text|application)\/(javascript|ecmascript)(;|$)/i.test(type);
+  if (path.endsWith('.css')) return /^text\/css(;|$)/i.test(type);
+  return !/^text\/html(;|$)/i.test(type);
+}
+
 self.addEventListener('install', (event) => {
   // 새 워커를 즉시 활성화 (대기하지 않음)
   self.skipWaiting();
@@ -54,6 +62,15 @@ self.addEventListener('activate', (event) => {
       // Do not delete another application's caches or the current app shell.
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k.startsWith('ccg-branding-') && k !== BRAND_CACHE).map((k) => caches.delete(k)));
+      // Older workers cached HTML fallbacks as missing JS chunks (HTTP 200).
+      // Remove only those poisoned entries, preserving valid old chunks and sessions.
+      const cache = await caches.open(CACHE);
+      await Promise.all((await cache.keys()).map(async (request) => {
+        const path = new URL(request.url).pathname;
+        if (path.startsWith('/assets/') && !isStaticResponse(path, await cache.match(request))) {
+          await cache.delete(request);
+        }
+      }));
       await self.clients.claim();
     })()
   );
@@ -94,7 +111,9 @@ self.addEventListener('fetch', (event) => {
           const fresh = await fetch(req);
           // 마지막으로 성공한 index를 오프라인 폴백용으로 갱신
           const cache = await caches.open(CACHE);
-          cache.put(OFFLINE_INDEX, fresh.clone()).catch(() => undefined);
+          if (fresh.ok && (fresh.headers.get('content-type') || '').includes('text/html')) {
+            await cache.put(OFFLINE_INDEX, fresh.clone()).catch(() => undefined);
+          }
           return fresh;
         } catch {
           const cached = await caches.match(OFFLINE_INDEX);
@@ -108,19 +127,26 @@ self.addEventListener('fetch', (event) => {
   // 2) 해시가 붙은 정적 자원(/assets/…, /icons/…) → 캐시 우선 + 백그라운드 갱신
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
     const network = fetch(req).then(async (res) => {
-      if (res.status === 200) {
+      if (isStaticResponse(url.pathname, res)) {
         // Clone before handing the body to the page, and finish cache writes
         // before ending the worker event (including cached-response refreshes).
         const copy = res.clone();
         await caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => undefined);
+        return res;
       }
-      return res;
+      // Never give an HTML fallback to the module loader, even on older hosts.
+      return new Response('Asset unavailable. Reload the page to get the current version.', {
+        status: res.status >= 400 ? res.status : 404,
+        headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' },
+      });
     }).catch(() => undefined);
     event.waitUntil(network.then(() => undefined));
     event.respondWith(
       (async () => {
-        const cached = await caches.match(req);
-        return cached || (await network) || Response.error();
+        const cache = await caches.open(CACHE);
+        const cached = await cache.match(req);
+        if (cached && !isStaticResponse(url.pathname, cached)) await cache.delete(req);
+        return (isStaticResponse(url.pathname, cached) ? cached : null) || (await network) || Response.error();
       })()
     );
   }

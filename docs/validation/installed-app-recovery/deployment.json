@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "engine": "26.0",
+  "missingOldChunks": [
+    "/assets/InstallGuidePage-Eo5f8Zwx.js",
+    "/assets/usePwaInstall-CZ4IjnjI.js",
+    "/assets/arrow-left-DIFxWt93.js",
+    "/assets/check-CpOXF-SE.js",
+    "/assets/copy-CjPItZPm.js",
+    "/assets/triangle-alert-DM6neroU.js",
+    "/assets/chevron-down-bOtut5pD.js",
+    "/assets/smartphone-w3IJ-bDY.js"
+  ],
+  "recoveredUrl": "http://127.0.0.1:5198/install",
+  "storage": {
+    "draft": "preserve",
+    "pref": "preserve",
+    "retry": true
+  }
+}
