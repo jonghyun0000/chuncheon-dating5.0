@@ -124,6 +124,7 @@ async function initialAssets(html) {
     visited.add(url);
     const response = await read(url);
     assert.equal(response.status, 200, 'Initial JavaScript failed to load');
+    assert.match(response.headers.get('content-type') ?? '', /^(?:text|application)\/javascript\b/i, 'Initial asset must be JavaScript, not the HTML fallback');
     const source = await response.text();
     totalBytes += Buffer.byteLength(source);
     assert.ok(totalBytes <= 8 * 1024 * 1024, 'Initial JavaScript exceeds the smoke inspection limit');
@@ -132,6 +133,56 @@ async function initialAssets(html) {
     for (const match of source.matchAll(/\b(?:import|export)\s*(?:[^;()]{0,500}?\bfrom\s*)?["']([^"']+\.js)["']/g)) add(match[1], url);
   }
   return { source: sources.join('\n'), count: visited.size };
+}
+
+async function installedAssetChecks(html, source, documentResponse) {
+  assert.match(documentResponse.headers.get('cache-control') ?? '', /\bno-cache\b/, 'HTML must revalidate after a deployment');
+  const missing = await read(`${SITE}/assets/__smoke_missing_chunk__.js`);
+  assert.equal(missing.status, 404, 'A missing module must return 404, never the SPA document with HTTP 200');
+  const worker = await read(`${SITE}/sw.js`);
+  assert.equal(worker.status, 200);
+  assert.match(worker.headers.get('content-type') ?? '', /^(?:text|application)\/javascript\b/i);
+  assert.match(worker.headers.get('cache-control') ?? '', /\bno-cache\b/);
+  const modules = ['MatchDetailPage', 'AdminReportsPage', 'AdminReviewsPage'];
+  for (const name of modules) {
+    const file = source.match(new RegExp(`${name}-[A-Za-z0-9_-]+\\.js`))?.[0];
+    assert.ok(file, `Cannot locate deployed ${name} module`);
+    const response = await read(`${SITE}/assets/${file}`);
+    assert.equal(response.status, 200, `${name} must be deployed`);
+    assert.match(response.headers.get('content-type') ?? '', /^(?:text|application)\/javascript\b/i, `${name} returned a non-JavaScript document`);
+  }
+  const link = (rel) => {
+    const tag = (html.match(/<link\b[^>]*>/g) ?? []).find(tag => tag.includes(`rel="${rel}"`));
+    const path = tag?.match(/\bhref="([^"]+)"/)?.[1];
+    assert.ok(path, `Missing ${rel} link`);
+    return new URL(path, SITE).href;
+  };
+  const manifestResponse = await read(link('manifest'));
+  assert.equal(manifestResponse.status, 200);
+  assert.match(manifestResponse.headers.get('content-type') ?? '', /^(?:application\/manifest\+json|application\/json)\b/i);
+  const manifest = await manifestResponse.json();
+  assert.equal(manifest.name, '춘천과팅');
+  assert.equal(manifest.start_url, '/?source=pwa');
+  assert.equal(manifest.scope, '/');
+  assert.equal(manifest.display, 'standalone');
+  const png = async (url, size) => {
+    const response = await read(url);
+    assert.equal(response.status, 200, 'Installed app icon must be available');
+    assert.match(response.headers.get('content-type') ?? '', /^image\/png\b/i);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.ok(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])), 'Icon must contain actual PNG bytes');
+    assert.equal(bytes.readUInt32BE(16), size); assert.equal(bytes.readUInt32BE(20), size);
+  };
+  await png(link('apple-touch-icon'), 180);
+  await png(link('icon'), 32);
+  for (const purpose of ['any', 'maskable']) {
+    for (const size of [192, 512]) {
+      const icon = manifest.icons.find(icon => icon.sizes === `${size}x${size}` && (icon.purpose ?? 'any').split(' ').includes(purpose));
+      assert.ok(icon, `Missing ${purpose} ${size}px icon`);
+      await png(new URL(icon.src, SITE).href, size);
+    }
+  }
+  return {missingModuleStatus:404, lazyModules:modules, workerRevalidates:true, documentRevalidates:true, manifest:true, icons:true};
 }
 
 async function anonymousChecks(headers) {
@@ -162,7 +213,9 @@ export async function runProductionSmoke() {
     assert.equal(documentResponse.status, 200, 'Production document must return HTTP 200');
     verifyHeaders(documentResponse);
     report.checks.securityHeaders = true;
-    const assets = await initialAssets(await documentResponse.text());
+    const html = await documentResponse.text();
+    const assets = await initialAssets(html);
+    report.checks.installedAssets = await installedAssetChecks(html, assets.source, documentResponse);
     const { headers } = extractPublicConfiguration(assets.source);
     report.checks.publicConfiguration = { project: PROJECT, initialAssetCount: assets.count };
     report.checks.anonymous = await anonymousChecks(headers);
