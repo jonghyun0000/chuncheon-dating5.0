@@ -1,6 +1,6 @@
 # 춘천과팅 웹·앱 동시 운영 및 스토어 출시 준비
 
-기준일: 2026-11-18. 사용자 확인: Google Play Console **개인 계정**, 약 1년 전 생성, 앱 출시 이력 없음. Apple Developer 계정은 아직 준비 전.
+기준일: 2026-11-18. 사용자 확인: Google Play Console **개인 계정**, 약 1년 전 생성, 춘천과팅 **앱 생성·AAB 업로드·출시 이력 없음**. Apple Developer 계정은 아직 준비 전.
 
 서명된 Android 후보는 생성했지만 **Play 업로드·비공개 테스트 시작·운영 DB 적용은 하지 않았다.** 체크되지 않은 항목은 구현 부재뿐 아니라 원격 검증·공개 정책·실기기 확인 등이 남았음을 뜻한다. 패키지 생성만으로 심사 통과나 출시가 보장되지는 않는다.
 
@@ -30,7 +30,8 @@
 ## 계정·배포 준비
 
 - [x] Google Play Console 계정 준비 여부 확인.
-- [x] Google 계정 유형과 대략적인 생성 시기 확인: 개인 계정, 약 1년 전 생성, 출시 이력 없음.
+- [x] Google 계정 유형과 대략적인 생성 시기 확인: 개인 계정, 약 1년 전 생성, 앱 생성·업로드·출시 이력 없음.
+- [ ] [최초 앱 생성 안내](android-closed-test/FIRST_APP_SETUP.md)에 따라 Console에 새 앱 생성. 생성·서명 등록은 아직 실행하지 않음.
 - [ ] 최소 12명이 연속 14일 동안 비공개 테스트 참여를 선택한 상태를 유지하고 프로덕션 접근을 신청한다. Console 계정 확인 작업과 실제 참여 시작일을 별도 확인한다. APK 직접 설치·내부 테스트·이메일 등록만으로 조건을 충족하지 않으며 14일 후 자동 승인되지 않는다. [Google 테스트 요건](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
 - [ ] Apple Developer 가입·본인/조직 확인·App Store Connect 접근 준비. 공식 연회비는 99 USD이며 지역 금액은 가입 화면에서 확인한다. 개인 가입은 법적 개인 이름이 판매자로 표시된다. [Apple 가입 안내](https://developer.apple.com/help/account/membership/program-enrollment/)
 - [x] Android 로컬 업로드 키 생성 및 서명 후보 빌드 확인.
