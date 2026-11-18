@@ -1,5 +1,11 @@
 node_modules/
 dist/
+dist-native/
+native-build/
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
 .vercel/
 .env
 .env.*

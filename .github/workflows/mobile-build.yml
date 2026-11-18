@@ -1,0 +1,55 @@
+name: Verify mobile builds
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - run: npm ci
+      - run: npm run mobile:sync
+        env:
+          VITE_SUPABASE_URL: https://test.invalid
+          VITE_SUPABASE_ANON_KEY: test-only-key
+      - run: ./gradlew --no-daemon assembleDebug
+        working-directory: android
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run mobile:sync
+        env:
+          VITE_SUPABASE_URL: https://test.invalid
+          VITE_SUPABASE_ANON_KEY: test-only-key
+      - name: Compile iOS without signing or store upload
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath native-build/ios CODE_SIGNING_ALLOWED=NO build
