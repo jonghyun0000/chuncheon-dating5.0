@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const file = process.env.CC_ANDROID_SIGNING_CONFIG || join(homedir(), '.config/chuncheon-dating/android-signing/upload-key.json');
 assert.equal(statSync(file).mode & 0o077, 0, 'Signing credentials must not be group/world readable');
 const signing = JSON.parse(readFileSync(file, 'utf8'));
@@ -19,7 +20,9 @@ const backend = new URL(settings.VITE_SUPABASE_URL);
 assert.ok(backend.protocol === 'https:' && backend.hostname.endsWith('.supabase.co'), 'Release requires a real HTTPS Supabase backend, not a fixture');
 assert.ok(settings.VITE_SUPABASE_ANON_KEY && settings.VITE_SUPABASE_ANON_KEY !== 'test-only-key', 'Release requires a public client key');
 const run = (cmd, args, extra = {}) => execFileSync(cmd, args, { cwd: root, stdio: 'inherit', ...extra });
-run('npm', ['run', 'build:native']);
+run('npm', ['run', 'build:native'], { env: { ...process.env, VERCEL_GIT_COMMIT_SHA: sourceCommit } });
+assert.equal(JSON.parse(readFileSync(join(root, 'dist-native/build-info.json'), 'utf8')).commit, sourceCommit,
+  'Bundled build metadata must identify the source commit');
 run(join(root, 'node_modules/.bin/cap'), ['sync', 'android']);
 run(join(root, 'android/gradlew'), ['-p', 'android', '--no-daemon', 'bundleRelease', 'assembleRelease'], {
   env: { ...process.env, CC_ANDROID_STORE_FILE: signing.keystore, CC_ANDROID_STORE_PASSWORD: signing.password,
@@ -40,7 +43,7 @@ const name = `chuncheon-${version.versionName}-candidate`;
 copyFileSync(aab, join(out, name+'.aab'));
 copyFileSync(join(root, 'android/app/build/outputs/apk/release/app-release.apk'), join(out, name+'.apk'));
 const report = { status: 'candidate-not-approved-for-upload', packageId: metadata.applicationId, versionCode: version.versionCode, versionName: version.versionName,
-  sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+  sourceCommit,
   uploadCertificateSha256: createHash('sha256').update(certificate).digest('hex'),
   backend: backend.origin, signatureVerified: true, sha256: createHash('sha256').update(readFileSync(aab)).digest('hex'),
   blockers: ['Confirm final Play application identity and upload certificate', 'Apply and verify server safety changes with approval',
