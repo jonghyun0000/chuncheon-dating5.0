@@ -12,6 +12,7 @@ import type { MatchRequestWithTeams } from './matches.types';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
+import { BlockTeamButton } from '@/features/safety/UserBlocking';
 import { admissionLabel } from '@/utils/format';
 
 export default function MatchDetailPage() {
@@ -147,6 +148,7 @@ export default function MatchDetailPage() {
       </section>
 
       <div className="mt-6 space-y-2">
+        <BlockTeamButton teamId={otherTeam.id} onBlocked={() => nav('/requests', { replace: true })} />
         <Button variant="ghost" className="w-full" onClick={() => nav('/requests')}>
           {t.matchDetail.backToRequests}
         </Button>

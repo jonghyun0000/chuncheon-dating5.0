@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = join(root, 'supabase/tests');
 const baseline = join(root, 'supabase/baseline.sql');
 const migrationDir = join(root, 'supabase/migrations');
-const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql', 'department-privacy.sql', 'team-examples.sql', 'home-advertising.sql', 'songgok-university.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
+const cases = ['regressions.sql', 'deferred-verification.sql', 'member-photos.sql', 'department-privacy.sql', 'team-examples.sql', 'home-advertising.sql', 'songgok-university.sql', 'user-blocking.sql'].map(name => readFileSync(join(testDir, name), 'utf8')).join('\n').split(/^-- TEST /m).slice(1).map(part => {
   const [header, ...lines] = part.split('\n');
   const [id, mode, ...label] = header.trim().split(' ');
   return { id, mode, label: label.join(' '), sql: lines.join('\n') };
@@ -147,8 +147,30 @@ try {
     sql("SELECT test_support.assert(NOT has_function_privilege('anon','public.get_same_gender_team_examples(integer,integer)','EXECUTE'),'anonymous execute denied after reapply'); SELECT test_support.assert(has_function_privilege('authenticated','public.get_same_gender_team_examples(integer,integer)','EXECUTE'),'authenticated wrapper restored');", 'examples_rollback');
     console.log('PASS examples rollback and reapplication: existing home and strict grants preserved');
   }
+  const blockingMigration = migrations.find(name => name.endsWith('_individual_user_blocking.sql'));
+  if (blockingMigration) {
+    const db = 'blocking_rollback';
+    sql(`CREATE DATABASE ${db} TEMPLATE hardened;`);
+    sql("INSERT INTO user_safety.blocks(blocker_id,blocked_id,label) VALUES('00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002','retained block');", db);
+    sql(readFileSync(join(root, 'supabase/operations/rollback_individual_user_blocking.sql'), 'utf8'), db);
+    sql("BEGIN; SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true); SET LOCAL ROLE authenticated; SELECT test_support.assert(public.department_team_visible('10000000-0000-4000-8000-000000000002'),'approved rollback restores prior policy'); SELECT test_support.assert(to_regprocedure('public.user_blocking_available()') IS NULL,'capability removed'); SELECT public.set_department_privacy(true); SELECT test_support.assert(NOT public.department_team_visible('10000000-0000-4000-8000-000000000002'),'department protection remains'); ROLLBACK;", db);
+    sql('BEGIN;\n' + readFileSync(join(migrationDir, blockingMigration), 'utf8') + '\nCOMMIT;', db);
+    sql("BEGIN; SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true); SET LOCAL ROLE authenticated; SELECT test_support.assert(public.user_blocking_available(),'capability restored'); SELECT test_support.assert(NOT public.department_team_visible('10000000-0000-4000-8000-000000000002'),'retained block restored'); SELECT test_support.expect_denied('SELECT * FROM user_safety.blocks'); ROLLBACK;", db);
+    console.log('PASS blocking rollback and reapplication: department privacy and retained block records preserved');
+  }
   // Two separate connections overlap while the first transaction holds its locks.
   for (const race of [
+    { name: 'block_request', uid: '00000000-0000-4000-8000-000000000002',
+      setup: "DELETE FROM public.match_requests WHERE id='30000000-0000-4000-8000-000000000001';",
+      first: "SELECT public.block_team_owner('10000000-0000-4000-8000-000000000003');",
+      second: "INSERT INTO public.match_requests(from_team_id,to_team_id) VALUES('10000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000003');",
+      error: '매칭을 신청할 수 없습니다',
+      check: "SELECT test_support.assert((SELECT count(*)=0 FROM public.match_requests WHERE from_team_id='10000000-0000-4000-8000-000000000002'),'block commit prevents concurrent request');" },
+    { name: 'block_accept', uid: '00000000-0000-4000-8000-000000000003',
+      first: "SELECT public.block_team_owner('10000000-0000-4000-8000-000000000002');",
+      second: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000001');",
+      error: '두 팀의 상태',
+      check: "SELECT test_support.assert((SELECT count(*)=0 FROM public.match_requests WHERE status='accepted'),'block commit prevents concurrent acceptance');" },
     { name: 'privacy_accept', uid: '00000000-0000-4000-8000-000000000003',
       first: 'SELECT public.set_department_privacy(true);',
       second: "SELECT public.accept_match_request('30000000-0000-4000-8000-000000000001');",
@@ -189,7 +211,7 @@ try {
       console.log(`PASS concurrent ${race.name}: competing transactions preserve one valid outcome`);
     }
   }
-  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 5 concurrency cases.`);
+  console.log(`\n${reproduced} baseline vulnerabilities reproduced; ${passed}/${cases.length} hardened regressions checked, plus historical redaction and 7 concurrency cases.`);
   if (failed) process.exitCode = 1;
 } catch (error) {
   console.error(error.message);

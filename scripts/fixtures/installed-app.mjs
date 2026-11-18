@@ -13,7 +13,7 @@ const opponent = {
   id: '00000000-0000-4000-8000-000000000002', owner_id: '00000000-0000-4000-8000-000000000003', gender: 'female', intro: '가상 상대 팀', status: 'active', team_size: 1, owner_verified: true, created_at: '2026-01-01T00:00:00Z',
   members: [{id:'m1', member_order:1, nickname:'가상팀원', school:'한림대', department:'경영학과', student_number:'26', smoking:false, taste_tags:['산책'], want_tags:[]}],
 };
-const readRpcs = new Set(['get_home_stats', 'get_home_teams', 'get_member_photos', 'get_home_advertising', 'unhandled_notification_count']);
+const readRpcs = new Set(['get_home_stats', 'get_home_teams', 'get_member_photos', 'get_home_advertising', 'unhandled_notification_count', 'user_blocking_available']);
 export function fixtureResponse(path, method, fixture) {
   if (method === 'OPTIONS') return { status: 204 };
   if (method !== 'GET' && !(method === 'POST' && path.includes('/rpc/') && readRpcs.has(path.split('/').at(-1)))) {
@@ -26,6 +26,7 @@ export function fixtureResponse(path, method, fixture) {
   else if (path.endsWith('/rpc/get_home_stats')) data = {total_teams:1, matched_count:0, total_users:2};
   else if (path.endsWith('/rpc/unhandled_notification_count')) data = 0;
   else if (path.endsWith('/rpc/get_home_advertising')) data = null;
+  else if (path.endsWith('/rpc/user_blocking_available')) data = false;
   else if (path.endsWith('/rpc/get_home_teams')) data = [opponent];
   return { status: 200, data };
 }

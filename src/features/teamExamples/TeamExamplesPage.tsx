@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { schoolLabel, labelSmoking } from '@/lib/constants';
 import { EXAMPLES_PAGE_SIZE, fetchTeamExamples, type TeamExample } from './teamExamples.api';
 import { teamExamplesCopy } from './teamExamplesCopy';
+import { BlockTeamButton } from '@/features/safety/UserBlocking';
 
 export default function TeamExamplesPage() {
   const { t, lang } = useI18n();
@@ -64,6 +65,7 @@ export default function TeamExamplesPage() {
             <MemberTags taste={member.taste_tags} want={member.want_tags} compact />
           </li>)}
         </ul>
+        <BlockTeamButton teamId={team.id} onBlocked={() => void load(true)} />
       </article>)}
     </div>
     {loading && <Loading />}

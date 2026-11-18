@@ -10,6 +10,7 @@ import { admissionLabel, formatDateTime } from '@/utils/format';
 import { SCHOOL_BADGE_COLOR, labelSmoking, labelTeamGender, schoolLabel } from '@/lib/constants';
 import type { MatchRequestWithTeams } from '@/features/matches/matches.types';
 import { useI18n } from '@/i18n';
+import { BlockTeamButton } from '@/features/safety/UserBlocking';
 
 interface Props {
   request: MatchRequestWithTeams;
@@ -23,6 +24,7 @@ export default function MatchRequestCard({ request, side, onAccept, onReject, bu
   const nav = useNavigate();
   const { t } = useI18n();
   const [openTeam, setOpenTeam] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const counterpart = side === 'incoming' ? request.from_team : request.to_team;
   const members = counterpart?.members ?? [];
 
@@ -40,6 +42,7 @@ export default function MatchRequestCard({ request, side, onAccept, onReject, bu
 
   const isAccepted = request.status === 'accepted';
 
+  if (blocked) return null;
   return (
     <article 
       className={`card p-5 animate-fade-up ${isAccepted ? 'cursor-pointer hover:shadow-lg transition' : ''}`}
@@ -162,6 +165,9 @@ export default function MatchRequestCard({ request, side, onAccept, onReject, bu
             : t.requestCard.cancelledIncoming}
         </p>
       )}
+      <div onClick={event => event.stopPropagation()}>
+        <BlockTeamButton teamId={counterpart.id} onBlocked={() => setBlocked(true)} />
+      </div>
     </article>
   );
 }

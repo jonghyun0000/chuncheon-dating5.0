@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-native/
 native-build/
+release-candidates/
 *.keystore
 *.jks
 *.p12

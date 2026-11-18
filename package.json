@@ -23,7 +23,9 @@
     "mobile:sync": "npm run build:native && cap sync",
     "mobile:android": "cap open android",
     "mobile:ios": "cap open ios",
-    "mobile:icons": "capacitor-assets generate --assetPath assets --ios --android"
+    "mobile:icons": "capacitor-assets generate --assetPath assets --ios --android",
+    "mobile:android:key": "node scripts/android-upload-key.mjs",
+    "mobile:android:bundle": "node scripts/build-android-release.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.6.2",

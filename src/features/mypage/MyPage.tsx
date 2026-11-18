@@ -1,5 +1,6 @@
 import { hasVerificationBadge } from '@/features/auth/verificationAccess';
 import DepartmentPrivacy from '@/features/teams/DepartmentPrivacy';
+import { BlockedUsers } from '@/features/safety/UserBlocking';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -112,6 +113,7 @@ export default function MyPage() {
       {loadError && <LoadError retry={() => void load()} />}
       <MatchedTeamBanner show={myTeam?.status === 'matched'} />
       <DepartmentPrivacy />
+      <BlockedUsers />
       <VerificationBanner />
       <ContactUpdateBanner />
 

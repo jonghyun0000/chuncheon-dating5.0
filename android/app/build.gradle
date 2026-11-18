@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// Upload-key credentials are provided by the local release runner, never committed.
+def uploadStore = System.getenv('CC_ANDROID_STORE_FILE')
+def uploadPassword = System.getenv('CC_ANDROID_STORE_PASSWORD')
+def uploadAlias = System.getenv('CC_ANDROID_KEY_ALIAS')
+def uploadKeyPassword = System.getenv('CC_ANDROID_KEY_PASSWORD')
+def uploadReady = uploadStore && uploadPassword && uploadAlias && uploadKeyPassword
+if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') } && !uploadReady) {
+    throw new GradleException('Release signing is not configured. Use npm run mobile:android:bundle.')
+}
+
 android {
     namespace = "kr.hyundo.chuncheondating"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,7 +18,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0-beta.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +26,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (uploadReady) {
+            upload {
+                storeFile file(uploadStore)
+                storePassword uploadPassword
+                keyAlias uploadAlias
+                keyPassword uploadKeyPassword
+                storeType 'PKCS12'
+            }
+        }
+    }
     buildTypes {
         release {
+            if (uploadReady) signingConfig signingConfigs.upload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
