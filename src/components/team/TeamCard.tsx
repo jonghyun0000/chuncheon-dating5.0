@@ -1,4 +1,5 @@
 import { canParticipate } from '@/features/auth/verificationAccess';
+import { BlockTeamButton } from '@/features/safety/UserBlocking';
 import { useEffect, useState } from 'react';
 import TeamMemberIdentity from '@/components/team/TeamMemberIdentity';
 import { getMemberPhotos, type MemberPhoto as Photo } from '@/features/photos/photos.api';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function TeamCard({ team, onApply, applying, alreadyApplied, isOwn, sameGender }: Props) {
+  const [blocked, setBlocked] = useState(false);
   const { t, lang } = useI18n();
   const [photos, setPhotos] = useState<Photo[]>([]);
   useEffect(() => {
@@ -39,6 +41,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
   const sizeMismatch =
     team.my_team_size != null && team.team_size !== team.my_team_size;
 
+  if (blocked) return null;
   return (
     <article className="card p-5 animate-fade-up">
       <div className="flex items-start justify-between gap-3">
@@ -101,6 +104,7 @@ export default function TeamCard({ team, onApply, applying, alreadyApplied, isOw
           </button>
         )}
       </div>
+      {!isOwn && <BlockTeamButton teamId={team.id} onBlocked={() => setBlocked(true)} />}
     </article>
   );
 }

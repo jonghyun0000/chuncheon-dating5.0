@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">춘천과팅</string>
+    <string name="title_activity_main">춘천과팅</string>
+    <string name="package_name">kr.hyundo.chuncheondating</string>
+    <string name="custom_url_scheme">kr.hyundo.chuncheondating</string>
+</resources>

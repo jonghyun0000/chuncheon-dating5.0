@@ -18,9 +18,20 @@
     "check": "npm run typecheck && npm test && npm run build",
     "test:e2e": "playwright test",
     "test:e2e:webkit": "CC_TEST_API_ORIGIN=http://127.0.0.1:5181 playwright test --config=playwright.webkit.config.ts",
-    "test:installed-upgrade": "node scripts/test-installed-upgrade.mjs"
+    "test:installed-upgrade": "node scripts/test-installed-upgrade.mjs",
+    "build:native": "tsc --noEmit && node scripts/build-native.mjs",
+    "mobile:sync": "npm run build:native && cap sync",
+    "mobile:android": "cap open android",
+    "mobile:ios": "cap open ios",
+    "mobile:icons": "capacitor-assets generate --assetPath assets --ios --android",
+    "mobile:android:key": "node scripts/android-upload-key.mjs",
+    "mobile:android:bundle": "node scripts/build-android-release.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2",
     "@supabase/supabase-js": "2.105.1",
     "lucide-react": "0.451.0",
     "react": "18.3.1",
@@ -28,6 +39,8 @@
     "react-router-dom": "7.18.4"
   },
   "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.2",
     "@playwright/test": "1.58.2",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/jest-dom": "6.9.1",

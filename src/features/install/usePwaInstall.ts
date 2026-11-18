@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { isNativeApp } from '@/lib/platform';
 
 /** Chrome 이 발생시키는 설치 프롬프트 이벤트 (표준 타입에 아직 없어 직접 선언) */
 interface BeforeInstallPromptEvent extends Event {
@@ -10,6 +11,7 @@ export type Platform = 'ios' | 'android' | 'desktop';
 
 /** 앱이 홈 화면 아이콘으로 실행되고 있는지 */
 export function isStandalone(): boolean {
+  if (isNativeApp()) return true;
   if (typeof window === 'undefined') return false;
   return (
     window.matchMedia?.('(display-mode: standalone)').matches ||

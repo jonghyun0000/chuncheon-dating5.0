@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/i18n';
+import { installationOrigin } from '@/lib/platform';
 import { detectPlatform, isInAppBrowser, usePwaInstall } from './usePwaInstall';
 
 type Tab = 'ios' | 'android';
@@ -125,8 +126,8 @@ export default function InstallGuidePage() {
   const [installMsg, setInstallMsg] = useState<string | null>(null);
 
   // 주소를 코드에 박아두면 도메인을 바꿨을 때 안내가 틀려집니다.
-  const host = typeof window === 'undefined' ? '' : window.location.host;
-  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  const origin = installationOrigin(typeof window === 'undefined' ? '' : window.location.origin);
+  const host = origin ? new URL(origin).host : '';
 
   useEffect(() => {
     if (!copied) return;

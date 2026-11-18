@@ -15,9 +15,12 @@ import { createReview, fetchApprovedReviews, fetchMyReviews } from './reviews.ap
 import type { Review } from '@/types/database.types';
 import { koMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/format';
+import { useAuth } from '@/hooks/useAuth';
+import { BlockReviewButton } from '@/features/safety/UserBlocking';
 
 export default function ReviewsPage() {
   const { t } = useI18n();
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [list, setList] = useState<Review[]>([]);
@@ -121,6 +124,8 @@ export default function ReviewsPage() {
               </div>
               <p className="mt-3 text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">{r.content}</p>
               <p className="mt-3 text-[11px] text-zinc-400">{formatDate(r.created_at)}</p>
+              {r.user_id !== profile?.id && <BlockReviewButton reviewId={r.id}
+                onBlocked={() => setList(rows => rows.filter(row => row.user_id !== r.user_id))} />}
             </article>
           ))}
         </div>
