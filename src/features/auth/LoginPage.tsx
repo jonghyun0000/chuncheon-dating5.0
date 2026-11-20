@@ -1,3 +1,4 @@
+import KakaoButton from './KakaoButton';
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Input from '@/components/common/Input';
@@ -9,12 +10,12 @@ import { useI18n } from '@/i18n';
 
 export default function LoginPage() {
   const nav = useNavigate();
-  const loc = useLocation() as { state?: { from?: string } };
+  const loc = useLocation() as { state?: { from?: string; kakaoFailed?: boolean } };
   const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(loc.state?.kakaoFailed ? '카카오 로그인을 완료하지 못했어요. 다시 시도해주세요.' : null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +81,7 @@ export default function LoginPage() {
           )}
           <Button type="submit" loading={loading} className="w-full">{t.common.login}</Button>
 
+          <KakaoButton />
           <div className="flex items-center justify-center gap-3 pt-1 text-sm text-zinc-500">
             <Link to="/find-username" className="transition hover:text-zinc-800">{t.common.findUsername}</Link>
             <span className="text-zinc-300">|</span>

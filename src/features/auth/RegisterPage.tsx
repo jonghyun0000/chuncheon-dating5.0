@@ -1,3 +1,4 @@
+import KakaoButton from './KakaoButton';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Check, X } from 'lucide-react';
@@ -27,7 +28,8 @@ export default function RegisterPage() {
   const { t, lang } = useI18n();
   const m = authMessages(lang);
   const v = verificationCopy(lang);
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, session } = useAuth();
+  const kakao = session?.user.app_metadata?.provider === 'kakao';
   const [params] = useSearchParams();
   const [resume, setResume] = useState(params.get('resume') === '1');
   const [form, setForm] = useState({
@@ -104,8 +106,8 @@ export default function RegisterPage() {
 
     if (!isValidUsername(form.username)) return setErr(t.validators.usernameHint);
     if (!usernameOk && !checkUnsupported && !resume) return setErr(t.register.errUsernameNotChecked);
-    if (!isValidPassword(form.password)) return setErr(t.validators.passwordHint);
-    if (form.password !== form.password2) return setErr(t.register.errPasswordMismatch);
+    if (!kakao && !isValidPassword(form.password)) return setErr(t.validators.passwordHint);
+    if (!kakao && form.password !== form.password2) return setErr(t.register.errPasswordMismatch);
     if (!isValidName(form.name)) return setErr(t.register.errName);
     if (!isValidStudentNumber(form.student_number)) return setErr(t.validators.studentNumberError);
     const contactErr = validateContact(form.contact_type, form.contact_id);
@@ -128,7 +130,7 @@ export default function RegisterPage() {
         agreed_privacy: true,
         agreed_terms: true,
         agreed_disclaimer: true,
-      });
+      }, kakao ? session.user.id : undefined);
       await refreshProfile();
       alert(v.signupDone);
       nav('/', { replace: true });
@@ -148,13 +150,14 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={submit} className="card space-y-4 p-5">
-          <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-600">
+          {!session && <KakaoButton />}
+          {!kakao && <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-600">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={resume} onChange={(event) => setResume(event.target.checked)} />
               {m.resumeMode}
             </label>
             {resume && <p className="mt-2 leading-relaxed">{m.resumeHint}</p>}
-          </div>
+          </div>}
           {/* 아이디 + 중복확인 */}
           <div>
             <label className="label" htmlFor="register-username">{t.login.username}</label>
@@ -198,8 +201,10 @@ export default function RegisterPage() {
               <p className="mt-1 text-xs text-zinc-400">{t.validators.usernameHint}</p>
             )}
           </div>
+          {!kakao && <>
           <Input label={t.login.password} type="password" hint={t.validators.passwordHint} value={form.password} onChange={(e) => set('password', e.target.value)} />
           <Input label={t.register.passwordConfirm} type="password" value={form.password2} onChange={(e) => set('password2', e.target.value)} />
+          </>}
           <Input label={t.register.name} placeholder={t.register.namePlaceholder} value={form.name} onChange={(e) => set('name', e.target.value)} />
 
           <Select label={t.register.gender} value={form.gender} onChange={(e) => set('gender', e.target.value as 'male' | 'female')}>
