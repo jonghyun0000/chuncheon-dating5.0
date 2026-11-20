@@ -41,6 +41,16 @@ const AdminSecurityPage = lazy(() => import('@/features/admin/AdminSecurityPage'
 
 import { useAuth } from '@/hooks/useAuth';
 
+function KakaoCallback() {
+  const { session, loading, error } = useAuth();
+  if (loading) return <Loading />;
+  if (!session) return <Navigate to="/login" replace state={{ kakaoFailed: true }} />;
+  if (error === 'missing-profile' && session.user.app_metadata?.provider === 'kakao') {
+    return <Navigate to="/register" replace />;
+  }
+  return <Navigate to="/" replace />;
+}
+
 function RootRoute() {
   const { session, loading, error } = useAuth();
   if (loading) return <Loading />;
@@ -55,6 +65,7 @@ export default function AppRouter() {
       <Route path="/" element={<RootRoute />} />
       <Route path="/tour" element={<TourPage />} />
       <Route path="/install" element={<InstallGuidePage />} />
+      <Route path="/auth/kakao" element={<KakaoCallback />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/find-username" element={<FindUsernamePage />} />

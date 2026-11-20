@@ -38,13 +38,7 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
   return data === true;
 }
 
-export async function signUp(input: RegisterInput) {
-  if (!input.agreed_privacy || !input.agreed_terms || !input.agreed_disclaimer) {
-    throw new Error(tr().register.errTermsRequired);
-  }
-
-  if (!input.studentIdFile) throw new Error(verificationCopy().needPhoto);
-  const fileInfo = await validateStudentIdFile(input.studentIdFile);
+async function passwordSignupId(input: RegisterInput) {
   const email = usernameToFakeEmail(input.username.trim());
 
   // 1) Auth 계정 생성
@@ -75,7 +69,25 @@ export async function signUp(input: RegisterInput) {
     user = data.user;
   }
   if (!user || user.email?.toLowerCase() !== email) throw new Error(tr().register.errSignUpFailed);
-  const uid = user.id;
+  return user.id;
+}
+
+async function verifiedKakaoId(expected: string) {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || data.user?.id !== expected || data.user.app_metadata.provider !== 'kakao') {
+    throw new Error('카카오 로그인을 다시 진행해주세요.');
+  }
+  return data.user.id;
+}
+
+export async function signUp(input: RegisterInput, kakaoUserId?: string) {
+  if (!input.agreed_privacy || !input.agreed_terms || !input.agreed_disclaimer) {
+    throw new Error(tr().register.errTermsRequired);
+  }
+
+  if (!input.studentIdFile) throw new Error(verificationCopy().needPhoto);
+  const fileInfo = await validateStudentIdFile(input.studentIdFile);
+  const uid = kakaoUserId ? await verifiedKakaoId(kakaoUserId) : await passwordSignupId(input);
   const { data: existing, error: existingError } = await supabase.from('profiles').select('id').eq('id', uid).maybeSingle();
   if (existingError) throw existingError;
   if (existing) throw new Error(authMessages().existing);

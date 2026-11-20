@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { signUp } from './auth.api';
 import type { RegisterInput } from './auth.types';
-const mocks = vi.hoisted(() => ({ signUp: vi.fn(), signIn: vi.fn(), read: vi.fn(), insert: vi.fn(), upload: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getUser: vi.fn(), signUp: vi.fn(), signIn: vi.fn(), read: vi.fn(), insert: vi.fn(), upload: vi.fn(), remove: vi.fn() }));
 vi.mock('@/lib/supabaseClient', () => ({ supabase: {
-  auth: { signUp: mocks.signUp, signInWithPassword: mocks.signIn },
+  auth: { getUser: mocks.getUser, signUp: mocks.signUp, signInWithPassword: mocks.signIn },
   from: () => {
     const query = { select: () => query, eq: () => query, maybeSingle: mocks.read, insert: mocks.insert };
     return query;
@@ -100,5 +100,20 @@ describe('registration and interrupted signup recovery', () => {
     mocks.read.mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce({ data: null, error: new Error('offline') });
     await expect(signUp(input())).rejects.toThrow('connection lost');
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('Kakao registration', () => {
+  it('uses the verified Kakao account for the existing student registration flow', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: user.id, app_metadata: { provider: 'kakao' } } } });
+    await signUp({ ...input(), password: '' }, user.id);
+    expect(mocks.signUp).not.toHaveBeenCalled();
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ id: user.id }));
+  });
+
+  it('stops before upload when the signed-in account changed', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: 'another', app_metadata: { provider: 'kakao' } } } });
+    await expect(signUp(input(), user.id)).rejects.toThrow();
+    expect(mocks.upload).not.toHaveBeenCalled();
   });
 });
